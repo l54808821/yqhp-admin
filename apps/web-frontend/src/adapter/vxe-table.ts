@@ -4,7 +4,7 @@ import { h } from 'vue';
 
 import { setupVbenVxeTable, useVbenVxeGrid } from '@vben/plugins/vxe-table';
 
-import { Button } from 'ant-design-vue';
+import { Button, Image } from 'ant-design-vue';
 
 import { useVbenForm } from './form';
 
@@ -43,9 +43,10 @@ setupVbenVxeTable({
       renderTableDefault(renderOpts, params) {
         const { props } = renderOpts;
         const { column, row } = params;
-        return h(Image, { src: row[column.field], ...props } as any);
+        return h(Image, { src: row[column.field], ...props });
       },
     });
+
     // 表格配置项可以用 cellRender: { name: 'CellLink' },
     vxeUI.renderer.add('CellLink', {
       renderTableDefault(renderOpts) {
