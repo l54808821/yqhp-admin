@@ -2,8 +2,12 @@
 import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
+import { preferences } from '@vben/preferences';
+import { useAccessStore } from '@vben/stores';
+
 import { Spin } from 'ant-design-vue';
 
+import { getAccessCodesApi } from '#/api';
 import { oauthCallbackApi } from '#/api/system/oauth';
 import { useAuthStore } from '#/store';
 
@@ -12,6 +16,7 @@ defineOptions({ name: 'OAuthCallback' });
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const accessStore = useAccessStore();
 
 const loading = ref(true);
 const error = ref('');
@@ -30,14 +35,34 @@ onMounted(async () => {
   try {
     const result = await oauthCallbackApi(provider, code);
 
-    // 保存token和用户信息
+    // 保存token
     authStore.setAccessToken(result.token);
 
-    // 获取用户信息并跳转
+    // 获取用户信息
     await authStore.fetchUserInfo();
 
-    // 根据 state 参数决定跳转位置
-    const redirectPath = state || '/';
+    // 获取权限码
+    const accessCodes = await getAccessCodesApi();
+    accessStore.setAccessCodes(accessCodes);
+
+    // 解码 state 参数并跳转
+    let redirectPath = '/';
+    if (state) {
+      try {
+        redirectPath = decodeURIComponent(state);
+      } catch {
+        redirectPath = state;
+      }
+    }
+    // 如果是登录页或空，跳转到默认首页
+    if (
+      !redirectPath ||
+      redirectPath === '/' ||
+      redirectPath === '/auth/login'
+    ) {
+      redirectPath = preferences.app.defaultHomePath;
+    }
+
     router.replace(redirectPath);
   } catch (error_: any) {
     error.value = error_?.message || '登录失败，请重试';
