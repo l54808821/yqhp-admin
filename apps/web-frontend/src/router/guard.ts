@@ -107,13 +107,19 @@ function setupAccessGuard(router: Router) {
     accessStore.setAccessMenus(accessibleMenus);
     accessStore.setAccessRoutes(accessibleRoutes);
     accessStore.setIsAccessChecked(true);
-    const redirectPath = (from.query.redirect ??
-      (to.path === preferences.app.defaultHomePath
-        ? userInfo.homePath || preferences.app.defaultHomePath
-        : to.fullPath)) as string;
 
+    let redirectPath: string;
+    if (from.query.redirect) {
+      redirectPath = decodeURIComponent(from.query.redirect as string);
+    } else if (to.path === preferences.app.defaultHomePath) {
+      redirectPath = userInfo.homePath || preferences.app.defaultHomePath;
+    } else {
+      redirectPath = to.fullPath;
+    }
+
+    // 直接返回路径字符串，让 Vue Router 重新匹配新添加的动态路由
     return {
-      ...router.resolve(decodeURIComponent(redirectPath)),
+      path: redirectPath,
       replace: true,
     };
   });

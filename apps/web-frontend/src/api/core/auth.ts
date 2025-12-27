@@ -98,22 +98,8 @@ export async function registerApi(data: AuthApi.RegisterParams) {
  * 获取用户权限码
  */
 export async function getAccessCodesApi() {
-  // 从用户菜单中获取权限码
   try {
-    const menus = await requestClient.get<any[]>('/menus');
-    const codes: string[] = [];
-    const extractCodes = (items: any[]) => {
-      for (const item of items) {
-        if (item.code) {
-          codes.push(item.code);
-        }
-        if (item.children) {
-          extractCodes(item.children);
-        }
-      }
-    };
-    extractCodes(menus);
-    return codes;
+    return await requestClient.get<string[]>('/permissions');
   } catch {
     return [];
   }

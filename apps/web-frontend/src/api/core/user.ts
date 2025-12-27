@@ -14,11 +14,10 @@ export async function getUserInfoApi() {
     realName: result.nickname || result.username,
     avatar: result.avatar || '',
     desc: result.remark || '',
-    roles:
-      result.roles?.map((r: any) => ({
-        roleName: r.name,
-        value: r.code,
-      })) || [],
+    homePath: '',
+    token: '',
+    // roles 需要是字符串数组，使用角色 code 作为标识
+    roles: result.roles?.map((r: any) => r.code) || [],
   };
   return userInfo;
 }
