@@ -58,6 +58,7 @@ export namespace UserApi {
   export interface UpdateParams {
     id: number;
     nickname?: string;
+    avatar?: string;
     email?: string;
     phone?: string;
     gender?: number;

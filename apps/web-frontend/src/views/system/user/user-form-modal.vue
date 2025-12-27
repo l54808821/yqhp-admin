@@ -4,6 +4,7 @@ import type { UserApi } from '#/api/system/user';
 import { ref } from 'vue';
 
 import {
+  Avatar,
   Form,
   FormItem,
   Input,
@@ -28,7 +29,9 @@ const loading = ref(false);
 const isEdit = ref(false);
 
 // 表单数据
-const formData = ref<Partial<UserApi.CreateParams & { id?: number }>>({});
+const formData = ref<
+  Partial<UserApi.CreateParams & UserApi.UpdateParams & { id?: number }>
+>({});
 const roles = ref<any[]>([]);
 const depts = ref<any[]>([]);
 
@@ -49,6 +52,7 @@ function open(params: OpenParams) {
       id: params.record.id,
       username: params.record.username,
       nickname: params.record.nickname,
+      avatar: params.record.avatar,
       email: params.record.email,
       phone: params.record.phone,
       gender: params.record.gender,
@@ -63,6 +67,7 @@ function open(params: OpenParams) {
       gender: 0,
       status: 1,
       roleIds: [],
+      avatar: '',
     };
   }
 
@@ -124,6 +129,18 @@ defineExpose({ open });
       </FormItem>
       <FormItem label="昵称">
         <Input v-model:value="formData.nickname" placeholder="请输入昵称" />
+      </FormItem>
+      <FormItem label="头像">
+        <div class="flex items-center gap-4">
+          <Avatar :size="64" :src="formData.avatar">
+            {{ formData.nickname?.charAt(0) || 'U' }}
+          </Avatar>
+          <Input
+            v-model:value="formData.avatar"
+            placeholder="请输入头像URL"
+            class="flex-1"
+          />
+        </div>
       </FormItem>
       <FormItem label="手机号">
         <Input v-model:value="formData.phone" placeholder="请输入手机号" />
