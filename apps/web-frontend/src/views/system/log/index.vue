@@ -8,15 +8,14 @@ import { Page } from '@vben/common-ui';
 import {
   Button,
   Card,
-  DatePicker,
   Input,
   message,
   Popconfirm,
   Select,
   Space,
   Table,
-  Tabs,
   TabPane,
+  Tabs,
   Tag,
 } from 'ant-design-vue';
 
@@ -197,7 +196,7 @@ loadLoginLogs();
 <template>
   <Page title="日志管理" description="查看系统日志">
     <Card>
-      <Tabs v-model:activeKey="activeTab" @change="handleTabChange">
+      <Tabs v-model:active-key="activeTab" @change="handleTabChange">
         <TabPane key="login" tab="登录日志">
           <!-- 搜索表单 -->
           <div class="mb-4 flex flex-wrap gap-4">
@@ -325,4 +324,3 @@ loadLoginLogs();
     </Card>
   </Page>
 </template>
-

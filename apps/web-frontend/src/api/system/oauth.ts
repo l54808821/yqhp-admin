@@ -83,14 +83,19 @@ export namespace OAuthApi {
  * 获取OAuth提供商列表
  */
 export function getOAuthProviderListApi(data?: OAuthApi.ListParams) {
-  return requestClient.post<OAuthApi.ListResult>('/system/oauth-providers/list', data || {});
+  return requestClient.post<OAuthApi.ListResult>(
+    '/system/oauth-providers/list',
+    data || {},
+  );
 }
 
 /**
  * 获取OAuth提供商详情
  */
 export function getOAuthProviderApi(code: string) {
-  return requestClient.get<OAuthApi.Provider>(`/system/oauth-providers/${code}`);
+  return requestClient.get<OAuthApi.Provider>(
+    `/system/oauth-providers/${code}`,
+  );
 }
 
 /**
@@ -150,11 +155,11 @@ export function unbindOAuthApi(provider: string) {
 export interface OAuthLoginResult {
   token: string;
   userInfo: {
-    id: number;
-    username: string;
-    nickname: string;
     avatar: string;
-    roles: Array<{ id: number; name: string; code: string }>;
+    id: number;
+    nickname: string;
+    roles: Array<{ code: string; id: number; name: string }>;
+    username: string;
   };
   isNew: boolean;
 }
@@ -163,8 +168,10 @@ export interface OAuthLoginResult {
  * OAuth回调登录
  */
 export function oauthCallbackApi(provider: string, code: string) {
-  return requestClient.get<OAuthLoginResult>(`/auth/oauth/${provider}/callback`, {
-    params: { code },
-  });
+  return requestClient.get<OAuthLoginResult>(
+    `/auth/oauth/${provider}/callback`,
+    {
+      params: { code },
+    },
+  );
 }
-

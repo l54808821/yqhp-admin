@@ -100,7 +100,10 @@ export namespace DictApi {
  * 获取字典类型列表
  */
 export function getDictTypeListApi(data: DictApi.ListTypesParams) {
-  return requestClient.post<DictApi.ListTypesResult>('/system/dict/types/list', data);
+  return requestClient.post<DictApi.ListTypesResult>(
+    '/system/dict/types/list',
+    data,
+  );
 }
 
 /**
@@ -135,7 +138,10 @@ export function deleteDictTypeApi(id: number) {
  * 获取字典数据列表
  */
 export function getDictDataListApi(data: DictApi.ListDataParams) {
-  return requestClient.post<DictApi.ListDataResult>('/system/dict/data/list', data);
+  return requestClient.post<DictApi.ListDataResult>(
+    '/system/dict/data/list',
+    data,
+  );
 }
 
 /**
@@ -167,4 +173,3 @@ export function updateDictDataApi(data: DictApi.UpdateDataParams) {
 export function deleteDictDataApi(id: number) {
   return requestClient.delete(`/system/dict/data/${id}`);
 }
-

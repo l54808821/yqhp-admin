@@ -17,7 +17,12 @@ import {
   Table,
 } from 'ant-design-vue';
 
-import { disableUserApi, enableUserApi, getTokenListApi, kickOutApi } from '#/api';
+import {
+  disableUserApi,
+  enableUserApi,
+  getTokenListApi,
+  kickOutApi,
+} from '#/api';
 
 // 搜索参数
 const searchParams = ref<TokenApi.ListTokensParams>({
@@ -34,7 +39,7 @@ const loading = ref(false);
 // 禁用弹框
 const disableVisible = ref(false);
 const disableUserId = ref(0);
-const disableTime = ref(86400); // 默认1天
+const disableTime = ref(86_400); // 默认1天
 
 // 表格列定义
 const columns = [
@@ -108,7 +113,7 @@ async function handleKickOut(tokenId: number) {
 // 打开禁用弹框
 function handleOpenDisable(userId: number) {
   disableUserId.value = userId;
-  disableTime.value = 86400;
+  disableTime.value = 86_400;
   disableVisible.value = true;
 }
 
@@ -156,7 +161,7 @@ loadData();
         :pagination="{
           current: searchParams.page,
           pageSize: searchParams.pageSize,
-          total: total,
+          total,
           showSizeChanger: true,
           showQuickJumper: true,
           showTotal: (t: number) => `共 ${t} 条`,
@@ -195,11 +200,7 @@ loadData();
     </Card>
 
     <!-- 禁用弹框 -->
-    <Modal
-      v-model:open="disableVisible"
-      title="禁用用户"
-      @ok="handleDisable"
-    >
+    <Modal v-model:open="disableVisible" title="禁用用户" @ok="handleDisable">
       <div class="py-4">
         <p class="mb-4">请输入禁用时长（秒），-1 表示永久禁用：</p>
         <InputNumber
@@ -207,11 +208,10 @@ loadData();
           :min="-1"
           style="width: 100%"
         />
-        <p class="mt-2 text-gray-500 text-sm">
+        <p class="mt-2 text-sm text-gray-500">
           常用时长：3600（1小时）、86400（1天）、604800（1周）、-1（永久）
         </p>
       </div>
     </Modal>
   </Page>
 </template>
-

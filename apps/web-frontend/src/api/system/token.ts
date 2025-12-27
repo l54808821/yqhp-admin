@@ -99,7 +99,10 @@ export namespace TokenApi {
  * 获取令牌列表
  */
 export function getTokenListApi(data: TokenApi.ListTokensParams) {
-  return requestClient.post<TokenApi.ListTokensResult>('/system/tokens/list', data);
+  return requestClient.post<TokenApi.ListTokensResult>(
+    '/system/tokens/list',
+    data,
+  );
 }
 
 /**
@@ -134,14 +137,20 @@ export function enableUserApi(id: number) {
  * 获取登录日志
  */
 export function getLoginLogsApi(data: TokenApi.ListLoginLogsParams) {
-  return requestClient.post<TokenApi.ListLoginLogsResult>('/system/logs/login', data);
+  return requestClient.post<TokenApi.ListLoginLogsResult>(
+    '/system/logs/login',
+    data,
+  );
 }
 
 /**
  * 获取操作日志
  */
 export function getOperationLogsApi(data: TokenApi.ListOperationLogsParams) {
-  return requestClient.post<TokenApi.ListOperationLogsResult>('/system/logs/operation', data);
+  return requestClient.post<TokenApi.ListOperationLogsResult>(
+    '/system/logs/operation',
+    data,
+  );
 }
 
 /**
@@ -157,4 +166,3 @@ export function clearLoginLogsApi() {
 export function clearOperationLogsApi() {
   return requestClient.delete('/system/logs/operation');
 }
-

@@ -109,4 +109,3 @@ export function deleteUserApi(id: number) {
 export function resetPasswordApi(id: number, password?: string) {
   return requestClient.post(`/system/users/${id}/reset-password`, { password });
 }
-

@@ -84,4 +84,3 @@ export function updateDeptApi(data: DeptApi.UpdateParams) {
 export function deleteDeptApi(id: number) {
   return requestClient.delete(`/system/depts/${id}`);
 }
-

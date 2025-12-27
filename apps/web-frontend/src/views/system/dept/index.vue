@@ -112,11 +112,7 @@ loadData();
           </template>
           <template v-else-if="column.key === 'action'">
             <Space>
-              <Button
-                type="link"
-                size="small"
-                @click="handleAdd(record.id)"
-              >
+              <Button type="link" size="small" @click="handleAdd(record.id)">
                 新增
               </Button>
               <Button type="link" size="small" @click="handleEdit(record)">
@@ -138,4 +134,3 @@ loadData();
     <DeptFormModal ref="deptFormModalRef" @success="loadData" />
   </Page>
 </template>
-

@@ -193,10 +193,7 @@ defineExpose({ open });
             <Button type="link" size="small" @click="handleEdit(record)">
               编辑
             </Button>
-            <Popconfirm
-              title="确定删除吗？"
-              @confirm="handleDelete(record.id)"
-            >
+            <Popconfirm title="确定删除吗？" @confirm="handleDelete(record.id)">
               <Button type="link" size="small" danger>删除</Button>
             </Popconfirm>
           </Space>
@@ -237,10 +234,7 @@ defineExpose({ open });
         <Switch v-model:checked="formData.isDefault" />
       </FormItem>
       <FormItem label="样式类">
-        <Input
-          v-model:value="formData.cssClass"
-          placeholder="请输入样式类"
-        />
+        <Input v-model:value="formData.cssClass" placeholder="请输入样式类" />
       </FormItem>
       <FormItem label="列表样式">
         <Input
@@ -258,4 +252,3 @@ defineExpose({ open });
     </Form>
   </Modal>
 </template>
-

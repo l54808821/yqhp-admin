@@ -18,7 +18,7 @@ defineOptions({ name: 'ThirdPartyLogin' });
 
 const providers = ref<OAuthApi.Provider[]>([]);
 const loading = ref(false);
-const loginLoading = ref<string | null>(null);
+const loginLoading = ref<null | string>(null);
 
 // 图标映射
 const iconMap: Record<string, any> = {
@@ -41,8 +41,8 @@ onMounted(async () => {
   loading.value = true;
   try {
     providers.value = await getPublicOAuthProvidersApi();
-  } catch (err) {
-    console.error('获取OAuth提供商失败', err);
+  } catch (error) {
+    console.error('获取OAuth提供商失败', error);
   } finally {
     loading.value = false;
   }
@@ -63,8 +63,8 @@ async function handleOAuthLogin(provider: OAuthApi.Provider) {
 
     // 跳转到授权页面
     window.location.href = result.url;
-  } catch (err: any) {
-    message.error(err?.message || '获取授权链接失败');
+  } catch (error: any) {
+    message.error(error?.message || '获取授权链接失败');
     loginLoading.value = null;
   }
 }

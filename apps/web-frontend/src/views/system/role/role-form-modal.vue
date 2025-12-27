@@ -133,7 +133,7 @@ defineExpose({ open });
         </RadioGroup>
       </FormItem>
       <FormItem label="权限">
-        <div class="max-h-[300px] overflow-auto border rounded p-2">
+        <div class="max-h-[300px] overflow-auto rounded border p-2">
           <Tree
             v-model:checked-keys="checkedKeys"
             :tree-data="resources"
@@ -153,4 +153,3 @@ defineExpose({ open });
     </Form>
   </Modal>
 </template>
-

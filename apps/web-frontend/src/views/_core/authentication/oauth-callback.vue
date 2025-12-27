@@ -29,18 +29,18 @@ onMounted(async () => {
 
   try {
     const result = await oauthCallbackApi(provider, code);
-    
+
     // 保存token和用户信息
     authStore.setAccessToken(result.token);
-    
+
     // 获取用户信息并跳转
     await authStore.fetchUserInfo();
-    
+
     // 根据 state 参数决定跳转位置
     const redirectPath = state || '/';
     router.replace(redirectPath);
-  } catch (err: any) {
-    error.value = err?.message || '登录失败，请重试';
+  } catch (error_: any) {
+    error.value = error_?.message || '登录失败，请重试';
     loading.value = false;
   }
 });
@@ -51,16 +51,22 @@ function handleRetry() {
 </script>
 
 <template>
-  <div class="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
+  <div
+    class="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900"
+  >
     <div class="text-center">
       <template v-if="loading">
         <Spin size="large" />
-        <p class="mt-4 text-gray-600 dark:text-gray-400">正在登录中，请稍候...</p>
+        <p class="mt-4 text-gray-600 dark:text-gray-400">
+          正在登录中，请稍候...
+        </p>
       </template>
       <template v-else-if="error">
         <div class="rounded-lg bg-white p-8 shadow-lg dark:bg-gray-800">
           <div class="mb-4 text-5xl">😕</div>
-          <h2 class="mb-2 text-xl font-semibold text-gray-800 dark:text-gray-200">
+          <h2
+            class="mb-2 text-xl font-semibold text-gray-800 dark:text-gray-200"
+          >
             登录失败
           </h2>
           <p class="mb-6 text-gray-600 dark:text-gray-400">{{ error }}</p>
@@ -75,4 +81,3 @@ function handleRetry() {
     </div>
   </div>
 </template>
-

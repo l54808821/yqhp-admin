@@ -14,10 +14,11 @@ export async function getUserInfoApi() {
     realName: result.nickname || result.username,
     avatar: result.avatar || '',
     desc: result.remark || '',
-    roles: result.roles?.map((r: any) => ({
-      roleName: r.name,
-      value: r.code,
-    })) || [],
+    roles:
+      result.roles?.map((r: any) => ({
+        roleName: r.name,
+        value: r.code,
+      })) || [],
   };
   return userInfo;
 }

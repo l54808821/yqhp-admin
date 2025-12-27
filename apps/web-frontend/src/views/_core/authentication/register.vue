@@ -5,11 +5,10 @@ import type { Recordable } from '@vben/types';
 import { computed, h, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { preferences } from '@vben/preferences';
-import { useAccessStore, useUserStore } from '@vben/stores';
-
 import { AuthenticationRegister, z } from '@vben/common-ui';
 import { $t } from '@vben/locales';
+import { preferences } from '@vben/preferences';
+import { useAccessStore, useUserStore } from '@vben/stores';
 
 import { message } from 'ant-design-vue';
 
@@ -151,8 +150,8 @@ async function handleSubmit(values: Recordable<any>) {
 
     // 跳转到首页
     router.push(preferences.app.defaultHomePath);
-  } catch (err: any) {
-    message.error(err?.message || '注册失败，请稍后重试');
+  } catch (error: any) {
+    message.error(error?.message || '注册失败，请稍后重试');
   } finally {
     loading.value = false;
   }

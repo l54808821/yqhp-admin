@@ -93,4 +93,3 @@ export function deleteConfigApi(id: number) {
 export function refreshConfigApi() {
   return requestClient.post('/system/configs/refresh');
 }
-

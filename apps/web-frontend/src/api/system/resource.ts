@@ -106,4 +106,3 @@ export function deleteResourceApi(id: number) {
 export function getUserMenusApi() {
   return requestClient.get<ResourceApi.Resource[]>('/menus');
 }
-

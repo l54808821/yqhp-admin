@@ -102,4 +102,3 @@ export function updateRoleApi(data: RoleApi.UpdateParams) {
 export function deleteRoleApi(id: number) {
   return requestClient.delete(`/system/roles/${id}`);
 }
-

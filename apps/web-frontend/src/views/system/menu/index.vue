@@ -55,7 +55,7 @@ const columns = [
 ];
 
 // 类型映射
-const typeMap: Record<number, { text: string; color: string }> = {
+const typeMap: Record<number, { color: string; text: string }> = {
   1: { text: '目录', color: 'blue' },
   2: { text: '菜单', color: 'green' },
   3: { text: '按钮', color: 'orange' },
@@ -157,4 +157,3 @@ loadData();
     <MenuFormModal ref="menuFormModalRef" @success="loadData" />
   </Page>
 </template>
-

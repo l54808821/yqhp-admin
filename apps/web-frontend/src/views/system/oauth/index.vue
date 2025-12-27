@@ -116,7 +116,7 @@ loadData();
         :pagination="{
           current: searchParams.page,
           pageSize: searchParams.pageSize,
-          total: total,
+          total,
           showSizeChanger: true,
           showQuickJumper: true,
           showTotal: (t: number) => `共 ${t} 条`,
@@ -153,4 +153,3 @@ loadData();
     <OAuthFormModal ref="oauthFormModalRef" @success="loadData" />
   </Page>
 </template>
-
