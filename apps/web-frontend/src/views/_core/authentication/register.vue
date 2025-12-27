@@ -3,12 +3,23 @@ import type { VbenFormSchema } from '@vben/common-ui';
 import type { Recordable } from '@vben/types';
 
 import { computed, h, ref } from 'vue';
+import { useRouter } from 'vue-router';
+
+import { preferences } from '@vben/preferences';
+import { useAccessStore, useUserStore } from '@vben/stores';
 
 import { AuthenticationRegister, z } from '@vben/common-ui';
 import { $t } from '@vben/locales';
 
+import { message } from 'ant-design-vue';
+
+import { getAccessCodesApi, registerApi } from '#/api';
+
 defineOptions({ name: 'Register' });
 
+const router = useRouter();
+const accessStore = useAccessStore();
+const userStore = useUserStore();
 const loading = ref(false);
 
 const formSchema = computed((): VbenFormSchema[] => {
@@ -16,17 +27,20 @@ const formSchema = computed((): VbenFormSchema[] => {
     {
       component: 'VbenInput',
       componentProps: {
-        placeholder: $t('authentication.usernameTip'),
+        placeholder: '请输入用户名（4-20个字符）',
       },
       fieldName: 'username',
       label: $t('authentication.username'),
-      rules: z.string().min(1, { message: $t('authentication.usernameTip') }),
+      rules: z
+        .string()
+        .min(4, { message: '用户名长度应为4-20个字符' })
+        .max(20, { message: '用户名长度应为4-20个字符' }),
     },
     {
       component: 'VbenInputPassword',
       componentProps: {
         passwordStrength: true,
-        placeholder: $t('authentication.password'),
+        placeholder: '请输入密码（6-20个字符）',
       },
       fieldName: 'password',
       label: $t('authentication.password'),
@@ -35,7 +49,10 @@ const formSchema = computed((): VbenFormSchema[] => {
           strengthText: () => $t('authentication.passwordStrength'),
         };
       },
-      rules: z.string().min(1, { message: $t('authentication.passwordTip') }),
+      rules: z
+        .string()
+        .min(6, { message: '密码长度应为6-20个字符' })
+        .max(20, { message: '密码长度应为6-20个字符' }),
     },
     {
       component: 'VbenInputPassword',
@@ -56,6 +73,28 @@ const formSchema = computed((): VbenFormSchema[] => {
       },
       fieldName: 'confirmPassword',
       label: $t('authentication.confirmPassword'),
+    },
+    {
+      component: 'VbenInput',
+      componentProps: {
+        placeholder: '请输入昵称（选填）',
+      },
+      fieldName: 'nickname',
+      label: '昵称',
+      rules: z.string().optional(),
+    },
+    {
+      component: 'VbenInput',
+      componentProps: {
+        placeholder: '请输入邮箱（选填）',
+      },
+      fieldName: 'email',
+      label: '邮箱',
+      rules: z
+        .string()
+        .email({ message: '请输入有效的邮箱地址' })
+        .optional()
+        .or(z.literal('')),
     },
     {
       component: 'VbenCheckbox',
@@ -81,9 +120,42 @@ const formSchema = computed((): VbenFormSchema[] => {
   ];
 });
 
-function handleSubmit(value: Recordable<any>) {
-  // eslint-disable-next-line no-console
-  console.log('register submit:', value);
+async function handleSubmit(values: Recordable<any>) {
+  loading.value = true;
+  try {
+    const result = await registerApi({
+      username: values.username,
+      password: values.password,
+      confirmPassword: values.confirmPassword,
+      nickname: values.nickname || '',
+      email: values.email || '',
+    });
+
+    // 保存token
+    accessStore.setAccessToken(result.accessToken);
+
+    // 获取权限码
+    const accessCodes = await getAccessCodesApi();
+    accessStore.setAccessCodes(accessCodes);
+
+    // 保存用户信息
+    userStore.setUserInfo({
+      userId: String(result.userInfo.id),
+      username: result.userInfo.username,
+      realName: result.userInfo.nickname || result.userInfo.username,
+      avatar: result.userInfo.avatar || '',
+      roles: result.userInfo.roles?.map((r) => r.code) || [],
+    });
+
+    message.success('注册成功！');
+
+    // 跳转到首页
+    router.push(preferences.app.defaultHomePath);
+  } catch (err: any) {
+    message.error(err?.message || '注册失败，请稍后重试');
+  } finally {
+    loading.value = false;
+  }
 }
 </script>
 

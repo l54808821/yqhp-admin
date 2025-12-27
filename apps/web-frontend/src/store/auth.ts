@@ -108,11 +108,19 @@ export const useAuthStore = defineStore('auth', () => {
     loginLoading.value = false;
   }
 
+  /**
+   * 设置访问令牌（用于第三方登录）
+   */
+  function setAccessToken(token: string) {
+    accessStore.setAccessToken(token);
+  }
+
   return {
     $reset,
     authLogin,
     fetchUserInfo,
     loginLoading,
     logout,
+    setAccessToken,
   };
 });
