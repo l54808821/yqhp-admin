@@ -12,6 +12,7 @@ import { defineStore } from 'pinia';
 
 import { getAccessCodesApi, getUserInfoApi, loginApi, logoutApi } from '#/api';
 import { $t } from '#/locales';
+import { resetRoutes } from '#/router';
 
 export const useAuthStore = defineStore('auth', () => {
   const accessStore = useAccessStore();
@@ -68,6 +69,12 @@ export const useAuthStore = defineStore('auth', () => {
           });
         }
       }
+    } catch (error) {
+      // 登录失败时，清理可能已经设置的 token 和路由状态
+      accessStore.setAccessToken(null);
+      accessStore.setIsAccessChecked(false);
+      resetRoutes();
+      throw error;
     } finally {
       loginLoading.value = false;
     }
@@ -85,6 +92,9 @@ export const useAuthStore = defineStore('auth', () => {
     }
     resetAllStores();
     accessStore.setLoginExpired(false);
+
+    // 重置动态路由，清除上一个用户的路由配置
+    resetRoutes();
 
     // 回登录页带上当前路由地址
     await router.replace({
