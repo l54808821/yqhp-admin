@@ -12,6 +12,7 @@ import {
   Radio,
   RadioGroup,
   Select,
+  Switch,
   TreeSelect,
 } from 'ant-design-vue';
 
@@ -51,6 +52,7 @@ function open(params: OpenParams) {
       email: params.record.email,
       phone: params.record.phone,
       gender: params.record.gender,
+      status: params.record.status,
       deptId: params.record.deptId,
       roleIds: params.record.roles?.map((r) => r.id) || [],
       remark: params.record.remark,
@@ -59,6 +61,7 @@ function open(params: OpenParams) {
     isEdit.value = false;
     formData.value = {
       gender: 0,
+      status: 1,
       roleIds: [],
     };
   }
@@ -156,6 +159,15 @@ defineExpose({ open });
             {{ role.name }}
           </Select.Option>
         </Select>
+      </FormItem>
+      <FormItem label="状态">
+        <Switch
+          v-model:checked="formData.status"
+          :checked-value="1"
+          :un-checked-value="0"
+          checked-children="启用"
+          un-checked-children="禁用"
+        />
       </FormItem>
       <FormItem label="备注">
         <Input.TextArea
