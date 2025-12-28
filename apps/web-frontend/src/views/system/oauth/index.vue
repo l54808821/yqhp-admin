@@ -150,6 +150,6 @@ loadData();
     </Card>
 
     <!-- OAuth表单弹框 -->
-    <OAuthFormModal ref="oauthFormModalRef" @success="loadData" />
+    <OauthFormModal ref="oauthFormModalRef" @success="loadData" />
   </Page>
 </template>
