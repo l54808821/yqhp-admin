@@ -7,7 +7,6 @@ import { computed, ref, watch } from 'vue';
 
 import {
   Button,
-  Card,
   Drawer,
   Form,
   FormItem,
@@ -17,6 +16,7 @@ import {
   Radio,
   RadioGroup,
   Switch,
+  Tag,
   Tree,
 } from 'ant-design-vue';
 
@@ -49,6 +49,13 @@ const expandedKeys = ref<number[]>([]);
 const autoExpandParent = ref(true);
 // 完全受控开关
 const checkStrictly = ref(true);
+
+// 资源类型映射
+const resourceTypeMap: Record<number, { label: string; color: string }> = {
+  1: { label: '目录', color: 'blue' },
+  2: { label: '菜单', color: 'green' },
+  3: { label: '按钮', color: 'orange' },
+};
 
 // 计算选中的权限数量
 const checkedCount = computed(() => {
@@ -235,51 +242,50 @@ defineExpose({ open });
     v-model:open="visible"
     :title="isEdit ? '编辑角色' : '新增角色'"
     width="1100px"
-    :body-style="{ padding: '24px', background: '#f5f7fa' }"
+    :body-style="{ padding: '20px', background: '#f5f7fa' }"
     class="role-form-drawer"
   >
-    <div class="flex h-full gap-6">
+    <div class="flex h-full gap-5">
       <!-- 左侧：基本信息 -->
-      <Card class="w-[400px] flex-shrink-0">
-        <template #title>
-          <div class="flex items-center gap-2 text-primary">
+      <div class="w-[400px] flex-shrink-0 rounded-lg border border-gray-200 bg-white">
+        <div class="border-b border-gray-100 px-5 py-4">
+          <div class="flex items-center gap-2 text-base font-medium text-primary">
             <span class="icon-[ant-design--info-circle-outlined]"></span>
             基本信息
           </div>
-        </template>
-        <Form :label-col="{ span: 6 }" :wrapper-col="{ span: 17 }">
-          <FormItem label="角色名称" required>
-            <Input v-model:value="formData.name" placeholder="请输入角色名称" />
-          </FormItem>
-          <FormItem label="角色编码" required>
-            <Input
-              v-model:value="formData.code"
-              placeholder="请输入角色编码"
-            />
-          </FormItem>
-          <FormItem label="排序">
-            <InputNumber
-              v-model:value="formData.sort"
-              :min="0"
-              placeholder="请输入排序"
-              style="width: 100%"
-            />
-          </FormItem>
-          <FormItem label="状态">
-            <RadioGroup v-model:value="formData.status">
-              <Radio :value="1">启用</Radio>
-              <Radio :value="0">禁用</Radio>
-            </RadioGroup>
-          </FormItem>
-          <FormItem label="备注">
-            <Input.TextArea
-              v-model:value="formData.remark"
-              placeholder="请输入备注"
-              :rows="4"
-            />
-          </FormItem>
-        </Form>
-      </Card>
+        </div>
+        <div class="p-5">
+          <Form :label-col="{ span: 6 }" :wrapper-col="{ span: 17 }">
+            <FormItem label="角色名称" required>
+              <Input v-model:value="formData.name" placeholder="请输入角色名称" />
+            </FormItem>
+            <FormItem label="角色编码" required>
+              <Input v-model:value="formData.code" placeholder="请输入角色编码" />
+            </FormItem>
+            <FormItem label="排序">
+              <InputNumber
+                v-model:value="formData.sort"
+                :min="0"
+                placeholder="请输入排序"
+                style="width: 100%"
+              />
+            </FormItem>
+            <FormItem label="状态">
+              <RadioGroup v-model:value="formData.status">
+                <Radio :value="1">启用</Radio>
+                <Radio :value="0">禁用</Radio>
+              </RadioGroup>
+            </FormItem>
+            <FormItem label="备注" class="mb-0">
+              <Input.TextArea
+                v-model:value="formData.remark"
+                placeholder="请输入备注"
+                :rows="4"
+              />
+            </FormItem>
+          </Form>
+        </div>
+      </div>
 
       <!-- 右侧：权限配置 -->
       <div class="flex min-w-0 flex-1 flex-col rounded-lg border bg-white">
@@ -321,30 +327,48 @@ defineExpose({ open });
         </div>
 
         <!-- 权限树 -->
-        <div class="mx-6 mb-6 min-h-0 flex-1 overflow-auto rounded border border-gray-200 p-3">
+        <div class="min-h-0 flex-1 overflow-auto p-4">
           <Tree
             v-if="checkStrictly"
             v-model:checked-keys="checkedKeysStrict"
             v-model:expanded-keys="expandedKeys"
             :tree-data="resources"
-            :field-names="{ title: 'name', key: 'id', children: 'children' }"
+            :field-names="{ key: 'id', children: 'children' }"
             :filter-tree-node="filterTreeNode"
             :auto-expand-parent="autoExpandParent"
             check-strictly
             checkable
             @expand="onExpand"
-          />
+          >
+            <template #title="{ name, type }">
+              <span class="inline-flex items-center gap-2">
+                <span>{{ name }}</span>
+                <Tag v-if="resourceTypeMap[type]" :color="resourceTypeMap[type].color" class="ml-1">
+                  {{ resourceTypeMap[type].label }}
+                </Tag>
+              </span>
+            </template>
+          </Tree>
           <Tree
             v-else
             v-model:checked-keys="checkedKeysNormal"
             v-model:expanded-keys="expandedKeys"
             :tree-data="resources"
-            :field-names="{ title: 'name', key: 'id', children: 'children' }"
+            :field-names="{ key: 'id', children: 'children' }"
             :filter-tree-node="filterTreeNode"
             :auto-expand-parent="autoExpandParent"
             checkable
             @expand="onExpand"
-          />
+          >
+            <template #title="{ name, type }">
+              <span class="inline-flex items-center gap-2">
+                <span>{{ name }}</span>
+                <Tag v-if="resourceTypeMap[type]" :color="resourceTypeMap[type].color" class="ml-1">
+                  {{ resourceTypeMap[type].label }}
+                </Tag>
+              </span>
+            </template>
+          </Tree>
         </div>
       </div>
     </div>
