@@ -5,6 +5,7 @@ import type { ResourceApi } from '#/api/system/resource';
 import { ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
+import { IconifyIcon } from '@vben/icons';
 
 import {
   Button,
@@ -91,7 +92,7 @@ async function loadData() {
 }
 
 // 应用切换
-function handleAppChange(appId: number) {
+function handleAppChange(appId: any) {
   currentAppId.value = appId;
   loadData();
 }
@@ -164,7 +165,11 @@ loadApplications();
         default-expand-all-rows
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'type'">
+          <template v-if="column.key === 'icon'">
+            <IconifyIcon v-if="record.icon" :icon="record.icon" class="size-5" />
+            <span v-else class="text-gray-400">-</span>
+          </template>
+          <template v-else-if="column.key === 'type'">
             <Tag :color="typeMap[record.type]?.color">
               {{ typeMap[record.type]?.text }}
             </Tag>
@@ -184,7 +189,7 @@ loadApplications();
               >
                 新增
               </Button>
-              <Button type="link" size="small" @click="handleEdit(record)">
+              <Button type="link" size="small" @click="handleEdit(record as ResourceApi.Resource)">
                 编辑
               </Button>
               <Popconfirm

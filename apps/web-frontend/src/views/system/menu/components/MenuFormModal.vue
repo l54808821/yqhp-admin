@@ -3,6 +3,8 @@ import type { ResourceApi } from '#/api/system/resource';
 
 import { computed, ref, watch } from 'vue';
 
+import { IconPicker } from '@vben/common-ui';
+
 import {
   Form,
   FormItem,
@@ -173,7 +175,7 @@ defineExpose({ open });
           />
         </FormItem>
         <FormItem label="图标">
-          <Input v-model:value="formData.icon" placeholder="请输入图标" />
+          <IconPicker v-model="formData.icon" class="w-full" />
         </FormItem>
       </template>
       <FormItem label="排序">
