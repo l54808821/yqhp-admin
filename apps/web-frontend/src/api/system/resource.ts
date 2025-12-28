@@ -62,9 +62,13 @@ export namespace ResourceApi {
 
 /**
  * 获取资源树
+ * @param appId 应用ID
+ * @param includeDisabled 是否包含禁用的资源（角色权限配置时需要设为 true）
  */
-export function getResourceTreeApi(appId?: number) {
-  const params = appId ? { appId } : {};
+export function getResourceTreeApi(appId?: number, includeDisabled?: boolean) {
+  const params: Record<string, any> = {};
+  if (appId) params.appId = appId;
+  if (includeDisabled) params.includeDisabled = 'true';
   return requestClient.get<ResourceApi.Resource[]>('/system/resources/tree', {
     params,
   });

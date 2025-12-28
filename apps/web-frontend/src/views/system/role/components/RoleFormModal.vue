@@ -29,7 +29,11 @@ const isEdit = ref(false);
 // 表单数据
 const formData = ref<Partial<RoleApi.CreateParams & { id?: number }>>({});
 const resources = ref<any[]>([]);
-const checkedKeys = ref<number[]>([]);
+// check-strictly 模式下，checkedKeys 是对象格式
+const checkedKeys = ref<{ checked: number[]; halfChecked: number[] }>({
+  checked: [],
+  halfChecked: [],
+});
 
 // 重置表单数据
 function resetFormData() {
@@ -40,7 +44,7 @@ function resetFormData() {
     status: 1,
     remark: '',
   };
-  checkedKeys.value = [];
+  checkedKeys.value = { checked: [], halfChecked: [] };
 }
 
 // 打开弹框
@@ -67,8 +71,9 @@ async function open(params: OpenParams) {
       status: record.status,
       remark: record.remark,
     };
-    // 获取角色的资源ID
-    checkedKeys.value = await getRoleResourceIdsApi(params.id);
+    // 获取角色的资源ID，设置为 checked
+    const resourceIds = await getRoleResourceIdsApi(params.id);
+    checkedKeys.value = { checked: resourceIds, halfChecked: [] };
   } else {
     isEdit.value = false;
   }
@@ -92,7 +97,8 @@ async function handleSubmit() {
   try {
     const data = {
       ...formData.value,
-      resourceIds: checkedKeys.value,
+      // 使用 checked 数组作为 resourceIds
+      resourceIds: checkedKeys.value.checked,
     };
 
     if (isEdit.value) {
@@ -152,6 +158,7 @@ defineExpose({ open });
             :tree-data="resources"
             :field-names="{ title: 'name', key: 'id', children: 'children' }"
             checkable
+            check-strictly
             default-expand-all
           />
         </div>

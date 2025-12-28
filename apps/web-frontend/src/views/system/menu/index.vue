@@ -85,7 +85,8 @@ async function loadData() {
   if (!currentAppId.value) return;
   loading.value = true;
   try {
-    tableData.value = await getResourceTreeApi(currentAppId.value);
+    // 菜单管理需要显示所有资源，包括禁用的
+    tableData.value = await getResourceTreeApi(currentAppId.value, true);
   } finally {
     loading.value = false;
   }
