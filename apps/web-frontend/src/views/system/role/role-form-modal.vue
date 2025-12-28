@@ -33,6 +33,7 @@ const checkedKeys = ref<number[]>([]);
 
 // 打开弹框
 interface OpenParams {
+  appId: number;
   resources: any[];
   record?: RoleApi.Role;
 }
@@ -44,6 +45,7 @@ async function open(params: OpenParams) {
     isEdit.value = true;
     formData.value = {
       id: params.record.id,
+      appId: params.record.appId,
       name: params.record.name,
       code: params.record.code,
       sort: params.record.sort,
@@ -55,6 +57,7 @@ async function open(params: OpenParams) {
   } else {
     isEdit.value = false;
     formData.value = {
+      appId: params.appId,
       sort: 0,
       status: 1,
     };

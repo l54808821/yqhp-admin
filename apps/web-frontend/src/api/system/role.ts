@@ -3,6 +3,7 @@ import { requestClient } from '#/api/request';
 export namespace RoleApi {
   export interface Role {
     id: number;
+    appId: number;
     name: string;
     code: string;
     sort: number;
@@ -23,6 +24,7 @@ export namespace RoleApi {
   export interface ListParams {
     page?: number;
     pageSize?: number;
+    appId?: number;
     name?: string;
     code?: string;
     status?: number;
@@ -36,6 +38,7 @@ export namespace RoleApi {
   }
 
   export interface CreateParams {
+    appId: number;
     name: string;
     code: string;
     sort?: number;

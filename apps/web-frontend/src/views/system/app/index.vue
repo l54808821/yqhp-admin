@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { ApplicationApi } from '#/api/system/application';
-import type { RoleApi } from '#/api/system/role';
 
 import { ref } from 'vue';
 
@@ -18,96 +17,57 @@ import {
   Tag,
 } from 'ant-design-vue';
 
-import { deleteRoleApi, getResourceTreeApi, getRoleListApi } from '#/api';
-import { getAllApplicationsApi } from '#/api/system/application';
+import {
+  deleteApplicationApi,
+  getApplicationListApi,
+} from '#/api/system/application';
 
-import RoleFormModal from './role-form-modal.vue';
+import AppFormModal from './app-form-modal.vue';
 
 // 搜索参数
-const searchParams = ref<RoleApi.ListParams>({
+const searchParams = ref<ApplicationApi.ListParams>({
   page: 1,
   pageSize: 10,
-  appId: undefined,
   name: '',
   code: '',
   status: undefined,
 });
 
 // 表格数据
-const tableData = ref<RoleApi.Role[]>([]);
+const tableData = ref<ApplicationApi.Application[]>([]);
 const total = ref(0);
 const loading = ref(false);
 
-// 应用列表
-const applications = ref<ApplicationApi.Application[]>([]);
-// 当前选中的应用ID
-const currentAppId = ref<number>();
-
-// 资源树
-const resources = ref<any[]>([]);
-
 // 弹框引用
-const roleFormModalRef = ref<InstanceType<typeof RoleFormModal>>();
+const appFormModalRef = ref<InstanceType<typeof AppFormModal>>();
 
 // 表格列定义
 const columns = [
-  { title: '角色名称', dataIndex: 'name', key: 'name', width: 150 },
-  { title: '角色编码', dataIndex: 'code', key: 'code', width: 150 },
+  { title: '应用名称', dataIndex: 'name', key: 'name', width: 150 },
+  { title: '应用编码', dataIndex: 'code', key: 'code', width: 120 },
+  { title: '图标', dataIndex: 'icon', key: 'icon', width: 100 },
   { title: '排序', dataIndex: 'sort', key: 'sort', width: 80 },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
   {
-    title: '状态',
-    dataIndex: 'status',
-    key: 'status',
-    width: 80,
+    title: '描述',
+    dataIndex: 'description',
+    key: 'description',
+    ellipsis: true,
   },
-  { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
-  {
-    title: '操作',
-    key: 'action',
-    width: 150,
-    fixed: 'right' as const,
-  },
+  { title: '操作', key: 'action', width: 150, fixed: 'right' as const },
 ];
-
-// 加载应用列表
-async function loadApplications() {
-  applications.value = await getAllApplicationsApi();
-  // 默认选中第一个应用
-  if (applications.value.length > 0 && !currentAppId.value) {
-    currentAppId.value = applications.value[0]!.id;
-    searchParams.value.appId = currentAppId.value;
-    loadData();
-    loadResources();
-  }
-}
 
 // 加载数据
 async function loadData() {
-  if (!currentAppId.value) return;
   loading.value = true;
   try {
-    const res = await getRoleListApi(searchParams.value);
+    const res = await getApplicationListApi(searchParams.value);
     tableData.value = res.list;
     total.value = res.total;
   } finally {
     loading.value = false;
   }
-}
-
-// 加载资源树
-async function loadResources() {
-  if (!currentAppId.value) return;
-  resources.value = await getResourceTreeApi(currentAppId.value);
-}
-
-// 应用切换
-function handleAppChange(appId: number) {
-  currentAppId.value = appId;
-  searchParams.value.appId = appId;
-  searchParams.value.page = 1;
-  loadData();
-  loadResources();
 }
 
 // 搜索
@@ -121,7 +81,6 @@ function handleReset() {
   searchParams.value = {
     page: 1,
     pageSize: 10,
-    appId: currentAppId.value,
     name: '',
     code: '',
     status: undefined,
@@ -138,69 +97,39 @@ function handlePageChange(page: number, pageSize: number) {
 
 // 新增
 function handleAdd() {
-  if (!currentAppId.value) {
-    message.warning('请先选择应用');
-    return;
-  }
-  roleFormModalRef.value?.open({
-    appId: currentAppId.value,
-    resources: resources.value,
-  });
+  appFormModalRef.value?.open();
 }
 
 // 编辑
-function handleEdit(record: RoleApi.Role) {
-  roleFormModalRef.value?.open({
-    appId: currentAppId.value!,
-    resources: resources.value,
-    record,
-  });
+function handleEdit(record: ApplicationApi.Application) {
+  appFormModalRef.value?.open(record);
 }
 
 // 删除
 async function handleDelete(id: number) {
-  await deleteRoleApi(id);
+  await deleteApplicationApi(id);
   message.success('删除成功');
   loadData();
 }
 
 // 初始化
-loadApplications();
+loadData();
 </script>
 
 <template>
-  <Page title="角色管理" description="管理系统角色和权限">
+  <Page title="应用管理" description="管理系统应用，角色和菜单按应用区分">
     <Card>
-      <!-- 应用选择 -->
-      <div class="mb-4">
-        <span class="mr-2">当前应用：</span>
-        <Select
-          v-model:value="currentAppId"
-          placeholder="请选择应用"
-          style="width: 200px"
-          @change="handleAppChange"
-        >
-          <Select.Option
-            v-for="app in applications"
-            :key="app.id"
-            :value="app.id"
-          >
-            {{ app.name }}
-          </Select.Option>
-        </Select>
-      </div>
-
       <!-- 搜索表单 -->
       <div class="mb-4 flex flex-wrap gap-4">
         <Input
           v-model:value="searchParams.name"
-          placeholder="角色名称"
+          placeholder="应用名称"
           style="width: 160px"
           allow-clear
         />
         <Input
           v-model:value="searchParams.code"
-          placeholder="角色编码"
+          placeholder="应用编码"
           style="width: 160px"
           allow-clear
         />
@@ -246,7 +175,11 @@ loadApplications();
           </template>
           <template v-else-if="column.key === 'action'">
             <Space>
-              <Button type="link" size="small" @click="handleEdit(record)">
+              <Button
+                type="link"
+                size="small"
+                @click="handleEdit(record as ApplicationApi.Application)"
+              >
                 编辑
               </Button>
               <Popconfirm
@@ -261,7 +194,7 @@ loadApplications();
       </Table>
     </Card>
 
-    <!-- 角色表单弹框 -->
-    <RoleFormModal ref="roleFormModalRef" @success="loadData" />
+    <!-- 应用表单弹框 -->
+    <AppFormModal ref="appFormModalRef" @success="loadData" />
   </Page>
 </template>

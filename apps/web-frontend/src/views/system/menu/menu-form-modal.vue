@@ -38,6 +38,7 @@ const showPathAndComponent = computed(() => {
 
 // 打开弹框
 interface OpenParams {
+  appId: number;
   resources: any[];
   parentId?: number;
   record?: ResourceApi.Resource;
@@ -50,6 +51,7 @@ function open(params: OpenParams) {
     isEdit.value = true;
     formData.value = {
       id: params.record.id,
+      appId: params.record.appId,
       parentId: params.record.parentId || undefined,
       name: params.record.name,
       code: params.record.code,
@@ -68,6 +70,7 @@ function open(params: OpenParams) {
   } else {
     isEdit.value = false;
     formData.value = {
+      appId: params.appId,
       parentId: params.parentId,
       type: 2,
       sort: 0,

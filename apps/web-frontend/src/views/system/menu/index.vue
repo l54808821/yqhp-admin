@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ApplicationApi } from '#/api/system/application';
 import type { ResourceApi } from '#/api/system/resource';
 
 import { ref } from 'vue';
@@ -10,18 +11,25 @@ import {
   Card,
   message,
   Popconfirm,
+  Select,
   Space,
   Table,
   Tag,
 } from 'ant-design-vue';
 
 import { deleteResourceApi, getResourceTreeApi } from '#/api';
+import { getAllApplicationsApi } from '#/api/system/application';
 
 import MenuFormModal from './menu-form-modal.vue';
 
 // 表格数据
 const tableData = ref<ResourceApi.Resource[]>([]);
 const loading = ref(false);
+
+// 应用列表
+const applications = ref<ApplicationApi.Application[]>([]);
+// 当前选中的应用ID
+const currentAppId = ref<number>();
 
 // 弹框引用
 const menuFormModalRef = ref<InstanceType<typeof MenuFormModal>>();
@@ -61,19 +69,41 @@ const typeMap: Record<number, { color: string; text: string }> = {
   3: { text: '按钮', color: 'orange' },
 };
 
+// 加载应用列表
+async function loadApplications() {
+  applications.value = await getAllApplicationsApi();
+  // 默认选中第一个应用
+  if (applications.value.length > 0 && !currentAppId.value) {
+    currentAppId.value = applications.value[0]!.id;
+    loadData();
+  }
+}
+
 // 加载数据
 async function loadData() {
+  if (!currentAppId.value) return;
   loading.value = true;
   try {
-    tableData.value = await getResourceTreeApi();
+    tableData.value = await getResourceTreeApi(currentAppId.value);
   } finally {
     loading.value = false;
   }
 }
 
+// 应用切换
+function handleAppChange(appId: number) {
+  currentAppId.value = appId;
+  loadData();
+}
+
 // 新增
 function handleAdd(parentId?: number) {
+  if (!currentAppId.value) {
+    message.warning('请先选择应用');
+    return;
+  }
   menuFormModalRef.value?.open({
+    appId: currentAppId.value,
     resources: tableData.value,
     parentId,
   });
@@ -82,6 +112,7 @@ function handleAdd(parentId?: number) {
 // 编辑
 function handleEdit(record: ResourceApi.Resource) {
   menuFormModalRef.value?.open({
+    appId: currentAppId.value!,
     resources: tableData.value,
     record,
   });
@@ -95,15 +126,30 @@ async function handleDelete(id: number) {
 }
 
 // 初始化
-loadData();
+loadApplications();
 </script>
 
 <template>
   <Page title="菜单管理" description="管理系统菜单和权限资源">
     <Card>
-      <!-- 操作按钮 -->
+      <!-- 应用选择 -->
       <div class="mb-4">
-        <Button type="primary" @click="handleAdd()">新增</Button>
+        <span class="mr-2">当前应用：</span>
+        <Select
+          v-model:value="currentAppId"
+          placeholder="请选择应用"
+          style="width: 200px"
+          @change="handleAppChange"
+        >
+          <Select.Option
+            v-for="app in applications"
+            :key="app.id"
+            :value="app.id"
+          >
+            {{ app.name }}
+          </Select.Option>
+        </Select>
+        <Button type="primary" class="ml-4" @click="handleAdd()">新增</Button>
       </div>
 
       <!-- 表格 -->

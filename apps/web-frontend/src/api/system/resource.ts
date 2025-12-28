@@ -3,6 +3,7 @@ import { requestClient } from '#/api/request';
 export namespace ResourceApi {
   export interface Resource {
     id: number;
+    appId: number;
     parentId: number;
     name: string;
     code: string;
@@ -23,6 +24,7 @@ export namespace ResourceApi {
   }
 
   export interface CreateParams {
+    appId: number;
     parentId?: number;
     name: string;
     code?: string;
@@ -61,15 +63,21 @@ export namespace ResourceApi {
 /**
  * 获取资源树
  */
-export function getResourceTreeApi() {
-  return requestClient.get<ResourceApi.Resource[]>('/system/resources/tree');
+export function getResourceTreeApi(appId?: number) {
+  const params = appId ? { appId } : {};
+  return requestClient.get<ResourceApi.Resource[]>('/system/resources/tree', {
+    params,
+  });
 }
 
 /**
  * 获取所有资源
  */
-export function getAllResourcesApi() {
-  return requestClient.get<ResourceApi.Resource[]>('/system/resources/all');
+export function getAllResourcesApi(appId?: number) {
+  const params = appId ? { appId } : {};
+  return requestClient.get<ResourceApi.Resource[]>('/system/resources/all', {
+    params,
+  });
 }
 
 /**
