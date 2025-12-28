@@ -136,7 +136,7 @@ defineExpose({ open });
       <FormItem label="客户端密钥">
         <Input.Password
           v-model:value="formData.clientSecret"
-          placeholder="请输入Client Secret"
+          :placeholder="isEdit ? '留空表示不修改' : '请输入Client Secret'"
         />
       </FormItem>
       <FormItem label="回调地址">
