@@ -1,7 +1,7 @@
 import { createApp, watchEffect } from 'vue';
 
 import { registerAccessDirective } from '@vben/access';
-import { registerLoadingDirective } from '@vben/common-ui/es/loading';
+import { registerLoadingDirective, registerUserCache } from '@vben/common-ui';
 import { preferences } from '@vben/preferences';
 import { initStores } from '@vben/stores';
 import '@vben/styles';
@@ -10,11 +10,15 @@ import '@vben/styles/antd';
 import { useTitle } from '@vueuse/core';
 
 import { $t, setupI18n } from '#/locales';
+import { useUserCache } from '#/store';
 
 import { initComponentAdapter } from './adapter/component';
 import { initSetupVbenForm } from './adapter/form';
 import App from './app.vue';
 import { router } from './router';
+
+// 注册全局用户缓存
+registerUserCache(useUserCache());
 
 async function bootstrap(namespace: string) {
   // 初始化组件适配器
@@ -55,6 +59,17 @@ async function bootstrap(namespace: string) {
 
   // 配置路由及路由守卫
   app.use(router);
+
+  // 页面刷新时，如果已登录则加载用户缓存
+  router.isReady().then(async () => {
+    const { useAccessStore } = await import('@vben/stores');
+    const accessStore = useAccessStore();
+    if (accessStore.accessToken) {
+      const { useUserCacheStore } = await import('#/store');
+      const userCacheStore = useUserCacheStore();
+      userCacheStore.loadUsers();
+    }
+  });
 
   // 配置Motion插件
   const { MotionPlugin } = await import('@vben/plugins/motion');

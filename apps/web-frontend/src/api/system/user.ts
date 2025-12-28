@@ -110,3 +110,17 @@ export function deleteUserApi(id: number) {
 export function resetPasswordApi(id: number, password?: string) {
   return requestClient.post(`/system/users/${id}/reset-password`, { password });
 }
+
+/**
+ * 批量获取用户基本信息（用于用户展示组件）
+ */
+export function batchGetUsersApi(ids: number[]) {
+  return requestClient.post<
+    Array<{
+      avatar: string;
+      id: number;
+      nickname: string;
+      username: string;
+    }>
+  >('/system/users/batch', { ids });
+}

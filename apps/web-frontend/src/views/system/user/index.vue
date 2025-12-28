@@ -3,7 +3,7 @@ import type { UserApi } from '#/api/system/user';
 
 import { ref } from 'vue';
 
-import { Page } from '@vben/common-ui';
+import { Page, UserDisplay } from '@vben/common-ui';
 
 import {
   Button,
@@ -68,6 +68,8 @@ const columns = [
     key: 'roles',
     width: 200,
   },
+  { title: '创建人', dataIndex: 'createdBy', key: 'createdBy', width: 120 },
+  { title: '更新人', dataIndex: 'updatedBy', key: 'updatedBy', width: 120 },
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
   {
     title: '操作',
@@ -227,6 +229,12 @@ loadRolesAndDepts();
                 {{ role.name }}
               </Tag>
             </Space>
+          </template>
+          <template v-else-if="column.key === 'createdBy'">
+            <UserDisplay :user-id="record.createdBy" />
+          </template>
+          <template v-else-if="column.key === 'updatedBy'">
+            <UserDisplay :user-id="record.updatedBy" />
           </template>
           <template v-else-if="column.key === 'action'">
             <Space>

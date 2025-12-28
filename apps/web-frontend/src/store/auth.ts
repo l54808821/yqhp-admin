@@ -51,6 +51,11 @@ export const useAuthStore = defineStore('auth', () => {
         userStore.setUserInfo(userInfo);
         accessStore.setAccessCodes(accessCodes);
 
+        // 登录成功后加载用户缓存
+        const { useUserCacheStore } = await import('./user-cache');
+        const userCacheStore = useUserCacheStore();
+        userCacheStore.loadUsers();
+
         if (accessStore.loginExpired) {
           accessStore.setLoginExpired(false);
         } else {
@@ -90,6 +95,12 @@ export const useAuthStore = defineStore('auth', () => {
     } catch {
       // 不做任何处理
     }
+
+    // 清除用户缓存
+    const { useUserCacheStore } = await import('./user-cache');
+    const userCacheStore = useUserCacheStore();
+    userCacheStore.clearCache();
+
     resetAllStores();
     accessStore.setLoginExpired(false);
 

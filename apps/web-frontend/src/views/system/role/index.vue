@@ -4,7 +4,7 @@ import type { RoleApi } from '#/api/system/role';
 
 import { ref } from 'vue';
 
-import { Page } from '@vben/common-ui';
+import { Page, UserDisplay } from '@vben/common-ui';
 
 import {
   Button,
@@ -61,6 +61,8 @@ const columns = [
     width: 80,
   },
   { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
+  { title: '创建人', dataIndex: 'createdBy', key: 'createdBy', width: 120 },
+  { title: '更新人', dataIndex: 'updatedBy', key: 'updatedBy', width: 120 },
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
   {
     title: '操作',
@@ -243,6 +245,12 @@ loadApplications();
             <Tag :color="record.status === 1 ? 'green' : 'red'">
               {{ record.status === 1 ? '启用' : '禁用' }}
             </Tag>
+          </template>
+          <template v-else-if="column.key === 'createdBy'">
+            <UserDisplay :user-id="record.createdBy" />
+          </template>
+          <template v-else-if="column.key === 'updatedBy'">
+            <UserDisplay :user-id="record.updatedBy" />
           </template>
           <template v-else-if="column.key === 'action'">
             <Space>
