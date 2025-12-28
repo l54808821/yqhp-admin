@@ -21,7 +21,7 @@ import {
 import { deleteRoleApi, getResourceTreeApi, getRoleListApi } from '#/api';
 import { getAllApplicationsApi } from '#/api/system/application';
 
-import RoleFormModal from './components/RoleFormModal.vue';
+import RoleFormDrawer from './components/RoleFormDrawer.vue';
 
 // 搜索参数
 const searchParams = ref<RoleApi.ListParams>({
@@ -46,8 +46,8 @@ const currentAppId = ref<number>();
 // 资源树
 const resources = ref<any[]>([]);
 
-// 弹框引用
-const roleFormModalRef = ref<InstanceType<typeof RoleFormModal>>();
+// 抽屉引用
+const roleFormDrawerRef = ref<InstanceType<typeof RoleFormDrawer>>();
 
 // 表格列定义
 const columns = [
@@ -144,7 +144,7 @@ function handleAdd() {
     message.warning('请先选择应用');
     return;
   }
-  roleFormModalRef.value?.open({
+  roleFormDrawerRef.value?.open({
     appId: currentAppId.value,
     resources: resources.value,
   });
@@ -152,7 +152,7 @@ function handleAdd() {
 
 // 编辑
 function handleEdit(record: RoleApi.Role) {
-  roleFormModalRef.value?.open({
+  roleFormDrawerRef.value?.open({
     appId: currentAppId.value!,
     resources: resources.value,
     id: record.id,
@@ -269,7 +269,7 @@ loadApplications();
       </Table>
     </Card>
 
-    <!-- 角色表单弹框 -->
-    <RoleFormModal ref="roleFormModalRef" @success="loadData" />
+    <!-- 角色表单抽屉 -->
+    <RoleFormDrawer ref="roleFormDrawerRef" @success="loadData" />
   </Page>
 </template>
