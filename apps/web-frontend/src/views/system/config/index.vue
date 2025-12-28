@@ -18,7 +18,7 @@ import {
 
 import { deleteConfigApi, getConfigListApi, refreshConfigApi } from '#/api';
 
-import ConfigFormModal from './config-form-modal.vue';
+import ConfigFormModal from './components/ConfigFormModal.vue';
 
 // 搜索参数
 const searchParams = ref<ConfigApi.ListParams>({

@@ -25,7 +25,7 @@ import {
   resetPasswordApi,
 } from '#/api';
 
-import UserFormModal from './user-form-modal.vue';
+import UserFormModal from './components/UserFormModal.vue';
 
 // 搜索参数
 const searchParams = ref<UserApi.ListParams>({

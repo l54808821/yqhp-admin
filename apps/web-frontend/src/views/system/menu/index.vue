@@ -20,7 +20,7 @@ import {
 import { deleteResourceApi, getResourceTreeApi } from '#/api';
 import { getAllApplicationsApi } from '#/api/system/application';
 
-import MenuFormModal from './menu-form-modal.vue';
+import MenuFormModal from './components/MenuFormModal.vue';
 
 // 表格数据
 const tableData = ref<ResourceApi.Resource[]>([]);

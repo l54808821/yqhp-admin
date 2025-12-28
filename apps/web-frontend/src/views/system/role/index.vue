@@ -21,7 +21,7 @@ import {
 import { deleteRoleApi, getResourceTreeApi, getRoleListApi } from '#/api';
 import { getAllApplicationsApi } from '#/api/system/application';
 
-import RoleFormModal from './role-form-modal.vue';
+import RoleFormModal from './components/RoleFormModal.vue';
 
 // 搜索参数
 const searchParams = ref<RoleApi.ListParams>({

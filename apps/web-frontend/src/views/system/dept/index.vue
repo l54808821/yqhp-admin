@@ -17,7 +17,7 @@ import {
 
 import { deleteDeptApi, getDeptTreeApi } from '#/api';
 
-import DeptFormModal from './dept-form-modal.vue';
+import DeptFormModal from './components/DeptFormModal.vue';
 
 // 表格数据
 const tableData = ref<DeptApi.Dept[]>([]);

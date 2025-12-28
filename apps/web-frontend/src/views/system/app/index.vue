@@ -22,7 +22,7 @@ import {
   getApplicationListApi,
 } from '#/api/system/application';
 
-import AppFormModal from './app-form-modal.vue';
+import AppFormModal from './components/AppFormModal.vue';
 
 // 搜索参数
 const searchParams = ref<ApplicationApi.ListParams>({

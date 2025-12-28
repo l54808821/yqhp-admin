@@ -19,8 +19,8 @@ import {
 
 import { deleteDictTypeApi, getDictTypeListApi } from '#/api';
 
-import DictDataModal from './dict-data-modal.vue';
-import DictTypeFormModal from './dict-type-form-modal.vue';
+import DictDataModal from './components/DictDataModal.vue';
+import DictTypeFormModal from './components/DictTypeFormModal.vue';
 
 // 搜索参数
 const searchParams = ref<DictApi.ListTypesParams>({

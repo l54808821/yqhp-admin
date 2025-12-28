@@ -67,6 +67,7 @@ const columns = [
   },
 ];
 
+
 // 打开弹框
 interface OpenParams {
   dictType: DictApi.DictType;

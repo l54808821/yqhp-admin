@@ -17,7 +17,7 @@ import {
 
 import { deleteOAuthProviderApi, getOAuthProviderListApi } from '#/api';
 
-import OAuthFormModal from './oauth-form-modal.vue';
+import OauthFormModal from './components/OauthFormModal.vue';
 
 // 搜索参数
 const searchParams = ref({
@@ -31,7 +31,7 @@ const total = ref(0);
 const loading = ref(false);
 
 // 弹框引用
-const oauthFormModalRef = ref<InstanceType<typeof OAuthFormModal>>();
+const oauthFormModalRef = ref<InstanceType<typeof OauthFormModal>>();
 
 // 表格列定义
 const columns = [
