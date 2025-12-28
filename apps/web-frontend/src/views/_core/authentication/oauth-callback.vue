@@ -5,8 +5,6 @@ import { useRoute, useRouter } from 'vue-router';
 import { preferences } from '@vben/preferences';
 import { useAccessStore } from '@vben/stores';
 
-import { Spin } from 'ant-design-vue';
-
 import { getAccessCodesApi } from '#/api';
 import { oauthCallbackApi } from '#/api/system/oauth';
 import { useAuthStore } from '#/store';
@@ -77,26 +75,79 @@ function handleRetry() {
 
 <template>
   <div
-    class="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900"
+    class="flex h-full min-h-[400px] items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900"
   >
     <div class="text-center">
+      <!-- Loading 状态 -->
       <template v-if="loading">
-        <Spin size="large" />
-        <p class="mt-4 text-gray-600 dark:text-gray-400">
-          正在登录中，请稍候...
-        </p>
+        <div
+          class="rounded-2xl bg-white/80 px-12 py-10 shadow-2xl backdrop-blur-sm dark:bg-gray-800/80"
+        >
+          <!-- Loading 动画 -->
+          <div class="mb-6 flex items-center justify-center">
+            <div
+              class="h-12 w-12 animate-spin rounded-full border-3 border-gray-200 border-t-blue-500 dark:border-gray-700 dark:border-t-blue-400"
+            ></div>
+          </div>
+          <!-- 文字 -->
+          <h3
+            class="mb-2 text-lg font-semibold text-gray-800 dark:text-gray-100"
+          >
+            正在登录中
+          </h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400">
+            正在验证您的身份，请稍候...
+          </p>
+          <!-- 进度点动画 -->
+          <div class="mt-4 flex items-center justify-center gap-1">
+            <span
+              class="h-2 w-2 animate-bounce rounded-full bg-blue-500"
+              style="animation-delay: 0ms"
+            ></span>
+            <span
+              class="h-2 w-2 animate-bounce rounded-full bg-blue-500"
+              style="animation-delay: 150ms"
+            ></span>
+            <span
+              class="h-2 w-2 animate-bounce rounded-full bg-blue-500"
+              style="animation-delay: 300ms"
+            ></span>
+          </div>
+        </div>
       </template>
+
+      <!-- 错误状态 -->
       <template v-else-if="error">
-        <div class="rounded-lg bg-white p-8 shadow-lg dark:bg-gray-800">
-          <div class="mb-4 text-5xl">😕</div>
+        <div
+          class="rounded-2xl bg-white/80 px-12 py-10 shadow-2xl backdrop-blur-sm dark:bg-gray-800/80"
+        >
+          <div
+            class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30"
+          >
+            <svg
+              class="h-8 w-8 text-red-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </div>
           <h2
             class="mb-2 text-xl font-semibold text-gray-800 dark:text-gray-200"
           >
             登录失败
           </h2>
-          <p class="mb-6 text-gray-600 dark:text-gray-400">{{ error }}</p>
+          <p class="mb-6 text-sm text-gray-500 dark:text-gray-400">
+            {{ error }}
+          </p>
           <button
-            class="rounded-lg bg-blue-500 px-6 py-2 text-white transition-colors hover:bg-blue-600"
+            class="rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 px-8 py-2.5 font-medium text-white shadow-lg transition-all hover:from-blue-600 hover:to-purple-600 hover:shadow-xl"
             @click="handleRetry"
           >
             返回登录
