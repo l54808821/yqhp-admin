@@ -15,6 +15,7 @@ import {
   Space,
   Table,
   Tag,
+  Tooltip,
 } from 'ant-design-vue';
 
 import {
@@ -23,6 +24,7 @@ import {
   getUserListApi,
   resetPasswordApi,
 } from '#/api';
+import { UserApi as UserApiNs } from '#/api/system/user';
 
 import UserFormModal from './components/UserFormModal.vue';
 
@@ -54,6 +56,12 @@ const columns = [
   { title: '昵称', dataIndex: 'nickname', key: 'nickname', width: 120 },
   { title: '手机号', dataIndex: 'phone', key: 'phone', width: 130 },
   { title: '邮箱', dataIndex: 'email', key: 'email', width: 180 },
+  {
+    title: '来源平台',
+    dataIndex: 'platform',
+    key: 'platform',
+    width: 100,
+  },
   {
     title: '状态',
     dataIndex: 'status',
@@ -211,7 +219,21 @@ loadDepts();
         size="middle"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
+          <template v-if="column.key === 'platform'">
+            <Tooltip v-if="record.platformUid || record.platformShortId">
+              <template #title>
+                <div v-if="record.platformUid">UID: {{ record.platformUid }}</div>
+                <div v-if="record.platformShortId">短码: {{ record.platformShortId }}</div>
+              </template>
+              <Tag color="purple">
+                {{ UserApiNs.getPlatformLabel(record.platform) }}
+              </Tag>
+            </Tooltip>
+            <Tag v-else color="purple">
+              {{ UserApiNs.getPlatformLabel(record.platform) }}
+            </Tag>
+          </template>
+          <template v-else-if="column.key === 'status'">
             <Tag :color="record.status === 1 ? 'green' : 'red'">
               {{ record.status === 1 ? '启用' : '禁用' }}
             </Tag>

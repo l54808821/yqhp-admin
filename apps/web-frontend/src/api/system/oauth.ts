@@ -166,12 +166,14 @@ export interface OAuthLoginResult {
 
 /**
  * OAuth回调登录
+ * 注意：OAuth回调需要后端请求第三方服务器，可能较慢，设置较长超时时间
  */
 export function oauthCallbackApi(provider: string, code: string) {
   return requestClient.get<OAuthLoginResult>(
     `/auth/oauth/${provider}/callback`,
     {
       params: { code },
+      timeout: 30_000, // 30秒超时，OAuth回调需要请求第三方服务器
     },
   );
 }

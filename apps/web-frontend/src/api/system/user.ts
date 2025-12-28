@@ -1,6 +1,34 @@
 import { requestClient } from '#/api/request';
 
 export namespace UserApi {
+  // 用户来源平台枚举
+  export enum Platform {
+    SYSTEM = 'system', // 系统新建
+    GITHUB = 'github',
+    WECHAT = 'wechat', // 微信
+    FEISHU = 'feishu', // 飞书
+    DINGTALK = 'dingtalk', // 钉钉
+    QQ = 'qq',
+    GITEE = 'gitee',
+  }
+
+  // 平台选项配置
+  export const PlatformOptions = [
+    { label: '系统新建', value: Platform.SYSTEM },
+    { label: 'GitHub', value: Platform.GITHUB },
+    { label: '微信', value: Platform.WECHAT },
+    { label: '飞书', value: Platform.FEISHU },
+    { label: '钉钉', value: Platform.DINGTALK },
+    { label: 'QQ', value: Platform.QQ },
+    { label: 'Gitee', value: Platform.GITEE },
+  ];
+
+  // 根据平台值获取标签
+  export function getPlatformLabel(platform: Platform | string): string {
+    const option = PlatformOptions.find((opt) => opt.value === platform);
+    return option?.label || platform;
+  }
+
   export interface User {
     id: number;
     username: string;
@@ -11,6 +39,9 @@ export namespace UserApi {
     gender: number;
     status: number;
     deptId: number;
+    platform: Platform; // 用户来源平台
+    platformUid: string; // 平台唯一标识（长码）
+    platformShortId: string; // 平台唯一标识（短码）
     lastLoginAt: string;
     lastLoginIp: string;
     remark: string;
@@ -58,6 +89,9 @@ export namespace UserApi {
     phone?: string;
     gender?: number;
     deptId?: number;
+    platform?: Platform; // 用户来源平台
+    platformUid?: string; // 平台唯一标识（长码）
+    platformShortId?: string; // 平台唯一标识（短码）
     appRoles?: AppRoleConfig[];
     remark?: string;
   }
@@ -71,6 +105,9 @@ export namespace UserApi {
     gender?: number;
     deptId?: number;
     status?: number;
+    platform?: Platform; // 用户来源平台
+    platformUid?: string; // 平台唯一标识（长码）
+    platformShortId?: string; // 平台唯一标识（短码）
     appRoles?: AppRoleConfig[];
     remark?: string;
   }
