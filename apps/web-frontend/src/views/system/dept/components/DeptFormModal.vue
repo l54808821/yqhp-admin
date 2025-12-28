@@ -15,7 +15,7 @@ import {
   TreeSelect,
 } from 'ant-design-vue';
 
-import { createDeptApi, updateDeptApi } from '#/api';
+import { createDeptApi, getDeptApi, updateDeptApi } from '#/api';
 
 const emit = defineEmits<{
   success: [];
@@ -30,37 +30,50 @@ const isEdit = ref(false);
 const formData = ref<Partial<DeptApi.CreateParams & { id?: number }>>({});
 const depts = ref<any[]>([]);
 
+// 重置表单数据
+function resetFormData() {
+  formData.value = {
+    parentId: undefined,
+    name: '',
+    code: '',
+    leader: '',
+    phone: '',
+    email: '',
+    sort: 0,
+    status: 1,
+    remark: '',
+  };
+}
+
 // 打开弹框
 interface OpenParams {
   depts: any[];
   parentId?: number;
-  record?: DeptApi.Dept;
+  id?: number;
 }
 
-function open(params: OpenParams) {
+async function open(params: OpenParams) {
+  resetFormData();
   depts.value = params.depts;
 
-  if (params.record) {
+  if (params.id) {
     isEdit.value = true;
+    const record = await getDeptApi(params.id);
     formData.value = {
-      id: params.record.id,
-      parentId: params.record.parentId || undefined,
-      name: params.record.name,
-      code: params.record.code,
-      leader: params.record.leader,
-      phone: params.record.phone,
-      email: params.record.email,
-      sort: params.record.sort,
-      status: params.record.status,
-      remark: params.record.remark,
+      id: record.id,
+      parentId: record.parentId || undefined,
+      name: record.name,
+      code: record.code,
+      leader: record.leader,
+      phone: record.phone,
+      email: record.email,
+      sort: record.sort,
+      status: record.status,
+      remark: record.remark,
     };
   } else {
     isEdit.value = false;
-    formData.value = {
-      parentId: params.parentId,
-      sort: 0,
-      status: 1,
-    };
+    formData.value.parentId = params.parentId;
   }
 
   visible.value = true;

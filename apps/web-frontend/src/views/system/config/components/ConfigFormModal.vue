@@ -5,7 +5,7 @@ import { ref } from 'vue';
 
 import { Form, FormItem, Input, message, Modal, Select } from 'ant-design-vue';
 
-import { createConfigApi, updateConfigApi } from '#/api';
+import { createConfigApi, getConfigApi, updateConfigApi } from '#/api';
 
 const emit = defineEmits<{
   success: [];
@@ -27,27 +27,34 @@ const typeOptions = [
   { value: 'json', label: 'JSON' },
 ];
 
-// 打开弹框
-interface OpenParams {
-  record?: ConfigApi.Config;
+// 重置表单数据
+function resetFormData() {
+  formData.value = {
+    name: '',
+    key: '',
+    value: '',
+    type: 'string',
+    remark: '',
+  };
 }
 
-function open(params: OpenParams) {
-  if (params.record) {
+// 打开弹框
+async function open(id?: number) {
+  resetFormData();
+
+  if (id) {
     isEdit.value = true;
+    const record = await getConfigApi(id);
     formData.value = {
-      id: params.record.id,
-      name: params.record.name,
-      key: params.record.key,
-      value: params.record.value,
-      type: params.record.type,
-      remark: params.record.remark,
+      id: record.id,
+      name: record.name,
+      key: record.key,
+      value: record.value,
+      type: record.type,
+      remark: record.remark,
     };
   } else {
     isEdit.value = false;
-    formData.value = {
-      type: 'string',
-    };
   }
 
   visible.value = true;

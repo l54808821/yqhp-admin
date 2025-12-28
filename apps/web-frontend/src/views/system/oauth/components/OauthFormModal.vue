@@ -14,7 +14,7 @@ import {
   RadioGroup,
 } from 'ant-design-vue';
 
-import { createOAuthProviderApi, updateOAuthProviderApi } from '#/api';
+import { createOAuthProviderApi, getOAuthProviderApi, updateOAuthProviderApi } from '#/api';
 
 const emit = defineEmits<{
   success: [];
@@ -28,35 +28,49 @@ const isEdit = ref(false);
 // 表单数据
 const formData = ref<Partial<OAuthApi.CreateParams & { id?: number }>>({});
 
-// 打开弹框
-interface OpenParams {
-  record?: OAuthApi.Provider;
+// 重置表单数据
+function resetFormData() {
+  formData.value = {
+    name: '',
+    code: '',
+    clientId: '',
+    clientSecret: '',
+    redirectUri: '',
+    authUrl: '',
+    tokenUrl: '',
+    userInfoUrl: '',
+    scope: '',
+    status: 1,
+    sort: 0,
+    icon: '',
+    remark: '',
+  };
 }
 
-function open(params: OpenParams) {
-  if (params.record) {
+// 打开弹框
+async function open(code?: string) {
+  resetFormData();
+
+  if (code) {
     isEdit.value = true;
+    const record = await getOAuthProviderApi(code);
     formData.value = {
-      id: params.record.id,
-      name: params.record.name,
-      code: params.record.code,
-      clientId: params.record.clientId,
-      redirectUri: params.record.redirectUri,
-      authUrl: params.record.authUrl,
-      tokenUrl: params.record.tokenUrl,
-      userInfoUrl: params.record.userInfoUrl,
-      scope: params.record.scope,
-      status: params.record.status,
-      sort: params.record.sort,
-      icon: params.record.icon,
-      remark: params.record.remark,
+      id: record.id,
+      name: record.name,
+      code: record.code,
+      clientId: record.clientId,
+      redirectUri: record.redirectUri,
+      authUrl: record.authUrl,
+      tokenUrl: record.tokenUrl,
+      userInfoUrl: record.userInfoUrl,
+      scope: record.scope,
+      status: record.status,
+      sort: record.sort,
+      icon: record.icon,
+      remark: record.remark,
     };
   } else {
     isEdit.value = false;
-    formData.value = {
-      status: 1,
-      sort: 0,
-    };
   }
 
   visible.value = true;

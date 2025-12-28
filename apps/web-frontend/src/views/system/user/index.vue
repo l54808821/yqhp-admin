@@ -19,7 +19,6 @@ import {
 
 import {
   deleteUserApi,
-  getAllRolesApi,
   getDeptTreeApi,
   getUserListApi,
   resetPasswordApi,
@@ -44,7 +43,6 @@ const total = ref(0);
 const loading = ref(false);
 
 // 角色和部门数据
-const roles = ref<any[]>([]);
 const depts = ref<any[]>([]);
 
 // 弹框引用
@@ -91,13 +89,9 @@ async function loadData() {
   }
 }
 
-// 加载角色和部门
-async function loadRolesAndDepts() {
-  const [rolesRes, deptsRes] = await Promise.all([
-    getAllRolesApi(),
-    getDeptTreeApi(),
-  ]);
-  roles.value = rolesRes;
+// 加载部门
+async function loadDepts() {
+  const deptsRes = await getDeptTreeApi();
   depts.value = deptsRes;
 }
 
@@ -130,15 +124,14 @@ function handlePageChange(page: number, pageSize: number) {
 
 // 新增
 function handleAdd() {
-  userFormModalRef.value?.open({ roles: roles.value, depts: depts.value });
+  userFormModalRef.value?.open({ depts: depts.value });
 }
 
 // 编辑
 function handleEdit(record: UserApi.User) {
   userFormModalRef.value?.open({
-    roles: roles.value,
     depts: depts.value,
-    record,
+    id: record.id,
   });
 }
 
@@ -157,7 +150,7 @@ async function handleResetPassword(id: number) {
 
 // 初始化
 loadData();
-loadRolesAndDepts();
+loadDepts();
 </script>
 
 <template>

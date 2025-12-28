@@ -18,7 +18,7 @@ import {
   TreeSelect,
 } from 'ant-design-vue';
 
-import { createResourceApi, updateResourceApi } from '#/api';
+import { createResourceApi, getResourceApi, updateResourceApi } from '#/api';
 
 const emit = defineEmits<{
   success: [];
@@ -38,49 +38,63 @@ const showPathAndComponent = computed(() => {
   return formData.value.type === 1 || formData.value.type === 2;
 });
 
+// 重置表单数据
+function resetFormData() {
+  formData.value = {
+    parentId: undefined,
+    name: '',
+    code: '',
+    type: 2,
+    path: '',
+    component: '',
+    redirect: '',
+    icon: '',
+    sort: 0,
+    isHidden: false,
+    isCache: true,
+    isFrame: false,
+    status: 1,
+    remark: '',
+  };
+}
+
 // 打开弹框
 interface OpenParams {
   appId: number;
   resources: any[];
   parentId?: number;
-  record?: ResourceApi.Resource;
+  id?: number;
 }
 
-function open(params: OpenParams) {
+async function open(params: OpenParams) {
+  resetFormData();
   resources.value = params.resources;
+  formData.value.appId = params.appId;
 
-  if (params.record) {
+  if (params.id) {
     isEdit.value = true;
+    const record = await getResourceApi(params.id);
     formData.value = {
-      id: params.record.id,
-      appId: params.record.appId,
-      parentId: params.record.parentId || undefined,
-      name: params.record.name,
-      code: params.record.code,
-      type: params.record.type,
-      path: params.record.path,
-      component: params.record.component,
-      redirect: params.record.redirect,
-      icon: params.record.icon,
-      sort: params.record.sort,
-      isHidden: params.record.isHidden,
-      isCache: params.record.isCache,
-      isFrame: params.record.isFrame,
-      status: params.record.status,
-      remark: params.record.remark,
+      id: record.id,
+      appId: record.appId,
+      parentId: record.parentId || undefined,
+      name: record.name,
+      code: record.code,
+      type: record.type,
+      path: record.path,
+      component: record.component,
+      redirect: record.redirect,
+      icon: record.icon,
+      sort: record.sort,
+      isHidden: record.isHidden,
+      isCache: record.isCache,
+      isFrame: record.isFrame,
+      status: record.status,
+      remark: record.remark,
     };
   } else {
     isEdit.value = false;
-    formData.value = {
-      appId: params.appId,
-      parentId: params.parentId,
-      type: 2,
-      sort: 0,
-      isHidden: false,
-      isCache: true,
-      isFrame: false,
-      status: 1,
-    };
+    formData.value.parentId = params.parentId;
   }
 
   visible.value = true;

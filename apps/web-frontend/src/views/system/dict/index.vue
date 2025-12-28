@@ -101,12 +101,12 @@ function handlePageChange(page: number, pageSize: number) {
 
 // 新增
 function handleAdd() {
-  dictTypeFormModalRef.value?.open({});
+  dictTypeFormModalRef.value?.open();
 }
 
 // 编辑
 function handleEdit(record: DictApi.DictType) {
-  dictTypeFormModalRef.value?.open({ record });
+  dictTypeFormModalRef.value?.open(record.id);
 }
 
 // 查看字典数据

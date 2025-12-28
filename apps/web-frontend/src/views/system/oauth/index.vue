@@ -83,12 +83,12 @@ function handlePageChange(page: number, pageSize: number) {
 
 // 新增
 function handleAdd() {
-  oauthFormModalRef.value?.open({});
+  oauthFormModalRef.value?.open();
 }
 
 // 编辑
 function handleEdit(record: OAuthApi.Provider) {
-  oauthFormModalRef.value?.open({ record });
+  oauthFormModalRef.value?.open(record.code);
 }
 
 // 删除

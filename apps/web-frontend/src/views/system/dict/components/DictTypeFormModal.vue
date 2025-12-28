@@ -13,7 +13,7 @@ import {
   RadioGroup,
 } from 'ant-design-vue';
 
-import { createDictTypeApi, updateDictTypeApi } from '#/api';
+import { createDictTypeApi, getDictTypeApi, updateDictTypeApi } from '#/api';
 
 const emit = defineEmits<{
   success: [];
@@ -27,26 +27,32 @@ const isEdit = ref(false);
 // 表单数据
 const formData = ref<Partial<DictApi.CreateTypeParams & { id?: number }>>({});
 
-// 打开弹框
-interface OpenParams {
-  record?: DictApi.DictType;
+// 重置表单数据
+function resetFormData() {
+  formData.value = {
+    name: '',
+    code: '',
+    status: 1,
+    remark: '',
+  };
 }
 
-function open(params: OpenParams) {
-  if (params.record) {
+// 打开弹框
+async function open(id?: number) {
+  resetFormData();
+
+  if (id) {
     isEdit.value = true;
+    const record = await getDictTypeApi(id);
     formData.value = {
-      id: params.record.id,
-      name: params.record.name,
-      code: params.record.code,
-      status: params.record.status,
-      remark: params.record.remark,
+      id: record.id,
+      name: record.name,
+      code: record.code,
+      status: record.status,
+      remark: record.remark,
     };
   } else {
     isEdit.value = false;
-    formData.value = {
-      status: 1,
-    };
   }
 
   visible.value = true;

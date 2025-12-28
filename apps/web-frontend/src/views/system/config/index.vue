@@ -98,12 +98,12 @@ function handlePageChange(page: number, pageSize: number) {
 
 // 新增
 function handleAdd() {
-  configFormModalRef.value?.open({});
+  configFormModalRef.value?.open();
 }
 
 // 编辑
 function handleEdit(record: ConfigApi.Config) {
-  configFormModalRef.value?.open({ record });
+  configFormModalRef.value?.open(record.id);
 }
 
 // 删除
@@ -179,7 +179,7 @@ loadData();
           </template>
           <template v-else-if="column.key === 'action'">
             <Space>
-              <Button type="link" size="small" @click="handleEdit(record)">
+              <Button type="link" size="small" @click="handleEdit(record as ConfigApi.Config)">
                 编辑
               </Button>
               <Popconfirm

@@ -16,6 +16,7 @@ import {
 
 import {
   createApplicationApi,
+  getApplicationApi,
   updateApplicationApi,
 } from '#/api/system/application';
 
@@ -33,10 +34,25 @@ const formData = ref<
   Partial<ApplicationApi.CreateParams & { id?: number }>
 >({});
 
+// 重置表单数据
+function resetFormData() {
+  formData.value = {
+    name: '',
+    code: '',
+    description: '',
+    icon: '',
+    sort: 0,
+    status: 1,
+  };
+}
+
 // 打开弹框
-function open(record?: ApplicationApi.Application) {
-  if (record) {
+async function open(id?: number) {
+  resetFormData();
+
+  if (id) {
     isEdit.value = true;
+    const record = await getApplicationApi(id);
     formData.value = {
       id: record.id,
       name: record.name,
@@ -48,10 +64,6 @@ function open(record?: ApplicationApi.Application) {
     };
   } else {
     isEdit.value = false;
-    formData.value = {
-      sort: 0,
-      status: 1,
-    };
   }
   visible.value = true;
 }

@@ -15,7 +15,7 @@ import {
   Tree,
 } from 'ant-design-vue';
 
-import { createRoleApi, getRoleResourceIdsApi, updateRoleApi } from '#/api';
+import { createRoleApi, getRoleApi, getRoleResourceIdsApi, updateRoleApi } from '#/api';
 
 const emit = defineEmits<{
   success: [];
@@ -31,37 +31,46 @@ const formData = ref<Partial<RoleApi.CreateParams & { id?: number }>>({});
 const resources = ref<any[]>([]);
 const checkedKeys = ref<number[]>([]);
 
+// 重置表单数据
+function resetFormData() {
+  formData.value = {
+    name: '',
+    code: '',
+    sort: 0,
+    status: 1,
+    remark: '',
+  };
+  checkedKeys.value = [];
+}
+
 // 打开弹框
 interface OpenParams {
   appId: number;
   resources: any[];
-  record?: RoleApi.Role;
+  id?: number;
 }
 
 async function open(params: OpenParams) {
+  resetFormData();
   resources.value = params.resources;
+  formData.value.appId = params.appId;
 
-  if (params.record) {
+  if (params.id) {
     isEdit.value = true;
+    const record = await getRoleApi(params.id);
     formData.value = {
-      id: params.record.id,
-      appId: params.record.appId,
-      name: params.record.name,
-      code: params.record.code,
-      sort: params.record.sort,
-      status: params.record.status,
-      remark: params.record.remark,
+      id: record.id,
+      appId: record.appId,
+      name: record.name,
+      code: record.code,
+      sort: record.sort,
+      status: record.status,
+      remark: record.remark,
     };
     // 获取角色的资源ID
-    checkedKeys.value = await getRoleResourceIdsApi(params.record.id);
+    checkedKeys.value = await getRoleResourceIdsApi(params.id);
   } else {
     isEdit.value = false;
-    formData.value = {
-      appId: params.appId,
-      sort: 0,
-      status: 1,
-    };
-    checkedKeys.value = [];
   }
 
   visible.value = true;

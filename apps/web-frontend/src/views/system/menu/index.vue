@@ -115,7 +115,7 @@ function handleEdit(record: ResourceApi.Resource) {
   menuFormModalRef.value?.open({
     appId: currentAppId.value!,
     resources: tableData.value,
-    record,
+    id: record.id,
   });
 }
 

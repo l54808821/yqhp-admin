@@ -67,6 +67,11 @@ export function getAllApplicationsApi() {
 }
 
 /**
+ * 获取所有应用（别名）
+ */
+export const getAllAppsApi = getAllApplicationsApi;
+
+/**
  * 获取应用详情
  */
 export function getApplicationApi(id: number) {

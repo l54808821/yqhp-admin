@@ -155,7 +155,7 @@ function handleEdit(record: RoleApi.Role) {
   roleFormModalRef.value?.open({
     appId: currentAppId.value!,
     resources: resources.value,
-    record,
+    id: record.id,
   });
 }
 

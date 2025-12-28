@@ -21,9 +21,16 @@ export namespace UserApi {
 
   export interface Role {
     id: number;
+    appId: number;
     name: string;
     code: string;
     status: number;
+  }
+
+  // 应用角色配置
+  export interface AppRoleConfig {
+    appId: number;
+    roleIds: number[];
   }
 
   export interface ListParams {
@@ -51,7 +58,7 @@ export namespace UserApi {
     phone?: string;
     gender?: number;
     deptId?: number;
-    roleIds?: number[];
+    appRoles?: AppRoleConfig[];
     remark?: string;
   }
 
@@ -64,7 +71,7 @@ export namespace UserApi {
     gender?: number;
     deptId?: number;
     status?: number;
-    roleIds?: number[];
+    appRoles?: AppRoleConfig[];
     remark?: string;
   }
 }

@@ -72,7 +72,7 @@ function handleAdd(parentId?: number) {
 function handleEdit(record: DeptApi.Dept) {
   deptFormModalRef.value?.open({
     depts: tableData.value,
-    record,
+    id: record.id,
   });
 }
 

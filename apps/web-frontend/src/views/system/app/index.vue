@@ -104,7 +104,7 @@ function handleAdd() {
 
 // 编辑
 function handleEdit(record: ApplicationApi.Application) {
-  appFormModalRef.value?.open(record);
+  appFormModalRef.value?.open(record.id);
 }
 
 // 删除
