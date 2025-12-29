@@ -124,7 +124,7 @@ loadData();
 </script>
 
 <template>
-  <Page title="参数配置" description="管理系统参数配置">
+  <Page>
     <Card>
       <!-- 搜索表单 -->
       <div class="mb-4 flex flex-wrap gap-4">

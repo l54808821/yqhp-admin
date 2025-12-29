@@ -170,7 +170,7 @@ loadApplications();
 </script>
 
 <template>
-  <Page title="角色管理" description="管理系统角色和权限">
+  <Page>
     <Card>
       <!-- 应用选择 -->
       <div class="mb-4">

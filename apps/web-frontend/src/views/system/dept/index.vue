@@ -87,7 +87,7 @@ loadData();
 </script>
 
 <template>
-  <Page title="部门管理" description="管理组织架构和部门">
+  <Page>
     <Card>
       <!-- 操作按钮 -->
       <div class="mb-4">

@@ -102,7 +102,7 @@ loadData();
 </script>
 
 <template>
-  <Page title="第三方登录" description="管理OAuth第三方登录配置">
+  <Page>
     <Card>
       <!-- 操作按钮 -->
       <div class="mb-4">

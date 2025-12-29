@@ -161,7 +161,7 @@ loadDepts();
 </script>
 
 <template>
-  <Page title="用户管理" description="管理系统用户">
+  <Page>
     <Card>
       <!-- 搜索表单 -->
       <div class="mb-4 flex flex-wrap gap-4">

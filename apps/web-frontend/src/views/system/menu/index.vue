@@ -132,7 +132,7 @@ loadApplications();
 </script>
 
 <template>
-  <Page title="菜单管理" description="管理系统菜单和权限资源">
+  <Page>
     <Card>
       <!-- 应用选择 -->
       <div class="mb-4">

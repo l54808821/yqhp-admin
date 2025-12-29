@@ -197,7 +197,7 @@ loadTypeData();
 </script>
 
 <template>
-  <Page title="字典管理" description="管理系统数据字典">
+  <Page>
     <div class="flex gap-4 h-full">
       <!-- 左侧：字典类型 -->
       <Card title="字典类型" class="w-[480px] flex-shrink-0">
@@ -325,13 +325,13 @@ loadTypeData();
         </template>
       </Card>
     </div>
+
+    <!-- 字典类型表单弹框 -->
+    <DictTypeFormModal ref="dictTypeFormModalRef" @success="loadTypeData" />
+
+    <!-- 字典数据表单弹框 -->
+    <DictDataFormModal ref="dictDataFormModalRef" @success="loadDataList" />
   </Page>
-
-  <!-- 字典类型表单弹框 -->
-  <DictTypeFormModal ref="dictTypeFormModalRef" @success="loadTypeData" />
-
-  <!-- 字典数据表单弹框 -->
-  <DictDataFormModal ref="dictDataFormModalRef" @success="loadDataList" />
 </template>
 
 <style scoped>

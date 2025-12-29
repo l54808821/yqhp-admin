@@ -194,7 +194,7 @@ loadLoginLogs();
 </script>
 
 <template>
-  <Page title="日志管理" description="查看系统日志">
+  <Page>
     <Card>
       <Tabs v-model:active-key="activeTab" @change="handleTabChange">
         <TabPane key="login" tab="登录日志">

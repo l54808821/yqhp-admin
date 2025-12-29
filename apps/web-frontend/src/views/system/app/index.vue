@@ -117,7 +117,7 @@ loadData();
 </script>
 
 <template>
-  <Page title="应用管理" description="管理系统应用，角色和菜单按应用区分">
+  <Page>
     <Card>
       <!-- 搜索表单 -->
       <div class="mb-4 flex flex-wrap gap-4">

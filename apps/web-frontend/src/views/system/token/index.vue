@@ -137,7 +137,7 @@ loadData();
 </script>
 
 <template>
-  <Page title="令牌管理" description="管理用户登录令牌">
+  <Page>
     <Card>
       <!-- 搜索表单 -->
       <div class="mb-4 flex flex-wrap gap-4">
