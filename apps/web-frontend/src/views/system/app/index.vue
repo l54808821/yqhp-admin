@@ -11,10 +11,8 @@ import {
   Input,
   message,
   Popconfirm,
-  Select,
   Space,
   Table,
-  Tag,
 } from 'ant-design-vue';
 
 import {
@@ -135,15 +133,13 @@ loadData();
           style="width: 160px"
           allow-clear
         />
-        <Select
+        <Dict
+          type="select"
           v-model:value="searchParams.status"
+          code="sys_status"
           placeholder="状态"
           style="width: 120px"
-          allow-clear
-        >
-          <Select.Option :value="1">启用</Select.Option>
-          <Select.Option :value="0">禁用</Select.Option>
-        </Select>
+        />
         <Space>
           <Button type="primary" @click="handleSearch">搜索</Button>
           <Button @click="handleReset">重置</Button>
@@ -171,9 +167,7 @@ loadData();
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
-            <Tag :color="record.status === 1 ? 'green' : 'red'">
-              {{ record.status === 1 ? '启用' : '禁用' }}
-            </Tag>
+            <Dict code="sys_status" :value="record.status" />
           </template>
           <template v-else-if="column.key === 'createdBy'">
             <UserDisplay :user-id="record.createdBy" />

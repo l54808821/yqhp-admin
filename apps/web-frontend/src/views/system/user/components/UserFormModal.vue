@@ -13,8 +13,6 @@ import {
   Input,
   message,
   Modal,
-  Radio,
-  RadioGroup,
   Select,
   Switch,
   TreeSelect,
@@ -270,11 +268,13 @@ defineExpose({ open });
         <Input v-model:value="formData.email" placeholder="请输入邮箱" />
       </FormItem>
       <FormItem label="性别">
-        <RadioGroup v-model:value="formData.gender">
-          <Radio :value="0">未知</Radio>
-          <Radio :value="1">男</Radio>
-          <Radio :value="2">女</Radio>
-        </RadioGroup>
+        <Dict
+          type="select"
+          v-model:value="formData.gender"
+          code="sys_user_gender"
+          placeholder="请选择性别"
+          style="width: 200px"
+        />
       </FormItem>
       <FormItem label="部门">
         <TreeSelect

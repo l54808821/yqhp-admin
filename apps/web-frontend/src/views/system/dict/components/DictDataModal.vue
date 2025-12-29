@@ -181,9 +181,7 @@ defineExpose({ open });
     >
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'status'">
-          <Tag :color="record.status === 1 ? 'green' : 'red'">
-            {{ record.status === 1 ? '启用' : '禁用' }}
-          </Tag>
+          <Dict code="sys_status" :value="record.status" />
         </template>
         <template v-else-if="column.key === 'isDefault'">
           <Tag v-if="record.isDefault" color="blue">是</Tag>
@@ -191,7 +189,7 @@ defineExpose({ open });
         </template>
         <template v-else-if="column.key === 'action'">
           <Space>
-            <Button type="link" size="small" @click="handleEdit(record)">
+            <Button type="link" size="small" @click="handleEdit(record as DictApi.DictData)">
               编辑
             </Button>
             <Popconfirm title="确定删除吗？" @confirm="handleDelete(record.id)">

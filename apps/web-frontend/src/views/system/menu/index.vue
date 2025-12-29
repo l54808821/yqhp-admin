@@ -176,9 +176,7 @@ loadApplications();
             </Tag>
           </template>
           <template v-else-if="column.key === 'status'">
-            <Tag :color="record.status === 1 ? 'green' : 'red'">
-              {{ record.status === 1 ? '启用' : '禁用' }}
-            </Tag>
+            <Dict code="sys_status" :value="record.status" />
           </template>
           <template v-else-if="column.key === 'action'">
             <Space>

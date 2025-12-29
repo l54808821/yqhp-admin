@@ -9,6 +9,7 @@ import '@vben/styles/antd';
 
 import { useTitle } from '@vueuse/core';
 
+import { Dict } from '#/components/dict';
 import { $t, setupI18n } from '#/locales';
 import { useUserCache } from '#/store';
 
@@ -37,6 +38,9 @@ async function bootstrap(namespace: string) {
   // });
 
   const app = createApp(App);
+
+  // 注册全局字典组件
+  app.component('Dict', Dict);
 
   // 注册v-loading指令
   registerLoadingDirective(app, {

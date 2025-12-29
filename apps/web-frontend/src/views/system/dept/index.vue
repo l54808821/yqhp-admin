@@ -12,7 +12,6 @@ import {
   Popconfirm,
   Space,
   Table,
-  Tag,
 } from 'ant-design-vue';
 
 import { deleteDeptApi, getDeptTreeApi } from '#/api';
@@ -108,9 +107,7 @@ loadData();
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
-            <Tag :color="record.status === 1 ? 'green' : 'red'">
-              {{ record.status === 1 ? '启用' : '禁用' }}
-            </Tag>
+            <Dict code="sys_status" :value="record.status" />
           </template>
           <template v-else-if="column.key === 'createdBy'">
             <UserDisplay :user-id="record.createdBy" />
