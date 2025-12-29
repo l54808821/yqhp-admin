@@ -15,10 +15,10 @@ import {
   Modal,
   Select,
   Space,
-  Table,
 } from 'ant-design-vue';
 
 import { Dict } from '#/components/dict';
+import { AutoHeightTable } from '#/components/table';
 
 import { useView } from './useView';
 import ViewEditModal from './ViewEditModal.vue';
@@ -228,7 +228,7 @@ function getFieldWidth(field: SearchFieldConfig) {
 </script>
 
 <template>
-  <component :is="useCard ? Card : 'div'" class="flex flex-col h-full" :body-style="useCard ? { display: 'flex', flexDirection: 'column', height: '100%' } : undefined">
+  <component :is="useCard ? Card : 'div'" class="flex flex-col h-full overflow-hidden" :body-style="useCard ? { display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' } : undefined">
     <!-- 搜索区域 -->
     <div v-if="searchFields?.length || $slots.search" class="mb-4 flex-shrink-0">
       <div class="flex flex-wrap items-center gap-4">
@@ -361,16 +361,14 @@ function getFieldWidth(field: SearchFieldConfig) {
 
     <!-- 表格 -->
     <div class="flex-1 min-h-0">
-      <Table
+      <AutoHeightTable
         :columns="displayColumns"
         :data-source="dataSource"
         :loading="loading"
         :pagination="paginationConfig"
-        :scroll="{ x: scrollX, y: 'auto' }"
+        :scroll-x="scrollX"
         :row-key="rowKey"
-        size="middle"
         :default-expand-all-rows="defaultExpandAllRows"
-        class="h-full flex flex-col [&_.ant-spin-nested-loading]:flex-1 [&_.ant-spin-nested-loading]:min-h-0 [&_.ant-spin-container]:h-full [&_.ant-spin-container]:flex [&_.ant-spin-container]:flex-col [&_.ant-table]:flex-1 [&_.ant-table]:min-h-0 [&_.ant-table-container]:h-full [&_.ant-table-body]:flex-1"
       >
         <template #bodyCell="scope">
           <slot name="bodyCell" v-bind="scope" />
@@ -378,7 +376,7 @@ function getFieldWidth(field: SearchFieldConfig) {
         <template v-if="$slots.expandedRowRender" #expandedRowRender="scope">
           <slot name="expandedRowRender" v-bind="scope" />
         </template>
-      </Table>
+      </AutoHeightTable>
     </div>
 
     <!-- 视图编辑弹框 -->
