@@ -1,24 +1,16 @@
 <script setup lang="ts">
 import type { ApplicationApi } from '#/api/system/application';
+import type { ColumnConfig, SearchFieldConfig } from '#/components/search-table';
 
 import { ref } from 'vue';
 
 import { Page, UserDisplay } from '@vben/common-ui';
 
-import {
-  Button,
-  Card,
-  Input,
-  message,
-  Popconfirm,
-  Space,
-  Table,
-} from 'ant-design-vue';
+import { Button, message, Popconfirm, Space } from 'ant-design-vue';
 
-import {
-  deleteApplicationApi,
-  getApplicationListApi,
-} from '#/api/system/application';
+import { deleteApplicationApi, getApplicationListApi } from '#/api/system/application';
+import { Dict } from '#/components/dict';
+import { SearchTable } from '#/components/search-table';
 
 import AppFormModal from './components/AppFormModal.vue';
 
@@ -31,6 +23,27 @@ const searchParams = ref<ApplicationApi.ListParams>({
   status: undefined,
 });
 
+// 搜索字段配置
+const searchFields: SearchFieldConfig[] = [
+  { field: 'name', label: '应用名称', type: 'input', defaultValue: '' },
+  { field: 'code', label: '应用编码', type: 'input', defaultValue: '' },
+  { field: 'status', label: '状态', type: 'dict', dictCode: 'sys_status', width: 120, defaultValue: undefined },
+];
+
+// 表格列配置
+const columns: ColumnConfig[] = [
+  { title: '应用名称', dataIndex: 'name', key: 'name', width: 150 },
+  { title: '应用编码', dataIndex: 'code', key: 'code', width: 120 },
+  { title: '图标', dataIndex: 'icon', key: 'icon', width: 100 },
+  { title: '排序', dataIndex: 'sort', key: 'sort', width: 80 },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
+  { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
+  { title: '创建人', dataIndex: 'createdBy', key: 'createdBy', width: 120 },
+  { title: '更新人', dataIndex: 'updatedBy', key: 'updatedBy', width: 120, defaultShow: false },
+  { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
+  { title: '操作', key: 'action', width: 150, fixed: 'right' as const, fixedLock: true },
+];
+
 // 表格数据
 const tableData = ref<ApplicationApi.Application[]>([]);
 const total = ref(0);
@@ -38,25 +51,6 @@ const loading = ref(false);
 
 // 弹框引用
 const appFormModalRef = ref<InstanceType<typeof AppFormModal>>();
-
-// 表格列定义
-const columns = [
-  { title: '应用名称', dataIndex: 'name', key: 'name', width: 150 },
-  { title: '应用编码', dataIndex: 'code', key: 'code', width: 120 },
-  { title: '图标', dataIndex: 'icon', key: 'icon', width: 100 },
-  { title: '排序', dataIndex: 'sort', key: 'sort', width: 80 },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
-  {
-    title: '描述',
-    dataIndex: 'description',
-    key: 'description',
-    ellipsis: true,
-  },
-  { title: '创建人', dataIndex: 'createdBy', key: 'createdBy', width: 120 },
-  { title: '更新人', dataIndex: 'updatedBy', key: 'updatedBy', width: 120 },
-  { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
-  { title: '操作', key: 'action', width: 150, fixed: 'right' as const },
-];
 
 // 加载数据
 async function loadData() {
@@ -78,13 +72,6 @@ function handleSearch() {
 
 // 重置
 function handleReset() {
-  searchParams.value = {
-    page: 1,
-    pageSize: 10,
-    name: '',
-    code: '',
-    status: undefined,
-  };
   loadData();
 }
 
@@ -117,86 +104,43 @@ loadData();
 </script>
 
 <template>
-  <Page>
-    <Card>
-      <!-- 搜索表单 -->
-      <div class="mb-4 flex flex-wrap gap-4">
-        <Input
-          v-model:value="searchParams.name"
-          placeholder="应用名称"
-          style="width: 160px"
-          allow-clear
-        />
-        <Input
-          v-model:value="searchParams.code"
-          placeholder="应用编码"
-          style="width: 160px"
-          allow-clear
-        />
-        <Dict
-          type="select"
-          v-model:value="searchParams.status"
-          code="sys_status"
-          placeholder="状态"
-          style="width: 120px"
-        />
-        <Space>
-          <Button type="primary" @click="handleSearch">搜索</Button>
-          <Button @click="handleReset">重置</Button>
-          <Button type="primary" @click="handleAdd">新增</Button>
-        </Space>
-      </div>
-
-      <!-- 表格 -->
-      <Table
-        :columns="columns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="{
-          current: searchParams.page,
-          pageSize: searchParams.pageSize,
-          total,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (t: number) => `共 ${t} 条`,
-          onChange: handlePageChange,
-        }"
-        :scroll="{ x: 1000 }"
-        row-key="id"
-        size="middle"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <Dict code="sys_status" :value="record.status" />
-          </template>
-          <template v-else-if="column.key === 'createdBy'">
-            <UserDisplay :user-id="record.createdBy" />
-          </template>
-          <template v-else-if="column.key === 'updatedBy'">
-            <UserDisplay :user-id="record.updatedBy" />
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <Space>
-              <Button
-                type="link"
-                size="small"
-                @click="handleEdit(record as ApplicationApi.Application)"
-              >
-                编辑
-              </Button>
-              <Popconfirm
-                title="确定删除吗？"
-                @confirm="handleDelete(record.id)"
-              >
-                <Button type="link" size="small" danger>删除</Button>
-              </Popconfirm>
-            </Space>
-          </template>
+  <Page auto-content-height>
+    <SearchTable
+      table-key="system-app"
+      v-model:search-params="searchParams"
+      :search-fields="searchFields"
+      :columns="columns"
+      :data-source="tableData"
+      :loading="loading"
+      :total="total"
+      :page="searchParams.page"
+      :page-size="searchParams.pageSize"
+      @search="handleSearch"
+      @reset="handleReset"
+      @add="handleAdd"
+      @page-change="handlePageChange"
+    >
+      <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'status'">
+          <Dict code="sys_status" :value="record.status" />
         </template>
-      </Table>
-    </Card>
+        <template v-else-if="column.key === 'createdBy'">
+          <UserDisplay :user-id="record.createdBy" />
+        </template>
+        <template v-else-if="column.key === 'updatedBy'">
+          <UserDisplay :user-id="record.updatedBy" />
+        </template>
+        <template v-else-if="column.key === 'action'">
+          <Space>
+            <Button type="link" size="small" @click="handleEdit(record as ApplicationApi.Application)">编辑</Button>
+            <Popconfirm title="确定删除吗？" @confirm="handleDelete(record.id)">
+              <Button type="link" size="small" danger>删除</Button>
+            </Popconfirm>
+          </Space>
+        </template>
+      </template>
+    </SearchTable>
 
-    <!-- 应用表单弹框 -->
     <AppFormModal ref="appFormModalRef" @success="loadData" />
   </Page>
 </template>

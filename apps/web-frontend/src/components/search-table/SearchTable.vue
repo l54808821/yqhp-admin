@@ -309,10 +309,10 @@ function getFieldWidth(field: SearchFieldConfig) {
         <slot name="toolbar" />
       </Space>
 
-      <Space>
+      <Space class="ml-auto">
         <!-- 视图切换 -->
         <Dropdown>
-          <Button>
+          <Button class="inline-flex items-center">
             {{ currentView?.name || '默认视图' }}
             <IconifyIcon icon="ant-design:down-outlined" class="ml-1 size-3" />
           </Button>
@@ -342,8 +342,10 @@ function getFieldWidth(field: SearchFieldConfig) {
               </MenuItem>
               <Menu.Divider />
               <MenuItem key="__new__" @click="openNewViewModal">
-                <IconifyIcon icon="ant-design:plus-outlined" class="mr-1 size-4" />
-                新建视图
+                <span class="inline-flex items-center">
+                  <IconifyIcon icon="ant-design:plus-outlined" class="mr-1 size-4" />
+                  新建视图
+                </span>
               </MenuItem>
             </Menu>
           </template>

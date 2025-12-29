@@ -1,22 +1,15 @@
 <script setup lang="ts">
 import type { ConfigApi } from '#/api/system/config';
+import type { ColumnConfig, SearchFieldConfig } from '#/components/search-table';
 
 import { ref } from 'vue';
 
 import { Page, UserDisplay } from '@vben/common-ui';
 
-import {
-  Button,
-  Card,
-  Input,
-  message,
-  Popconfirm,
-  Space,
-  Table,
-  Tag,
-} from 'ant-design-vue';
+import { Button, message, Popconfirm, Space, Tag } from 'ant-design-vue';
 
 import { deleteConfigApi, getConfigListApi, refreshConfigApi } from '#/api';
+import { SearchTable } from '#/components/search-table';
 
 import ConfigFormModal from './components/ConfigFormModal.vue';
 
@@ -28,6 +21,26 @@ const searchParams = ref<ConfigApi.ListParams>({
   key: '',
 });
 
+// 搜索字段配置
+const searchFields: SearchFieldConfig[] = [
+  { field: 'name', label: '参数名称', type: 'input', defaultValue: '' },
+  { field: 'key', label: '参数键', type: 'input', defaultValue: '' },
+];
+
+// 表格列配置
+const columns: ColumnConfig[] = [
+  { title: '参数名称', dataIndex: 'name', key: 'name', width: 150 },
+  { title: '参数键', dataIndex: 'key', key: 'key', width: 180 },
+  { title: '参数值', dataIndex: 'value', key: 'value', ellipsis: true },
+  { title: '类型', dataIndex: 'type', key: 'type', width: 100 },
+  { title: '内置', dataIndex: 'isBuilt', key: 'isBuilt', width: 80 },
+  { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true, defaultShow: false },
+  { title: '创建人', dataIndex: 'createdBy', key: 'createdBy', width: 120 },
+  { title: '更新人', dataIndex: 'updatedBy', key: 'updatedBy', width: 120, defaultShow: false },
+  { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
+  { title: '操作', key: 'action', width: 150, fixed: 'right' as const, fixedLock: true },
+];
+
 // 表格数据
 const tableData = ref<ConfigApi.Config[]>([]);
 const total = ref(0);
@@ -35,30 +48,6 @@ const loading = ref(false);
 
 // 弹框引用
 const configFormModalRef = ref<InstanceType<typeof ConfigFormModal>>();
-
-// 表格列定义
-const columns = [
-  { title: '参数名称', dataIndex: 'name', key: 'name', width: 150 },
-  { title: '参数键', dataIndex: 'key', key: 'key', width: 180 },
-  { title: '参数值', dataIndex: 'value', key: 'value', ellipsis: true },
-  { title: '类型', dataIndex: 'type', key: 'type', width: 100 },
-  {
-    title: '内置',
-    dataIndex: 'isBuilt',
-    key: 'isBuilt',
-    width: 80,
-  },
-  { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
-  { title: '创建人', dataIndex: 'createdBy', key: 'createdBy', width: 120 },
-  { title: '更新人', dataIndex: 'updatedBy', key: 'updatedBy', width: 120 },
-  { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
-  {
-    title: '操作',
-    key: 'action',
-    width: 150,
-    fixed: 'right' as const,
-  },
-];
 
 // 加载数据
 async function loadData() {
@@ -80,12 +69,6 @@ function handleSearch() {
 
 // 重置
 function handleReset() {
-  searchParams.value = {
-    page: 1,
-    pageSize: 10,
-    name: '',
-    key: '',
-  };
   loadData();
 }
 
@@ -124,78 +107,48 @@ loadData();
 </script>
 
 <template>
-  <Page>
-    <Card>
-      <!-- 搜索表单 -->
-      <div class="mb-4 flex flex-wrap gap-4">
-        <Input
-          v-model:value="searchParams.name"
-          placeholder="参数名称"
-          style="width: 160px"
-          allow-clear
-        />
-        <Input
-          v-model:value="searchParams.key"
-          placeholder="参数键"
-          style="width: 160px"
-          allow-clear
-        />
-        <Space>
-          <Button type="primary" @click="handleSearch">搜索</Button>
-          <Button @click="handleReset">重置</Button>
-          <Button type="primary" @click="handleAdd">新增</Button>
-          <Button @click="handleRefresh">刷新缓存</Button>
-        </Space>
-      </div>
+  <Page auto-content-height>
+    <SearchTable
+      table-key="system-config"
+      v-model:search-params="searchParams"
+      :search-fields="searchFields"
+      :columns="columns"
+      :data-source="tableData"
+      :loading="loading"
+      :total="total"
+      :page="searchParams.page"
+      :page-size="searchParams.pageSize"
+      @search="handleSearch"
+      @reset="handleReset"
+      @add="handleAdd"
+      @page-change="handlePageChange"
+    >
+      <template #toolbar>
+        <Button @click="handleRefresh">刷新缓存</Button>
+      </template>
 
-      <!-- 表格 -->
-      <Table
-        :columns="columns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="{
-          current: searchParams.page,
-          pageSize: searchParams.pageSize,
-          total,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (t: number) => `共 ${t} 条`,
-          onChange: handlePageChange,
-        }"
-        :scroll="{ x: 1200 }"
-        row-key="id"
-        size="middle"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'isBuilt'">
-            <Tag v-if="record.isBuilt" color="blue">是</Tag>
-            <span v-else>否</span>
-          </template>
-          <template v-else-if="column.key === 'createdBy'">
-            <UserDisplay :user-id="record.createdBy" />
-          </template>
-          <template v-else-if="column.key === 'updatedBy'">
-            <UserDisplay :user-id="record.updatedBy" />
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <Space>
-              <Button type="link" size="small" @click="handleEdit(record as ConfigApi.Config)">
-                编辑
-              </Button>
-              <Popconfirm
-                v-if="!record.isBuilt"
-                title="确定删除吗？"
-                @confirm="handleDelete(record.id)"
-              >
-                <Button type="link" size="small" danger>删除</Button>
-              </Popconfirm>
-            </Space>
-          </template>
+      <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'isBuilt'">
+          <Tag v-if="record.isBuilt" color="blue">是</Tag>
+          <span v-else>否</span>
         </template>
-      </Table>
-    </Card>
+        <template v-else-if="column.key === 'createdBy'">
+          <UserDisplay :user-id="record.createdBy" />
+        </template>
+        <template v-else-if="column.key === 'updatedBy'">
+          <UserDisplay :user-id="record.updatedBy" />
+        </template>
+        <template v-else-if="column.key === 'action'">
+          <Space>
+            <Button type="link" size="small" @click="handleEdit(record as ConfigApi.Config)">编辑</Button>
+            <Popconfirm v-if="!record.isBuilt" title="确定删除吗？" @confirm="handleDelete(record.id)">
+              <Button type="link" size="small" danger>删除</Button>
+            </Popconfirm>
+          </Space>
+        </template>
+      </template>
+    </SearchTable>
 
-    <!-- 配置表单弹框 -->
     <ConfigFormModal ref="configFormModalRef" @success="loadData" />
   </Page>
 </template>

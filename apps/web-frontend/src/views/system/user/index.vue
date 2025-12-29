@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { UserApi } from '#/api/system/user';
+import type { ColumnConfig, SearchFieldConfig } from '#/components/search-table';
 
 import { ref } from 'vue';
 
@@ -7,12 +8,9 @@ import { Page, UserDisplay } from '@vben/common-ui';
 
 import {
   Button,
-  Card,
-  Input,
   message,
   Popconfirm,
   Space,
-  Table,
   Tag,
   Tooltip,
 } from 'ant-design-vue';
@@ -24,6 +22,8 @@ import {
   resetPasswordApi,
 } from '#/api';
 import { UserApi as UserApiNs } from '#/api/system/user';
+import { Dict } from '#/components/dict';
+import { SearchTable } from '#/components/search-table';
 
 import UserFormModal from './components/UserFormModal.vue';
 
@@ -38,51 +38,39 @@ const searchParams = ref<UserApi.ListParams>({
   deptId: undefined,
 });
 
+// 搜索字段配置
+const searchFields: SearchFieldConfig[] = [
+  { field: 'username', label: '用户名', type: 'input', defaultValue: '' },
+  { field: 'nickname', label: '昵称', type: 'input', defaultValue: '' },
+  { field: 'phone', label: '手机号', type: 'input', defaultValue: '' },
+  { field: 'status', label: '状态', type: 'dict', dictCode: 'sys_status', width: 120, defaultValue: undefined },
+];
+
+// 表格列配置
+const columns: ColumnConfig[] = [
+  { title: '用户名', dataIndex: 'username', key: 'username', width: 120 },
+  { title: '昵称', dataIndex: 'nickname', key: 'nickname', width: 120 },
+  { title: '手机号', dataIndex: 'phone', key: 'phone', width: 130 },
+  { title: '邮箱', dataIndex: 'email', key: 'email', width: 180, defaultShow: false },
+  { title: '来源平台', dataIndex: 'platform', key: 'platform', width: 100 },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
+  { title: '角色', dataIndex: 'roles', key: 'roles', width: 200 },
+  { title: '创建人', dataIndex: 'createdBy', key: 'createdBy', width: 120 },
+  { title: '更新人', dataIndex: 'updatedBy', key: 'updatedBy', width: 120, defaultShow: false },
+  { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
+  { title: '操作', key: 'action', width: 200, fixed: 'right' as const, fixedLock: true },
+];
+
 // 表格数据
 const tableData = ref<UserApi.User[]>([]);
 const total = ref(0);
 const loading = ref(false);
 
-// 角色和部门数据
+// 部门数据
 const depts = ref<any[]>([]);
 
 // 弹框引用
 const userFormModalRef = ref<InstanceType<typeof UserFormModal>>();
-
-// 表格列定义
-const columns = [
-  { title: '用户名', dataIndex: 'username', key: 'username', width: 120 },
-  { title: '昵称', dataIndex: 'nickname', key: 'nickname', width: 120 },
-  { title: '手机号', dataIndex: 'phone', key: 'phone', width: 130 },
-  { title: '邮箱', dataIndex: 'email', key: 'email', width: 180 },
-  {
-    title: '来源平台',
-    dataIndex: 'platform',
-    key: 'platform',
-    width: 100,
-  },
-  {
-    title: '状态',
-    dataIndex: 'status',
-    key: 'status',
-    width: 80,
-  },
-  {
-    title: '角色',
-    dataIndex: 'roles',
-    key: 'roles',
-    width: 200,
-  },
-  { title: '创建人', dataIndex: 'createdBy', key: 'createdBy', width: 120 },
-  { title: '更新人', dataIndex: 'updatedBy', key: 'updatedBy', width: 120 },
-  { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
-  {
-    title: '操作',
-    key: 'action',
-    width: 200,
-    fixed: 'right' as const,
-  },
-];
 
 // 加载数据
 async function loadData() {
@@ -98,8 +86,7 @@ async function loadData() {
 
 // 加载部门
 async function loadDepts() {
-  const deptsRes = await getDeptTreeApi();
-  depts.value = deptsRes;
+  depts.value = await getDeptTreeApi();
 }
 
 // 搜索
@@ -110,15 +97,6 @@ function handleSearch() {
 
 // 重置
 function handleReset() {
-  searchParams.value = {
-    page: 1,
-    pageSize: 10,
-    username: '',
-    nickname: '',
-    phone: '',
-    status: undefined,
-    deptId: undefined,
-  };
   loadData();
 }
 
@@ -136,10 +114,7 @@ function handleAdd() {
 
 // 编辑
 function handleEdit(record: UserApi.User) {
-  userFormModalRef.value?.open({
-    depts: depts.value,
-    id: record.id,
-  });
+  userFormModalRef.value?.open({ depts: depts.value, id: record.id });
 }
 
 // 删除
@@ -161,119 +136,61 @@ loadDepts();
 </script>
 
 <template>
-  <Page>
-    <Card>
-      <!-- 搜索表单 -->
-      <div class="mb-4 flex flex-wrap gap-4">
-        <Input
-          v-model:value="searchParams.username"
-          placeholder="用户名"
-          style="width: 160px"
-          allow-clear
-        />
-        <Input
-          v-model:value="searchParams.nickname"
-          placeholder="昵称"
-          style="width: 160px"
-          allow-clear
-        />
-        <Input
-          v-model:value="searchParams.phone"
-          placeholder="手机号"
-          style="width: 160px"
-          allow-clear
-        />
-        <Dict
-          type="select"
-          v-model:value="searchParams.status"
-          code="sys_status"
-          placeholder="状态"
-          style="width: 120px"
-        />
-        <Space>
-          <Button type="primary" @click="handleSearch">搜索</Button>
-          <Button @click="handleReset">重置</Button>
-          <Button type="primary" @click="handleAdd">新增</Button>
-        </Space>
-      </div>
-
-      <!-- 表格 -->
-      <Table
-        :columns="columns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="{
-          current: searchParams.page,
-          pageSize: searchParams.pageSize,
-          total,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (t: number) => `共 ${t} 条`,
-          onChange: handlePageChange,
-        }"
-        :scroll="{ x: 1200 }"
-        row-key="id"
-        size="middle"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'platform'">
-            <Tooltip v-if="record.platformUid || record.platformShortId">
-              <template #title>
-                <div v-if="record.platformUid">UID: {{ record.platformUid }}</div>
-                <div v-if="record.platformShortId">短码: {{ record.platformShortId }}</div>
-              </template>
-              <Tag color="purple">
-                {{ UserApiNs.getPlatformLabel(record.platform) }}
-              </Tag>
-            </Tooltip>
-            <Tag v-else color="purple">
-              {{ UserApiNs.getPlatformLabel(record.platform) }}
-            </Tag>
-          </template>
-          <template v-else-if="column.key === 'status'">
-            <Dict code="sys_status" :value="record.status" />
-          </template>
-          <template v-else-if="column.key === 'roles'">
-            <Space>
-              <Tag v-for="role in record.roles" :key="role.id" color="blue">
-                {{ role.name }}
-              </Tag>
-            </Space>
-          </template>
-          <template v-else-if="column.key === 'createdBy'">
-            <UserDisplay :user-id="record.createdBy" />
-          </template>
-          <template v-else-if="column.key === 'updatedBy'">
-            <UserDisplay :user-id="record.updatedBy" />
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <Space>
-              <Button
-                type="link"
-                size="small"
-                @click="handleEdit(record as UserApi.User)"
-              >
-                编辑
-              </Button>
-              <Popconfirm
-                title="确定重置密码吗？"
-                @confirm="handleResetPassword(record.id)"
-              >
-                <Button type="link" size="small">重置密码</Button>
-              </Popconfirm>
-              <Popconfirm
-                title="确定删除吗？"
-                @confirm="handleDelete(record.id)"
-              >
-                <Button type="link" size="small" danger>删除</Button>
-              </Popconfirm>
-            </Space>
-          </template>
+  <Page auto-content-height>
+    <SearchTable
+      table-key="system-user"
+      v-model:search-params="searchParams"
+      :search-fields="searchFields"
+      :columns="columns"
+      :data-source="tableData"
+      :loading="loading"
+      :total="total"
+      :page="searchParams.page"
+      :page-size="searchParams.pageSize"
+      @search="handleSearch"
+      @reset="handleReset"
+      @add="handleAdd"
+      @page-change="handlePageChange"
+    >
+      <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'platform'">
+          <Tooltip v-if="record.platformUid || record.platformShortId">
+            <template #title>
+              <div v-if="record.platformUid">UID: {{ record.platformUid }}</div>
+              <div v-if="record.platformShortId">短码: {{ record.platformShortId }}</div>
+            </template>
+            <Tag color="purple">{{ UserApiNs.getPlatformLabel(record.platform) }}</Tag>
+          </Tooltip>
+          <Tag v-else color="purple">{{ UserApiNs.getPlatformLabel(record.platform) }}</Tag>
         </template>
-      </Table>
-    </Card>
+        <template v-else-if="column.key === 'status'">
+          <Dict code="sys_status" :value="record.status" />
+        </template>
+        <template v-else-if="column.key === 'roles'">
+          <Space>
+            <Tag v-for="role in record.roles" :key="role.id" color="blue">{{ role.name }}</Tag>
+          </Space>
+        </template>
+        <template v-else-if="column.key === 'createdBy'">
+          <UserDisplay :user-id="record.createdBy" />
+        </template>
+        <template v-else-if="column.key === 'updatedBy'">
+          <UserDisplay :user-id="record.updatedBy" />
+        </template>
+        <template v-else-if="column.key === 'action'">
+          <Space>
+            <Button type="link" size="small" @click="handleEdit(record as UserApi.User)">编辑</Button>
+            <Popconfirm title="确定重置密码吗？" @confirm="handleResetPassword(record.id)">
+              <Button type="link" size="small">重置密码</Button>
+            </Popconfirm>
+            <Popconfirm title="确定删除吗？" @confirm="handleDelete(record.id)">
+              <Button type="link" size="small" danger>删除</Button>
+            </Popconfirm>
+          </Space>
+        </template>
+      </template>
+    </SearchTable>
 
-    <!-- 用户表单弹框 -->
     <UserFormModal ref="userFormModalRef" @success="loadData" />
   </Page>
 </template>
