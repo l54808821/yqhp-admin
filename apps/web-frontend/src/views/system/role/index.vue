@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 使用 SearchTable 组件重构后的角色管理页面示例
+ */
 import type { ApplicationApi } from '#/api/system/application';
 import type { RoleApi } from '#/api/system/role';
 
@@ -6,19 +9,13 @@ import { ref } from 'vue';
 
 import { Page, UserDisplay } from '@vben/common-ui';
 
-import {
-  Button,
-  Card,
-  Input,
-  message,
-  Popconfirm,
-  Select,
-  Space,
-  Table,
-} from 'ant-design-vue';
+import { Button, message, Popconfirm, Select, Space } from 'ant-design-vue';
 
 import { deleteRoleApi, getResourceTreeApi, getRoleListApi } from '#/api';
 import { getAllApplicationsApi } from '#/api/system/application';
+import { Dict } from '#/components/dict';
+import { SearchTable } from '#/components/search-table';
+import type { ColumnConfig, SearchFieldConfig } from '#/components/search-table';
 
 import RoleFormDrawer from './components/RoleFormDrawer.vue';
 
@@ -32,6 +29,33 @@ const searchParams = ref<RoleApi.ListParams>({
   status: undefined,
 });
 
+// 搜索字段配置
+const searchFields: SearchFieldConfig[] = [
+  { field: 'name', label: '角色名称', type: 'input', defaultValue: '' },
+  { field: 'code', label: '角色编码', type: 'input', defaultValue: '' },
+  {
+    field: 'status',
+    label: '状态',
+    type: 'dict',
+    dictCode: 'sys_status',
+    width: 120,
+    defaultValue: undefined,
+  },
+];
+
+// 表格列配置
+const columns: ColumnConfig[] = [
+  { title: '角色名称', dataIndex: 'name', key: 'name', width: 150 },
+  { title: '角色编码', dataIndex: 'code', key: 'code', width: 150 },
+  { title: '排序', dataIndex: 'sort', key: 'sort', width: 80 },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
+  { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true, defaultShow: false },
+  { title: '创建人', dataIndex: 'createdBy', key: 'createdBy', width: 120 },
+  { title: '更新人', dataIndex: 'updatedBy', key: 'updatedBy', width: 120, defaultShow: false },
+  { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
+  { title: '操作', key: 'action', width: 150, fixed: 'right' as const },
+];
+
 // 表格数据
 const tableData = ref<RoleApi.Role[]>([]);
 const total = ref(0);
@@ -39,7 +63,6 @@ const loading = ref(false);
 
 // 应用列表
 const applications = ref<ApplicationApi.Application[]>([]);
-// 当前选中的应用ID
 const currentAppId = ref<number>();
 
 // 资源树
@@ -48,33 +71,9 @@ const resources = ref<any[]>([]);
 // 抽屉引用
 const roleFormDrawerRef = ref<InstanceType<typeof RoleFormDrawer>>();
 
-// 表格列定义
-const columns = [
-  { title: '角色名称', dataIndex: 'name', key: 'name', width: 150 },
-  { title: '角色编码', dataIndex: 'code', key: 'code', width: 150 },
-  { title: '排序', dataIndex: 'sort', key: 'sort', width: 80 },
-  {
-    title: '状态',
-    dataIndex: 'status',
-    key: 'status',
-    width: 80,
-  },
-  { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
-  { title: '创建人', dataIndex: 'createdBy', key: 'createdBy', width: 120 },
-  { title: '更新人', dataIndex: 'updatedBy', key: 'updatedBy', width: 120 },
-  { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
-  {
-    title: '操作',
-    key: 'action',
-    width: 150,
-    fixed: 'right' as const,
-  },
-];
-
 // 加载应用列表
 async function loadApplications() {
   applications.value = await getAllApplicationsApi();
-  // 默认选中第一个应用
   if (applications.value.length > 0 && !currentAppId.value) {
     currentAppId.value = applications.value[0]!.id;
     searchParams.value.appId = currentAppId.value;
@@ -103,7 +102,8 @@ async function loadResources() {
 }
 
 // 应用切换
-function handleAppChange(appId: number) {
+function handleAppChange(appId: any) {
+  if (appId === undefined) return;
   currentAppId.value = appId;
   searchParams.value.appId = appId;
   searchParams.value.page = 1;
@@ -117,16 +117,9 @@ function handleSearch() {
   loadData();
 }
 
-// 重置
+// 重置后加载数据
 function handleReset() {
-  searchParams.value = {
-    page: 1,
-    pageSize: 10,
-    appId: currentAppId.value,
-    name: '',
-    code: '',
-    status: undefined,
-  };
+  searchParams.value.appId = currentAppId.value;
   loadData();
 }
 
@@ -150,7 +143,7 @@ function handleAdd() {
 }
 
 // 编辑
-function handleEdit(record: RoleApi.Role) {
+function handleEdit(record: Record<string, any>) {
   roleFormDrawerRef.value?.open({
     appId: currentAppId.value!,
     resources: resources.value,
@@ -170,99 +163,69 @@ loadApplications();
 </script>
 
 <template>
-  <Page>
-    <Card>
-      <!-- 应用选择 -->
-      <div class="mb-4">
-        <span class="mr-2">当前应用：</span>
-        <Select
-          v-model:value="currentAppId"
-          placeholder="请选择应用"
-          style="width: 200px"
-          @change="handleAppChange"
-        >
-          <Select.Option
-            v-for="app in applications"
-            :key="app.id"
-            :value="app.id"
+  <Page auto-content-height>
+    <SearchTable
+      table-key="system-role"
+      v-model:search-params="searchParams"
+      :search-fields="searchFields"
+      :columns="columns"
+      :data-source="tableData"
+      :loading="loading"
+      :total="total"
+      :page="searchParams.page"
+      :page-size="searchParams.pageSize"
+      @search="handleSearch"
+      @reset="handleReset"
+      @add="handleAdd"
+      @page-change="handlePageChange"
+    >
+      <!-- 额外的搜索字段（应用选择） -->
+      <template #search="{ onChange }">
+        <div class="flex items-center gap-2">
+          <span class="text-gray-600 text-sm whitespace-nowrap">当前应用</span>
+          <Select
+            v-model:value="currentAppId"
+            placeholder="请选择应用"
+            style="width: 200px"
+            @change="(val: any) => { handleAppChange(val); onChange?.(); }"
           >
-            {{ app.name }}
-          </Select.Option>
-        </Select>
-      </div>
+            <Select.Option
+              v-for="app in applications"
+              :key="app.id"
+              :value="app.id"
+            >
+              {{ app.name }}
+            </Select.Option>
+          </Select>
+        </div>
+      </template>
 
-      <!-- 搜索表单 -->
-      <div class="mb-4 flex flex-wrap gap-4">
-        <Input
-          v-model:value="searchParams.name"
-          placeholder="角色名称"
-          style="width: 160px"
-          allow-clear
-        />
-        <Input
-          v-model:value="searchParams.code"
-          placeholder="角色编码"
-          style="width: 160px"
-          allow-clear
-        />
-        <Dict
-          type="select"
-          v-model:value="searchParams.status"
-          code="sys_status"
-          placeholder="状态"
-          style="width: 120px"
-        />
-        <Space>
-          <Button type="primary" @click="handleSearch">搜索</Button>
-          <Button @click="handleReset">重置</Button>
-          <Button type="primary" @click="handleAdd">新增</Button>
-        </Space>
-      </div>
-
-      <!-- 表格 -->
-      <Table
-        :columns="columns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="{
-          current: searchParams.page,
-          pageSize: searchParams.pageSize,
-          total,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (t: number) => `共 ${t} 条`,
-          onChange: handlePageChange,
-        }"
-        :scroll="{ x: 1000 }"
-        row-key="id"
-        size="middle"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <Dict code="sys_status" :value="record.status" />
-          </template>
-          <template v-else-if="column.key === 'createdBy'">
-            <UserDisplay :user-id="record.createdBy" />
-          </template>
-          <template v-else-if="column.key === 'updatedBy'">
-            <UserDisplay :user-id="record.updatedBy" />
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <Space>
-              <Button type="link" size="small" @click="handleEdit(record)">
-                编辑
-              </Button>
-              <Popconfirm
-                title="确定删除吗？"
-                @confirm="handleDelete(record.id)"
-              >
-                <Button type="link" size="small" danger>删除</Button>
-              </Popconfirm>
-            </Space>
-          </template>
+      <!-- 表格单元格自定义渲染 -->
+      <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'status'">
+          <Dict code="sys_status" :value="record.status" />
         </template>
-      </Table>
-    </Card>
+        <template v-else-if="column.key === 'createdBy'">
+          <UserDisplay :user-id="record.createdBy" />
+        </template>
+        <template v-else-if="column.key === 'updatedBy'">
+          <UserDisplay :user-id="record.updatedBy" />
+        </template>
+        <template v-else-if="column.key === 'action'">
+          <Space>
+            <Button type="link" size="small" @click="handleEdit(record)">
+              编辑
+            </Button>
+            <Popconfirm
+              title="确定删除吗？"
+              @confirm="handleDelete(record.id)"
+            >
+              <Button type="link" size="small" danger>删除</Button>
+            </Popconfirm>
+          </Space>
+        </template>
+      </template>
+    </SearchTable>
 
     <!-- 角色表单抽屉 -->
     <RoleFormDrawer ref="roleFormDrawerRef" @success="loadData" />
