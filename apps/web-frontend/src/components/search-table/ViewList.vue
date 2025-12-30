@@ -3,7 +3,7 @@ import type { ViewConfig } from './types';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { Button, Checkbox, Tooltip } from 'ant-design-vue';
+import { Button, Checkbox, Popconfirm, Tooltip } from 'ant-design-vue';
 
 interface Props {
   views: ViewConfig[];
@@ -100,11 +100,18 @@ function handleSetDefault(id: number, checked: boolean) {
         </div>
 
         <!-- 删除按钮 -->
-        <IconifyIcon
-          icon="ant-design:delete-outlined"
-          class="size-4 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-          @click.stop="emit('delete', view.id)"
-        />
+        <Popconfirm
+          title="确定删除该视图吗？"
+          ok-text="确定"
+          cancel-text="取消"
+          @confirm="emit('delete', view.id)"
+        >
+          <IconifyIcon
+            icon="ant-design:delete-outlined"
+            class="size-4 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+            @click.stop
+          />
+        </Popconfirm>
       </div>
 
       <div v-if="views.length === 0" class="text-center text-gray-400 py-8">
