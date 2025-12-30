@@ -31,5 +31,8 @@ export const overridesPreferences = defineOverridesPreferences({
   },
   widget: {
     refresh: false,
+    lockScreen: false,
+    languageToggle: false,
+    timezone: false,
   },
 });
