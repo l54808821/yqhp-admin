@@ -3,7 +3,10 @@ import type { OAuthApi } from '#/api/system/oauth';
 
 import { ref } from 'vue';
 
-import { Page, UserDisplay } from '@vben/common-ui';
+import { UserDisplay } from '@vben/common-ui';
+
+import { Page } from '#/components/page';
+import { Dict } from '#/components/dict';
 
 import {
   Button,
@@ -139,7 +142,7 @@ loadData();
           </template>
           <template v-else-if="column.key === 'action'">
             <Space>
-              <Button type="link" size="small" @click="handleEdit(record)">
+              <Button type="link" size="small" @click="handleEdit(record as OAuthApi.Provider)">
                 编辑
               </Button>
               <Popconfirm

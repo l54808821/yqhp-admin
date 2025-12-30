@@ -228,7 +228,7 @@ function getFieldWidth(field: SearchFieldConfig) {
 </script>
 
 <template>
-  <component :is="useCard ? Card : 'div'" class="flex flex-col h-full overflow-hidden" :body-style="useCard ? { display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' } : undefined">
+  <component :is="useCard ? Card : 'div'" class="flex flex-col h-full overflow-hidden" :body-style="useCard ? { display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', padding: '16px' } : undefined">
     <!-- 搜索区域 -->
     <div v-if="searchFields?.length || $slots.search" class="mb-4 flex-shrink-0">
       <div class="flex flex-wrap items-center gap-4">
@@ -360,7 +360,7 @@ function getFieldWidth(field: SearchFieldConfig) {
     </div>
 
     <!-- 表格 -->
-    <div class="flex-1 min-h-0">
+    <div class="flex-1 min-h-0 overflow-hidden">
       <AutoHeightTable
         :columns="displayColumns"
         :data-source="dataSource"
@@ -388,3 +388,21 @@ function getFieldWidth(field: SearchFieldConfig) {
     />
   </component>
 </template>
+
+
+<style scoped>
+/* 确保 Card 组件能正确限制高度 */
+:deep(.ant-card) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+:deep(.ant-card-body) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+</style>

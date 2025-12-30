@@ -5,7 +5,7 @@ import type { ColumnConfig } from '#/components/search-table';
 
 import { ref } from 'vue';
 
-import { Page } from '@vben/common-ui';
+import { Page } from '#/components/page';
 import { IconifyIcon } from '@vben/icons';
 
 import { Button, message, Popconfirm, Select, Space, Tag } from 'ant-design-vue';

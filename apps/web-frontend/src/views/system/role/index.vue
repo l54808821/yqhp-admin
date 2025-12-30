@@ -7,7 +7,9 @@ import type { RoleApi } from '#/api/system/role';
 
 import { ref } from 'vue';
 
-import { Page, UserDisplay } from '@vben/common-ui';
+import { UserDisplay } from '@vben/common-ui';
+
+import { Page } from '#/components/page';
 
 import { Button, message, Popconfirm, Select, Space } from 'ant-design-vue';
 

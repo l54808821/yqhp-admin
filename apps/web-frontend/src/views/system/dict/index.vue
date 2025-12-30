@@ -3,7 +3,7 @@ import type { DictApi } from '#/api/system/dict';
 
 import { ref, watch } from 'vue';
 
-import { Page } from '@vben/common-ui';
+import { Page } from '#/components/page';
 
 import {
   Button,

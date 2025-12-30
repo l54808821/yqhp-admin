@@ -4,7 +4,7 @@ import type { ColumnConfig, SearchFieldConfig } from '#/components/search-table'
 
 import { ref } from 'vue';
 
-import { Page } from '@vben/common-ui';
+import { Page } from '#/components/page';
 
 import { Button, InputNumber, message, Modal, Popconfirm, Space } from 'ant-design-vue';
 
