@@ -29,7 +29,7 @@ const columns: ColumnConfig[] = [
   { title: '设备', dataIndex: 'device', key: 'device', width: 100 },
   { title: '平台', dataIndex: 'platform', key: 'platform', width: 100 },
   { title: 'IP地址', dataIndex: 'ip', key: 'ip', width: 130 },
-  { title: 'User-Agent', dataIndex: 'userAgent', key: 'userAgent', ellipsis: true },
+  { title: 'User-Agent', dataIndex: 'userAgent', key: 'userAgent', ellipsis: true, width: 230 },
   { title: '过期时间', dataIndex: 'expireAt', key: 'expireAt', width: 180 },
   { title: '最后活跃', dataIndex: 'lastActiveAt', key: 'lastActiveAt', width: 180 },
   { title: '操作', key: 'action', width: 200, fixed: 'right' as const, fixedLock: true },

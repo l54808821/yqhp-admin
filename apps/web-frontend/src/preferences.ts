@@ -11,12 +11,13 @@ export const overridesPreferences = defineOverridesPreferences({
     // 使用后端权限模式
     accessMode: 'mixed',
     name: import.meta.env.VITE_APP_TITLE,
+    "authPageLayout": "panel-center"
   },
   breadcrumb: {
     enable: false,
   },
   sidebar: {
-    collapsed: true,
+    collapsed: false,
     collapsedButton: false,
     collapsedShowTitle: true,
     fixedButton: false,
