@@ -57,6 +57,8 @@ interface Props {
   defaultExpandAllRows?: boolean;
   // 默认折叠搜索区域显示的字段数
   defaultCollapsedCount?: number;
+  // 是否允许创建系统视图
+  allowSystemView?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -72,6 +74,7 @@ const props = withDefaults(defineProps<Props>(), {
   useCard: true,
   defaultExpandAllRows: false,
   defaultCollapsedCount: 3,
+  allowSystemView: false,
 });
 
 const emit = defineEmits<{
@@ -210,7 +213,7 @@ function handleViewConfirm(view: ViewConfig) {
 }
 
 // 删除视图确认
-function handleDeleteView(viewId: string) {
+function handleDeleteView(viewId: number) {
   Modal.confirm({
     title: '确认删除',
     content: '确定要删除该视图吗？',
@@ -329,6 +332,7 @@ function getFieldWidth(field: SearchFieldConfig) {
                     @click="switchView(view.id)"
                   >
                     {{ view.name }}
+                    <span v-if="view.isSystem" class="ml-1 text-xs text-orange-500">[系统]</span>
                   </span>
                   <Space :size="4">
                     <IconifyIcon
@@ -384,6 +388,7 @@ function getFieldWidth(field: SearchFieldConfig) {
       ref="viewEditModalRef"
       :columns="columns"
       :search-fields="searchFields"
+      :allow-system-view="allowSystemView"
       @confirm="handleViewConfirm"
     />
   </component>

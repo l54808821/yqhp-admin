@@ -40,10 +40,12 @@ export interface ColumnFixedConfig {
 
 // 视图配置
 export interface ViewConfig {
-  // 视图ID
-  id: string;
+  // 视图ID（数据库主键，0表示新建）
+  id: number;
   // 视图名称
   name: string;
+  // 是否系统视图
+  isSystem?: boolean;
   // 是否默认视图
   isDefault?: boolean;
   // 显示的列（按顺序）

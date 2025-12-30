@@ -5,6 +5,7 @@ export * from './dict';
 export * from './oauth';
 export * from './resource';
 export * from './role';
+export * from './table-view';
 export * from './token';
 export * from './user';
 export * from './user-app';

@@ -20,9 +20,13 @@ import {
 interface Props {
   columns: ColumnConfig[];
   searchFields?: SearchFieldConfig[];
+  // 是否允许创建系统视图
+  allowSystemView?: boolean;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  allowSystemView: false,
+});
 
 const emit = defineEmits<{
   confirm: [view: ViewConfig];
@@ -43,6 +47,8 @@ const localColumnFixed = reactive<Record<string, 'left' | 'right'>>({});
 const localSearchParams = ref<Record<string, any>>({});
 // 视图名称
 const viewName = ref('');
+// 是否系统视图
+const isSystemView = ref(false);
 
 // 拖拽相关
 const dragIndex = ref<number | null>(null);
@@ -105,6 +111,7 @@ function openCreate(
   isEdit.value = false;
   editingView.value = null;
   viewName.value = '';
+  isSystemView.value = false;
   localColumnKeys.value = [...currentColumns];
   clearColumnFixed();
   currentFixed.forEach((f) => {
@@ -120,6 +127,7 @@ function openEdit(view: ViewConfig, currentSearchParams: Record<string, any>) {
   isEdit.value = true;
   editingView.value = view;
   viewName.value = view.name;
+  isSystemView.value = view.isSystem || false;
   localColumnKeys.value = [...view.columns];
   clearColumnFixed();
   view.columnFixed?.forEach((f) => {
@@ -151,8 +159,9 @@ function handleConfirm() {
   });
 
   const view: ViewConfig = {
-    id: editingView.value?.id || `view_${Date.now()}`,
+    id: editingView.value?.id || 0,
     name: editingView.value?.isDefault ? '默认视图' : viewName.value.trim(),
+    isSystem: isSystemView.value,
     isDefault: editingView.value?.isDefault,
     columns: [...localColumnKeys.value],
     columnFixed,
@@ -301,6 +310,13 @@ defineExpose({ openCreate, openEdit, close });
       <div v-if="showNameInput" class="mb-4">
         <div class="mb-1 text-gray-600">视图名称</div>
         <Input v-model:value="viewName" placeholder="请输入视图名称" />
+      </div>
+
+      <!-- 系统视图选项 -->
+      <div v-if="showNameInput && allowSystemView" class="mb-4">
+        <Checkbox v-model:checked="isSystemView">
+          设为系统视图（所有用户可见）
+        </Checkbox>
       </div>
 
       <Tabs v-model:activeKey="activeTab">
