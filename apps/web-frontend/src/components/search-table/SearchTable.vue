@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ColumnConfig, SearchFieldConfig, ViewConfig } from './types';
+import type { ColumnConfig, SearchFieldConfig } from './types';
 
 import { computed, ref, watch } from 'vue';
 
@@ -12,7 +12,6 @@ import {
   Input,
   Menu,
   MenuItem,
-  Modal,
   Select,
   Space,
 } from 'ant-design-vue';
@@ -21,7 +20,7 @@ import { Dict } from '#/components/dict';
 import { AutoHeightTable } from '#/components/table';
 
 import { useView } from './useView';
-import ViewEditModal from './ViewEditModal.vue';
+import ViewManagerModal from './ViewManagerModal.vue';
 
 // 组件属性
 interface Props {
@@ -95,20 +94,17 @@ const searchExpanded = ref(false);
 // 视图管理
 const {
   views,
+  allViews,
   currentViewId,
   currentView,
-  visibleColumnKeys,
-  currentColumnFixed,
   displayColumns,
   initialized,
   loadViews,
   switchView,
-  saveView,
-  deleteView,
 } = useView(props.tableKey, () => props.columns, searchParams);
 
-// 视图编辑弹框
-const viewEditModalRef = ref<InstanceType<typeof ViewEditModal>>();
+// 视图管理弹框
+const viewManagerModalRef = ref<InstanceType<typeof ViewManagerModal>>();
 
 // 监听 columns 变化，初始化视图
 watch(
@@ -119,6 +115,17 @@ watch(
     }
   },
   { immediate: true },
+);
+
+// 监听视图切换，触发搜索
+watch(
+  currentViewId,
+  (newId, oldId) => {
+    // 只有在初始化完成后且视图确实变化时才触发搜索
+    if (initialized.value && oldId !== undefined && newId !== oldId) {
+      emit('search');
+    }
+  },
 );
 
 // 计算显示的搜索字段
@@ -191,34 +198,20 @@ function toggleSearchExpand() {
   searchExpanded.value = !searchExpanded.value;
 }
 
-// 打开列设置（编辑当前视图）
-function openColumnSetting() {
-  if (currentView.value) {
-    viewEditModalRef.value?.openEdit(currentView.value, searchParams.value);
-  }
+// 打开视图管理弹框
+function openViewManager() {
+  viewManagerModalRef.value?.open(views.value, searchParams.value);
 }
 
-// 打开新建视图弹框
-function openNewViewModal() {
-  viewEditModalRef.value?.openCreate(
-    visibleColumnKeys.value,
-    currentColumnFixed.value,
-    searchParams.value,
-  );
+// 视图管理保存完成
+function handleViewManagerSaved() {
+  loadViews();
 }
 
-// 视图编辑确认
-function handleViewConfirm(view: ViewConfig) {
-  saveView(view);
-}
-
-// 删除视图确认
-function handleDeleteView(viewId: number) {
-  Modal.confirm({
-    title: '确认删除',
-    content: '确定要删除该视图吗？',
-    onOk: () => deleteView(viewId),
-  });
+// 默认视图变更（实时生效）
+function handleDefaultChange() {
+  // 重新加载视图列表以同步状态
+  loadViews();
 }
 
 // 获取搜索字段宽度
@@ -315,51 +308,68 @@ function getFieldWidth(field: SearchFieldConfig) {
       <Space class="ml-auto">
         <!-- 视图切换 -->
         <Dropdown>
-          <Button class="inline-flex items-center">
-            {{ currentView?.name || '默认视图' }}
+          <div class="inline-flex items-center cursor-pointer text-gray-600 hover:text-blue-500">
+            <IconifyIcon icon="ant-design:eye-outlined" class="size-4 mr-1" />
+            <span class="text-gray-500 mr-1">视图</span>
+            <span class="text-blue-500 font-medium">{{ currentView?.name || '全部' }}</span>
             <IconifyIcon icon="ant-design:down-outlined" class="ml-1 size-3" />
-          </Button>
+          </div>
           <template #overlay>
-            <Menu>
+            <Menu class="min-w-[160px]">
+              <!-- 系统视图分组 -->
+              <div class="px-3 py-1.5 text-xs text-gray-400">系统视图</div>
               <MenuItem
-                v-for="view in views"
+                v-for="view in allViews.filter(v => v.isVirtual || v.isSystem)"
                 :key="view.id"
               >
-                <div class="flex items-center justify-between min-w-[140px]">
-                  <span
-                    class="flex-1 cursor-pointer"
+                <div
+                  class="flex items-center justify-between"
+                  :class="{ 'text-blue-500': view.id === currentViewId }"
+                  @click="switchView(view.id)"
+                >
+                  <span>{{ view.name }}</span>
+                  <IconifyIcon
+                    v-if="view.isDefault"
+                    icon="ant-design:check-outlined"
+                    class="size-4 text-green-500"
+                  />
+                </div>
+              </MenuItem>
+
+              <!-- 个人视图分组 -->
+              <template v-if="allViews.filter(v => !v.isVirtual && !v.isSystem).length > 0">
+                <Menu.Divider />
+                <div class="px-3 py-1.5 text-xs text-gray-400">个人视图</div>
+                <MenuItem
+                  v-for="view in allViews.filter(v => !v.isVirtual && !v.isSystem)"
+                  :key="view.id"
+                >
+                  <div
+                    class="flex items-center justify-between"
                     :class="{ 'text-blue-500': view.id === currentViewId }"
                     @click="switchView(view.id)"
                   >
-                    {{ view.name }}
-                    <span v-if="view.isSystem" class="ml-1 text-xs text-orange-500">[系统]</span>
-                  </span>
-                  <Space :size="4">
+                    <span>{{ view.name }}</span>
                     <IconifyIcon
-                      v-if="!view.isDefault"
-                      icon="ant-design:delete-outlined"
-                      class="size-4 text-gray-400 hover:text-red-500 cursor-pointer"
-                      @click.stop="handleDeleteView(view.id)"
+                      v-if="view.isDefault"
+                      icon="ant-design:check-outlined"
+                      class="size-4 text-green-500"
                     />
-                  </Space>
-                </div>
-              </MenuItem>
+                  </div>
+                </MenuItem>
+              </template>
+
+              <!-- 配置个人视图 -->
               <Menu.Divider />
-              <MenuItem key="__new__" @click="openNewViewModal">
-                <span class="inline-flex items-center">
-                  <IconifyIcon icon="ant-design:plus-outlined" class="mr-1 size-4" />
-                  新建视图
+              <MenuItem key="__manage__" @click="openViewManager">
+                <span class="inline-flex items-center text-gray-600">
+                  <IconifyIcon icon="ant-design:setting-outlined" class="mr-2 size-4" />
+                  配置个人视图
                 </span>
               </MenuItem>
             </Menu>
           </template>
         </Dropdown>
-
-        <!-- 列设置 -->
-        <Button class="inline-flex items-center" @click="openColumnSetting">
-          <IconifyIcon icon="ant-design:setting-outlined" class="size-4 mr-1" />
-          列设置
-        </Button>
       </Space>
     </div>
 
@@ -383,13 +393,15 @@ function getFieldWidth(field: SearchFieldConfig) {
       </AutoHeightTable>
     </div>
 
-    <!-- 视图编辑弹框 -->
-    <ViewEditModal
-      ref="viewEditModalRef"
+    <!-- 视图管理弹框 -->
+    <ViewManagerModal
+      ref="viewManagerModalRef"
+      :table-key="tableKey"
       :columns="columns"
       :search-fields="searchFields"
       :allow-system-view="allowSystemView"
-      @confirm="handleViewConfirm"
+      @saved="handleViewManagerSaved"
+      @default-change="handleDefaultChange"
     />
   </component>
 </template>

@@ -60,3 +60,17 @@ export function saveTableViewApi(data: TableViewApi.SaveViewRequest) {
 export function deleteTableViewApi(id: number) {
   return requestClient.delete(`/system/table-views/${id}`);
 }
+
+/**
+ * 设置默认视图
+ */
+export function setDefaultViewApi(tableKey: string, viewId: number) {
+  return requestClient.put(`/system/table-views/${tableKey}/default/${viewId}`);
+}
+
+/**
+ * 更新视图排序
+ */
+export function updateViewSortApi(tableKey: string, viewIds: number[]) {
+  return requestClient.put(`/system/table-views/${tableKey}/sort`, { viewIds });
+}

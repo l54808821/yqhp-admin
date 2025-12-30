@@ -48,6 +48,8 @@ export interface ViewConfig {
   isSystem?: boolean;
   // 是否默认视图
   isDefault?: boolean;
+  // 是否虚拟视图（不保存到数据库）
+  isVirtual?: boolean;
   // 显示的列（按顺序）
   columns: string[];
   // 列固定配置

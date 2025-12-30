@@ -15,10 +15,13 @@ export function useView(
   columnsRef: () => ColumnConfig[],
   searchParams: Ref<Record<string, any>>,
 ) {
-  // 视图列表
+  // 虚拟视图ID（不保存到数据库）
+  const VIRTUAL_ALL_VIEW_ID = 0;
+
+  // 视图列表（不包含虚拟视图）
   const views = ref<ViewConfig[]>([]);
   // 当前视图ID
-  const currentViewId = ref<number>(0);
+  const currentViewId = ref<number>(VIRTUAL_ALL_VIEW_ID);
   // 显示的列key列表
   const visibleColumnKeys = ref<string[]>([]);
   // 列固定配置
@@ -32,12 +35,45 @@ export function useView(
     return columnsRef();
   }
 
+  // 获取虚拟的"全部"视图
+  function getVirtualAllView(): ViewConfig {
+    const columns = getColumns();
+    const allColumnKeys = columns
+      .filter((col) => col.defaultShow !== false && col.key)
+      .map((col) => String(col.key));
+
+    const defaultFixed: ColumnFixedConfig[] = [];
+    columns.forEach((col) => {
+      if (col.fixed && col.key) {
+        defaultFixed.push({
+          key: String(col.key),
+          fixed: col.fixed as 'left' | 'right',
+        });
+      }
+    });
+
+    return {
+      id: VIRTUAL_ALL_VIEW_ID,
+      name: '全部',
+      isDefault: false,
+      isSystem: true,
+      isVirtual: true,
+      columns: allColumnKeys,
+      columnFixed: defaultFixed,
+    };
+  }
+
+  // 包含虚拟视图的完整视图列表（用于下拉显示）
+  const allViews = computed(() => {
+    return [getVirtualAllView(), ...views.value];
+  });
+
   // 从服务端加载视图配置
   async function loadViews() {
     const columns = getColumns();
     if (!columns.length) return;
 
-    // 先初始化默认列，确保表格能正常渲染
+    // 先初始化为虚拟视图，确保表格能正常渲染
     visibleColumnKeys.value = getDefaultColumnKeys();
     applyDefaultFixed();
 
@@ -54,15 +90,23 @@ export function useView(
           columnFixed: v.columnFixed,
           searchParams: v.searchParams,
         }));
-        // 默认选中第一个视图
-        currentViewId.value = views.value[0]?.id || 0;
+
+        // 查找默认视图，如果有则切换到默认视图，否则切换到虚拟视图
+        const defaultView = views.value.find((v) => v.isDefault);
+        if (defaultView) {
+          currentViewId.value = defaultView.id;
+        } else {
+          currentViewId.value = VIRTUAL_ALL_VIEW_ID;
+        }
         applyCurrentView();
       } else {
-        // 没有视图时初始化默认视图（仅前端使用，不保存）
-        initDefaultView();
+        // 没有视图时，使用虚拟视图
+        views.value = [];
+        currentViewId.value = VIRTUAL_ALL_VIEW_ID;
+        applyCurrentView();
       }
     } catch {
-      initDefaultView();
+      // 加载失败时保持虚拟视图
     } finally {
       loading.value = false;
     }
@@ -81,38 +125,21 @@ export function useView(
     });
   }
 
-  // 初始化默认视图（前端临时使用）
-  function initDefaultView() {
-    const columns = getColumns();
-    const defaultColumns = columns
-      .filter((col) => col.defaultShow !== false && col.key)
-      .map((col) => String(col.key));
-
-    const defaultFixed: ColumnFixedConfig[] = [];
-    columns.forEach((col) => {
-      if (col.fixed && col.key) {
-        defaultFixed.push({
-          key: String(col.key),
-          fixed: col.fixed as 'left' | 'right',
-        });
-      }
-    });
-
-    views.value = [
-      {
-        id: 0,
-        name: '默认视图',
-        isDefault: true,
-        columns: defaultColumns,
-        columnFixed: defaultFixed,
-      },
-    ];
-    currentViewId.value = 0;
-  }
-
   // 应用当前视图
   function applyCurrentView() {
     const columns = getColumns();
+
+    // 如果是虚拟视图，重置搜索参数并返回
+    if (currentViewId.value === VIRTUAL_ALL_VIEW_ID) {
+      visibleColumnKeys.value = getDefaultColumnKeys();
+      applyDefaultFixed();
+      // 重置所有搜索参数为 undefined
+      Object.keys(searchParams.value).forEach((key) => {
+        searchParams.value[key] = undefined;
+      });
+      return;
+    }
+
     const view = views.value.find((v) => v.id === currentViewId.value);
 
     if (view && view.columns && view.columns.length > 0) {
@@ -130,6 +157,11 @@ export function useView(
         }
       });
 
+      // 先重置所有搜索参数为 undefined
+      Object.keys(searchParams.value).forEach((key) => {
+        searchParams.value[key] = undefined;
+      });
+      // 再应用视图的搜索参数
       if (view.searchParams) {
         Object.keys(view.searchParams).forEach((key) => {
           searchParams.value[key] = view.searchParams![key];
@@ -231,6 +263,53 @@ export function useView(
     }
   }
 
+  // 批量保存视图
+  async function saveViews(newViews: ViewConfig[], deletedIds: number[]) {
+    try {
+      // 先删除
+      for (const id of deletedIds) {
+        await deleteTableViewApi(id);
+      }
+
+      // 保存/更新所有视图
+      const savedViews: ViewConfig[] = [];
+      for (const view of newViews) {
+        const result = await saveTableViewApi({
+          id: view.id > 0 ? view.id : undefined,
+          tableKey,
+          name: view.name,
+          isSystem: view.isSystem,
+          isDefault: view.isDefault,
+          columns: toRaw(view.columns),
+          columnFixed: toRaw(view.columnFixed),
+          searchParams: toRaw(view.searchParams),
+        });
+
+        savedViews.push({
+          id: result.id,
+          name: result.name,
+          isSystem: result.isSystem,
+          isDefault: result.isDefault,
+          columns: result.columns,
+          columnFixed: result.columnFixed,
+          searchParams: result.searchParams,
+        });
+      }
+
+      views.value = savedViews;
+
+      // 如果当前视图被删除，切换到默认视图或虚拟视图
+      if (currentViewId.value !== VIRTUAL_ALL_VIEW_ID && !views.value.find((v) => v.id === currentViewId.value)) {
+        const defaultView = views.value.find((v) => v.isDefault);
+        currentViewId.value = defaultView?.id || VIRTUAL_ALL_VIEW_ID;
+      }
+      applyCurrentView();
+    } catch (error) {
+      console.error('批量保存视图失败:', error);
+      throw error;
+    }
+  }
+
   // 获取当前固定配置数组
   const currentColumnFixed = computed<ColumnFixedConfig[]>(() => {
     const result: ColumnFixedConfig[] = [];
@@ -263,11 +342,15 @@ export function useView(
   });
 
   const currentView = computed(() => {
+    if (currentViewId.value === VIRTUAL_ALL_VIEW_ID) {
+      return getVirtualAllView();
+    }
     return views.value.find((v) => v.id === currentViewId.value);
   });
 
   return {
     views,
+    allViews,
     currentViewId,
     currentView,
     visibleColumnKeys,
@@ -279,6 +362,7 @@ export function useView(
     loadViews,
     switchView,
     saveView,
+    saveViews,
     deleteView,
   };
 }
