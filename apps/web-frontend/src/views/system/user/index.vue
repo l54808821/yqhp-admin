@@ -14,7 +14,6 @@ import {
   Popconfirm,
   Space,
   Tag,
-  Tooltip,
 } from 'ant-design-vue';
 
 import {
@@ -23,10 +22,10 @@ import {
   getUserListApi,
   resetPasswordApi,
 } from '#/api';
-import { UserApi as UserApiNs } from '#/api/system/user';
 import { Dict } from '#/components/dict';
 import { SearchTable } from '#/components/search-table';
 
+import UserAppsModal from './components/UserAppsModal.vue';
 import UserFormModal from './components/UserFormModal.vue';
 
 // 搜索参数
@@ -54,13 +53,12 @@ const columns: ColumnConfig[] = [
   { title: '昵称', dataIndex: 'nickname', key: 'nickname', width: 120 },
   { title: '手机号', dataIndex: 'phone', key: 'phone', width: 130 },
   { title: '邮箱', dataIndex: 'email', key: 'email', width: 180, defaultShow: false },
-  { title: '来源平台', dataIndex: 'platform', key: 'platform', width: 100 },
   { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
   { title: '角色', dataIndex: 'roles', key: 'roles', width: 200 },
   { title: '创建人', dataIndex: 'createdBy', key: 'createdBy', width: 120 },
   { title: '更新人', dataIndex: 'updatedBy', key: 'updatedBy', width: 120, defaultShow: false },
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
-  { title: '操作', key: 'action', width: 200, fixed: 'right' as const, fixedLock: true },
+  { title: '操作', key: 'action', width: 250, fixed: 'right' as const, fixedLock: true },
 ];
 
 // 表格数据
@@ -73,6 +71,7 @@ const depts = ref<any[]>([]);
 
 // 弹框引用
 const userFormModalRef = ref<InstanceType<typeof UserFormModal>>();
+const userAppsModalRef = ref<InstanceType<typeof UserAppsModal>>();
 
 // 加载数据
 async function loadData() {
@@ -119,6 +118,11 @@ function handleEdit(record: UserApi.User) {
   userFormModalRef.value?.open({ depts: depts.value, id: record.id });
 }
 
+// 查看应用关联
+function handleViewApps(record: UserApi.User) {
+  userAppsModalRef.value?.open(record.id, record.username);
+}
+
 // 删除
 async function handleDelete(id: number) {
   await deleteUserApi(id);
@@ -155,17 +159,7 @@ loadDepts();
       @page-change="handlePageChange"
     >
       <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'platform'">
-          <Tooltip v-if="record.platformUid || record.platformShortId">
-            <template #title>
-              <div v-if="record.platformUid">UID: {{ record.platformUid }}</div>
-              <div v-if="record.platformShortId">短码: {{ record.platformShortId }}</div>
-            </template>
-            <Tag color="purple">{{ UserApiNs.getPlatformLabel(record.platform) }}</Tag>
-          </Tooltip>
-          <Tag v-else color="purple">{{ UserApiNs.getPlatformLabel(record.platform) }}</Tag>
-        </template>
-        <template v-else-if="column.key === 'status'">
+        <template v-if="column.key === 'status'">
           <Dict code="sys_status" :value="record.status" />
         </template>
         <template v-else-if="column.key === 'roles'">
@@ -182,6 +176,7 @@ loadDepts();
         <template v-else-if="column.key === 'action'">
           <Space>
             <Button type="link" size="small" @click="handleEdit(record as UserApi.User)">编辑</Button>
+            <Button type="link" size="small" @click="handleViewApps(record as UserApi.User)">应用</Button>
             <Popconfirm title="确定重置密码吗？" @confirm="handleResetPassword(record.id)">
               <Button type="link" size="small">重置密码</Button>
             </Popconfirm>
@@ -194,5 +189,6 @@ loadDepts();
     </SearchTable>
 
     <UserFormModal ref="userFormModalRef" @success="loadData" />
+    <UserAppsModal ref="userAppsModalRef" />
   </Page>
 </template>

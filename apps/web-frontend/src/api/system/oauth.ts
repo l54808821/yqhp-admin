@@ -5,6 +5,8 @@ export namespace OAuthApi {
     id: number;
     name: string;
     code: string;
+    appId: number | null; // 应用ID，null表示全局配置
+    appName?: string; // 应用名称（关联查询）
     clientId: string;
     redirectUri: string;
     authUrl: string;
@@ -15,6 +17,8 @@ export namespace OAuthApi {
     sort: number;
     icon: string;
     remark: string;
+    createdBy: number;
+    updatedBy: number;
     createdAt: string;
     updatedAt: string;
   }
@@ -23,6 +27,7 @@ export namespace OAuthApi {
     page?: number;
     pageSize?: number;
     name?: string;
+    appId?: number | null; // 应用ID筛选
     status?: number;
   }
 
@@ -36,6 +41,7 @@ export namespace OAuthApi {
   export interface CreateParams {
     name: string;
     code: string;
+    appId?: number | null; // 应用ID，null表示全局配置
     clientId?: string;
     clientSecret?: string;
     redirectUri?: string;
@@ -52,6 +58,7 @@ export namespace OAuthApi {
   export interface UpdateParams {
     id: number;
     name?: string;
+    appId?: number | null;
     clientId?: string;
     clientSecret?: string;
     redirectUri?: string;
@@ -76,6 +83,39 @@ export namespace OAuthApi {
     expiresAt: number;
     createdAt: string;
     updatedAt: string;
+  }
+
+  // 用户-应用关联
+  export interface UserApp {
+    id: number;
+    userId: number;
+    appId: number;
+    appName?: string;
+    appCode?: string;
+    source: string; // system, oauth, register, invite
+    firstLoginAt: string;
+    lastLoginAt: string;
+    loginCount: number;
+    status: number;
+    remark: string;
+    createdAt: string;
+    updatedAt: string;
+  }
+
+  export interface UserAppListParams {
+    page?: number;
+    pageSize?: number;
+    userId?: number;
+    appId?: number;
+    source?: string;
+    status?: number;
+  }
+
+  export interface UserAppListResult {
+    list: UserApp[];
+    total: number;
+    page: number;
+    pageSize: number;
   }
 }
 

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { OAuthApi } from '#/api/system/oauth';
+import type { ApplicationApi } from '#/api/system/application';
 
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 
 import {
   Form,
@@ -12,9 +13,16 @@ import {
   Modal,
   Radio,
   RadioGroup,
+  Select,
+  SelectOption,
 } from 'ant-design-vue';
 
-import { createOAuthProviderApi, getOAuthProviderApi, updateOAuthProviderApi } from '#/api';
+import {
+  createOAuthProviderApi,
+  getAllApplicationsApi,
+  getOAuthProviderApi,
+  updateOAuthProviderApi,
+} from '#/api';
 
 const emit = defineEmits<{
   success: [];
@@ -25,14 +33,27 @@ const visible = ref(false);
 const loading = ref(false);
 const isEdit = ref(false);
 
+// 应用列表
+const appList = ref<ApplicationApi.Application[]>([]);
+
 // 表单数据
 const formData = ref<Partial<OAuthApi.CreateParams & { id?: number }>>({});
+
+// 加载应用列表
+async function loadAppList() {
+  try {
+    appList.value = await getAllApplicationsApi();
+  } catch {
+    console.error('加载应用列表失败');
+  }
+}
 
 // 重置表单数据
 function resetFormData() {
   formData.value = {
     name: '',
     code: '',
+    appId: null,
     clientId: '',
     clientSecret: '',
     redirectUri: '',
@@ -58,6 +79,7 @@ async function open(code?: string) {
       id: record.id,
       name: record.name,
       code: record.code,
+      appId: record.appId,
       clientId: record.clientId,
       redirectUri: record.redirectUri,
       authUrl: record.authUrl,
@@ -75,7 +97,6 @@ async function open(code?: string) {
 
   visible.value = true;
 }
-
 
 // 提交
 async function handleSubmit() {
@@ -104,6 +125,11 @@ async function handleSubmit() {
   }
 }
 
+// 初始化加载应用列表
+onMounted(() => {
+  loadAppList();
+});
+
 // 暴露open方法
 defineExpose({ open });
 </script>
@@ -126,6 +152,23 @@ defineExpose({ open });
           :disabled="isEdit"
           placeholder="请输入编码，如：github、wechat"
         />
+      </FormItem>
+      <FormItem label="所属应用">
+        <Select
+          v-model:value="formData.appId"
+          placeholder="全局配置（所有应用可用）"
+          allow-clear
+          style="width: 100%"
+        >
+          <SelectOption :value="0">全局配置</SelectOption>
+          <SelectOption
+            v-for="app in appList"
+            :key="app.id"
+            :value="app.id"
+          >
+            {{ app.name }}
+          </SelectOption>
+        </Select>
       </FormItem>
       <FormItem label="客户端ID">
         <Input

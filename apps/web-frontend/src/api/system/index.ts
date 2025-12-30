@@ -7,3 +7,4 @@ export * from './resource';
 export * from './role';
 export * from './token';
 export * from './user';
+export * from './user-app';

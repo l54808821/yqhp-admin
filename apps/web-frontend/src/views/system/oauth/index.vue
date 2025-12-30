@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { OAuthApi } from '#/api/system/oauth';
+import type { ApplicationApi } from '#/api/system/application';
 
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 
 import { UserDisplay } from '@vben/common-ui';
 
@@ -13,19 +14,31 @@ import {
   Card,
   message,
   Popconfirm,
+  Select,
+  SelectOption,
   Space,
   Table,
+  Tag,
 } from 'ant-design-vue';
 
-import { deleteOAuthProviderApi, getOAuthProviderListApi } from '#/api';
+import {
+  deleteOAuthProviderApi,
+  getAllApplicationsApi,
+  getOAuthProviderListApi,
+} from '#/api';
 
 import OauthFormModal from './components/OauthFormModal.vue';
 
 // 搜索参数
-const searchParams = ref({
+const searchParams = ref<OAuthApi.ListParams>({
   page: 1,
   pageSize: 10,
+  appId: undefined,
 });
+
+// 应用列表
+const appList = ref<ApplicationApi.Application[]>([]);
+const appMap = ref<Map<number, ApplicationApi.Application>>(new Map());
 
 // 表格数据
 const tableData = ref<OAuthApi.Provider[]>([]);
@@ -39,6 +52,7 @@ const oauthFormModalRef = ref<InstanceType<typeof OauthFormModal>>();
 const columns = [
   { title: '名称', dataIndex: 'name', key: 'name', width: 120 },
   { title: '编码', dataIndex: 'code', key: 'code', width: 100 },
+  { title: '所属应用', dataIndex: 'appId', key: 'appId', width: 120 },
   { title: '客户端ID', dataIndex: 'clientId', key: 'clientId', width: 200 },
   {
     title: '回调地址',
@@ -64,6 +78,25 @@ const columns = [
   },
 ];
 
+// 加载应用列表
+async function loadAppList() {
+  try {
+    const apps = await getAllApplicationsApi();
+    appList.value = apps;
+    appMap.value = new Map(apps.map((app) => [app.id, app]));
+  } catch {
+    console.error('加载应用列表失败');
+  }
+}
+
+// 获取应用名称
+function getAppName(appId: number | null): string {
+  if (appId === null || appId === 0) {
+    return '全局配置';
+  }
+  return appMap.value.get(appId)?.name || `应用${appId}`;
+}
+
 // 加载数据
 async function loadData() {
   loading.value = true;
@@ -80,6 +113,13 @@ async function loadData() {
 function handlePageChange(page: number, pageSize: number) {
   searchParams.value.page = page;
   searchParams.value.pageSize = pageSize;
+  loadData();
+}
+
+// 应用筛选变化
+function handleAppChange(appId: number | undefined) {
+  searchParams.value.appId = appId;
+  searchParams.value.page = 1;
   loadData();
 }
 
@@ -101,14 +141,37 @@ async function handleDelete(id: number) {
 }
 
 // 初始化
-loadData();
+onMounted(async () => {
+  await loadAppList();
+  loadData();
+});
 </script>
 
 <template>
   <Page>
     <Card>
-      <!-- 操作按钮 -->
-      <div class="mb-4">
+      <!-- 搜索区域 -->
+      <div class="mb-4 flex items-center gap-4">
+        <div class="flex items-center gap-2">
+          <span class="text-gray-600">所属应用：</span>
+          <Select
+            v-model:value="searchParams.appId"
+            placeholder="全部"
+            allow-clear
+            style="width: 200px"
+            @change="handleAppChange"
+          >
+            <SelectOption :value="0">全局配置</SelectOption>
+            <SelectOption
+              v-for="app in appList"
+              :key="app.id"
+              :value="app.id"
+            >
+              {{ app.name }}
+            </SelectOption>
+          </Select>
+        </div>
+        <div class="flex-1"></div>
         <Button type="primary" @click="handleAdd">新增</Button>
       </div>
 
@@ -126,12 +189,20 @@ loadData();
           showTotal: (t: number) => `共 ${t} 条`,
           onChange: handlePageChange,
         }"
-        :scroll="{ x: 1200 }"
+        :scroll="{ x: 1400 }"
         row-key="id"
         size="middle"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
+          <template v-if="column.key === 'appId'">
+            <Tag v-if="record.appId === null || record.appId === 0" color="blue">
+              全局配置
+            </Tag>
+            <Tag v-else color="green">
+              {{ getAppName(record.appId) }}
+            </Tag>
+          </template>
+          <template v-else-if="column.key === 'status'">
             <Dict code="sys_status" :value="record.status" />
           </template>
           <template v-else-if="column.key === 'createdBy'">

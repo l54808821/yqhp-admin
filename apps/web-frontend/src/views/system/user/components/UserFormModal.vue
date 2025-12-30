@@ -2,7 +2,7 @@
 import type { RoleApi } from '#/api/system/role';
 import type { UserApi } from '#/api/system/user';
 
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 
 import {
   Avatar,
@@ -19,7 +19,6 @@ import {
 } from 'ant-design-vue';
 
 import { createUserApi, getAllAppsApi, getRoleListApi, getUserApi, updateUserApi } from '#/api';
-import { UserApi as UserApiNs } from '#/api/system/user';
 
 const emit = defineEmits<{
   success: [];
@@ -43,14 +42,6 @@ const loadingRoles = ref<Set<number>>(new Set());
 
 // 当前配置的应用角色
 const appRolesConfig = ref<UserApi.AppRoleConfig[]>([]);
-
-// 平台选项
-const platformOptions = UserApiNs.PlatformOptions;
-
-// 是否显示平台标识字段（非系统新建时显示）
-const showPlatformId = computed(() => {
-  return formData.value.platform && formData.value.platform !== UserApiNs.Platform.SYSTEM;
-});
 
 // 获取应用下的角色
 async function loadRolesForApp(appId: number) {
@@ -118,9 +109,6 @@ function resetFormData() {
     email: '',
     phone: '',
     deptId: undefined,
-    platform: UserApiNs.Platform.SYSTEM,
-    platformUid: '',
-    platformShortId: '',
     remark: '',
     password: '',
   };
@@ -153,9 +141,6 @@ async function open(params: OpenParams) {
       gender: record.gender,
       status: record.status,
       deptId: record.deptId,
-      platform: record.platform || UserApiNs.Platform.SYSTEM,
-      platformUid: record.platformUid || '',
-      platformShortId: record.platformShortId || '',
       remark: record.remark,
     };
 
@@ -284,25 +269,6 @@ defineExpose({ open });
           placeholder="请选择部门"
           allow-clear
           tree-default-expand-all
-        />
-      </FormItem>
-      <FormItem label="来源平台">
-        <Select
-          v-model:value="formData.platform"
-          placeholder="请选择来源平台"
-          :options="platformOptions"
-        />
-      </FormItem>
-      <FormItem v-if="showPlatformId" label="平台UID">
-        <Input
-          v-model:value="formData.platformUid"
-          placeholder="请输入平台唯一标识（长码）"
-        />
-      </FormItem>
-      <FormItem v-if="showPlatformId" label="平台短码">
-        <Input
-          v-model:value="formData.platformShortId"
-          placeholder="请输入平台唯一标识（短码）"
         />
       </FormItem>
       <FormItem label="角色配置">
