@@ -75,7 +75,7 @@ const scrollConfig = computed(() => ({
 </script>
 
 <template>
-  <div ref="wrapperRef" class="h-full min-h-0">
+  <div ref="wrapperRef" class="auto-height-table h-full min-h-0">
     <Table
       :columns="columns"
       :data-source="dataSource"
@@ -98,3 +98,35 @@ const scrollConfig = computed(() => ({
     </Table>
   </div>
 </template>
+
+<style scoped>
+/* 鼠标悬停在表格区域时显示滚动条，使用 overlay 避免挤压内容 */
+.auto-height-table :deep(.ant-table-body) {
+  overflow-y: scroll !important;
+  scrollbar-gutter: stable;
+}
+
+/* 默认隐藏滚动条 */
+.auto-height-table :deep(.ant-table-body)::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.auto-height-table :deep(.ant-table-body)::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 4px;
+}
+
+.auto-height-table :deep(.ant-table-body)::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+/* 悬停时显示滚动条 */
+.auto-height-table:hover :deep(.ant-table-body)::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+.auto-height-table:hover :deep(.ant-table-body)::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.3);
+}
+</style>

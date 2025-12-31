@@ -185,8 +185,8 @@ loadLoginLogs();
 
 <template>
   <Page auto-content-height>
-    <Card class="h-full flex flex-col" :body-style="{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }">
-      <Tabs v-model:active-key="activeTab" class="h-full flex flex-col [&_.ant-tabs-content]:flex-1 [&_.ant-tabs-content]:min-h-0 [&_.ant-tabs-tabpane]:h-full" @change="handleTabChange">
+    <Card class="log-card" :body-style="{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '16px' }">
+      <Tabs v-model:active-key="activeTab" class="log-tabs" @change="handleTabChange">
         <TabPane key="login" tab="登录日志" class="h-full">
           <SearchTable
             table-key="system-log-login"
@@ -256,3 +256,34 @@ loadLoginLogs();
     </Card>
   </Page>
 </template>
+
+
+<style scoped>
+.log-card {
+  height: 100%;
+}
+
+.log-tabs {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.log-tabs :deep(.ant-tabs-content-holder) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.log-tabs :deep(.ant-tabs-content) {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.log-tabs :deep(.ant-tabs-tabpane) {
+  height: 100%;
+}
+</style>
