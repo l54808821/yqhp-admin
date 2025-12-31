@@ -17,6 +17,7 @@ import { useAccessStore, useUserStore } from '@vben/stores';
 // import { openWindow } from '@vben/utils';
 
 import { $t } from '#/locales';
+import { appCustomPreferences } from '#/preferences';
 import { useAuthStore } from '#/store';
 import LoginForm from '#/views/_core/authentication/login.vue';
 
@@ -106,7 +107,7 @@ const avatar = computed(() => {
 });
 
 async function handleLogout() {
-  await authStore.logout(false);
+  await authStore.logout(appCustomPreferences.loginRedirectToPreviousPage);
 }
 
 function handleNoticeClear() {

@@ -12,6 +12,7 @@ import { defineStore } from 'pinia';
 
 import { getAccessCodesApi, getUserInfoApi, loginApi, logoutApi } from '#/api';
 import { $t } from '#/locales';
+import { appCustomPreferences } from '#/preferences';
 import { resetRoutes } from '#/router';
 
 export const useAuthStore = defineStore('auth', () => {
@@ -59,11 +60,19 @@ export const useAuthStore = defineStore('auth', () => {
         if (accessStore.loginExpired) {
           accessStore.setLoginExpired(false);
         } else {
-          onSuccess
-            ? await onSuccess?.()
-            : await router.push(
-                userInfo.homePath || preferences.app.defaultHomePath,
-              );
+          if (onSuccess) {
+            await onSuccess?.();
+          } else {
+            // 根据配置决定登录后跳转的页面
+            let targetPath = userInfo.homePath || preferences.app.defaultHomePath;
+            if (appCustomPreferences.loginRedirectToPreviousPage) {
+              const redirect = router.currentRoute.value.query.redirect as string;
+              if (redirect) {
+                targetPath = decodeURIComponent(redirect);
+              }
+            }
+            await router.push(targetPath);
+          }
         }
 
         if (userInfo?.realName) {

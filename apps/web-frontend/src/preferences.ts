@@ -36,3 +36,15 @@ export const overridesPreferences = defineOverridesPreferences({
     timezone: false,
   },
 });
+
+/**
+ * @description 项目自定义配置
+ */
+export const appCustomPreferences = {
+  /**
+   * 登录后是否跳转到之前的页面
+   * true: 登录后跳转到退出前的页面
+   * false: 登录后跳转到用户首页
+   */
+  loginRedirectToPreviousPage: true,
+};
