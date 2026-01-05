@@ -1,0 +1,156 @@
+import type { Recordable, UserInfo } from '@vben/types';
+
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+
+import { LOGIN_PATH } from '@vben/constants';
+import { preferences } from '@vben/preferences';
+import { resetAllStores, useAccessStore, useUserStore } from '@vben/stores';
+
+import { notification } from 'ant-design-vue';
+import { defineStore } from 'pinia';
+
+import { getAccessCodesApi, getUserInfoApi, loginApi, logoutApi } from '#/api';
+import { $t } from '#/locales';
+import { appCustomPreferences } from '#/preferences';
+import { resetRoutes } from '#/router';
+
+export const useAuthStore = defineStore('auth', () => {
+  const accessStore = useAccessStore();
+  const userStore = useUserStore();
+  const router = useRouter();
+
+  const loginLoading = ref(false);
+
+  /**
+   * 异步处理登录操作
+   * Asynchronously handle the login process
+   * @param params 登录表单数据
+   */
+  async function authLogin(
+    params: Recordable<any>,
+    onSuccess?: () => Promise<void> | void,
+  ) {
+    // 异步处理用户登录操作并获取 accessToken
+    let userInfo: null | UserInfo = null;
+    try {
+      loginLoading.value = true;
+      const { accessToken } = await loginApi(params);
+
+      // 如果成功获取到 accessToken
+      if (accessToken) {
+        accessStore.setAccessToken(accessToken);
+
+        // 获取用户信息并存储到 accessStore 中
+        const [fetchUserInfoResult, accessCodes] = await Promise.all([
+          fetchUserInfo(),
+          getAccessCodesApi(),
+        ]);
+
+        userInfo = fetchUserInfoResult;
+
+        userStore.setUserInfo(userInfo);
+        accessStore.setAccessCodes(accessCodes);
+
+        // 登录成功后加载用户缓存
+        const { useUserCacheStore } = await import('./user-cache');
+        const userCacheStore = useUserCacheStore();
+        userCacheStore.loadUsers();
+
+        if (accessStore.loginExpired) {
+          accessStore.setLoginExpired(false);
+        } else {
+          if (onSuccess) {
+            await onSuccess?.();
+          } else {
+            // 根据配置决定登录后跳转的页面
+            let targetPath = userInfo.homePath || preferences.app.defaultHomePath;
+            if (appCustomPreferences.loginRedirectToPreviousPage) {
+              const redirect = router.currentRoute.value.query.redirect as string;
+              if (redirect) {
+                targetPath = decodeURIComponent(redirect);
+              }
+            }
+            await router.push(targetPath);
+          }
+        }
+
+        if (userInfo?.realName) {
+          notification.success({
+            description: `${$t('authentication.loginSuccessDesc')}:${userInfo?.realName}`,
+            duration: 3,
+            message: $t('authentication.loginSuccess'),
+          });
+        }
+      }
+    } catch (error) {
+      // 登录失败时，清理可能已经设置的 token 和路由状态
+      accessStore.setAccessToken(null);
+      accessStore.setIsAccessChecked(false);
+      resetRoutes();
+      throw error;
+    } finally {
+      loginLoading.value = false;
+    }
+
+    return {
+      userInfo,
+    };
+  }
+
+  async function logout(redirect: boolean = true) {
+    try {
+      await logoutApi();
+    } catch {
+      // 不做任何处理
+    }
+
+    // 清除用户缓存
+    const { useUserCacheStore } = await import('./user-cache');
+    const userCacheStore = useUserCacheStore();
+    userCacheStore.clearCache();
+
+    resetAllStores();
+    accessStore.setLoginExpired(false);
+
+    // 重置动态路由，清除上一个用户的路由配置
+    resetRoutes();
+
+    // 回登录页带上当前路由地址
+    await router.replace({
+      path: LOGIN_PATH,
+      query: redirect
+        ? {
+            redirect: encodeURIComponent(router.currentRoute.value.fullPath),
+          }
+        : {},
+    });
+  }
+
+  async function fetchUserInfo() {
+    let userInfo: null | UserInfo = null;
+    userInfo = await getUserInfoApi();
+    userStore.setUserInfo(userInfo);
+    return userInfo;
+  }
+
+  function $reset() {
+    loginLoading.value = false;
+  }
+
+  /**
+   * 设置访问令牌（用于第三方登录）
+   */
+  function setAccessToken(token: string) {
+    accessStore.setAccessToken(token);
+  }
+
+  return {
+    $reset,
+    authLogin,
+    fetchUserInfo,
+    loginLoading,
+    logout,
+    setAccessToken,
+  };
+});
