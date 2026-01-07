@@ -1,4 +1,4 @@
-import { baseRequestClient, requestClient } from '#/api/request';
+import { authRequestClient, baseAuthRequestClient, requestClient } from '#/api/request';
 
 export namespace AuthApi {
   /** 登录接口参数 */
@@ -50,12 +50,14 @@ export namespace AuthApi {
 }
 
 /**
- * 登录
+ * 登录 (发送到 Admin 服务)
  */
 export async function loginApi(data: AuthApi.LoginParams) {
   // 后端返回 token 字段，需要映射为 accessToken
-  const result = await requestClient.post<AuthApi.LoginResult>(
-    '/auth/login',
+  // authRequestClient baseURL 是 /auth，代理到 Admin 的 /api
+  // 所以这里路径是 /login，最终请求 /auth/login -> Admin /api/auth/login
+  const result = await authRequestClient.post<AuthApi.LoginResult>(
+    '/login',
     data,
   );
   return {
@@ -65,27 +67,27 @@ export async function loginApi(data: AuthApi.LoginParams) {
 }
 
 /**
- * 刷新accessToken
+ * 刷新accessToken (发送到 Admin 服务)
  */
 export async function refreshTokenApi() {
-  return baseRequestClient.post<AuthApi.RefreshTokenResult>('/auth/refresh', {
+  return baseAuthRequestClient.post<AuthApi.RefreshTokenResult>('/refresh', {
     withCredentials: true,
   });
 }
 
 /**
- * 退出登录
+ * 退出登录 (发送到 Admin 服务)
  */
 export async function logoutApi() {
-  return requestClient.post('/auth/logout');
+  return authRequestClient.post('/logout');
 }
 
 /**
- * 用户注册
+ * 用户注册 (发送到 Admin 服务)
  */
 export async function registerApi(data: AuthApi.RegisterParams) {
-  const result = await requestClient.post<AuthApi.LoginResult>(
-    '/auth/register',
+  const result = await authRequestClient.post<AuthApi.LoginResult>(
+    '/register',
     data,
   );
   return {
@@ -95,11 +97,11 @@ export async function registerApi(data: AuthApi.RegisterParams) {
 }
 
 /**
- * 获取用户权限码
+ * 获取用户权限码 (从 Gulu 后端获取)
  */
 export async function getAccessCodesApi() {
   try {
-    return await requestClient.get<string[]>('/permissions');
+    return await requestClient.get<string[]>('/user/codes');
   } catch {
     return [];
   }

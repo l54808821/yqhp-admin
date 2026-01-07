@@ -21,6 +21,9 @@ import { refreshTokenApi } from './core';
 
 const { apiURL } = useAppConfig(import.meta.env, import.meta.env.PROD);
 
+// 认证 API 地址 (Admin 服务)
+const authURL = import.meta.env.VITE_GLOB_AUTH_URL || '/auth';
+
 function createRequestClient(baseURL: string, options?: RequestClientOptions) {
   const client = new RequestClient({
     ...options,
@@ -106,8 +109,15 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
   return client;
 }
 
+// Gulu 业务 API 请求客户端
 export const requestClient = createRequestClient(apiURL, {
   responseReturn: 'data',
 });
 
+// Admin 认证 API 请求客户端 (SSO)
+export const authRequestClient = createRequestClient(authURL, {
+  responseReturn: 'data',
+});
+
 export const baseRequestClient = new RequestClient({ baseURL: apiURL });
+export const baseAuthRequestClient = new RequestClient({ baseURL: authURL });

@@ -1,4 +1,4 @@
-import { requestClient } from '#/api/request';
+import { authRequestClient, requestClient } from '#/api/request';
 
 export namespace OAuthApi {
   export interface Provider {
@@ -160,33 +160,33 @@ export function deleteOAuthProviderApi(id: number) {
 }
 
 /**
- * 获取公开的OAuth提供商列表
+ * 获取公开的OAuth提供商列表 (从 Admin 服务获取)
  */
 export function getPublicOAuthProvidersApi() {
-  return requestClient.get<OAuthApi.Provider[]>('/auth/oauth/providers');
+  return authRequestClient.get<OAuthApi.Provider[]>('/oauth/providers');
 }
 
 /**
- * 获取OAuth授权URL
+ * 获取OAuth授权URL (从 Admin 服务获取)
  */
 export function getOAuthUrlApi(provider: string, state?: string) {
-  return requestClient.get<{ url: string }>(`/auth/oauth/${provider}/url`, {
+  return authRequestClient.get<{ url: string }>(`/oauth/${provider}/url`, {
     params: { state },
   });
 }
 
 /**
- * 获取用户绑定的第三方账号
+ * 获取用户绑定的第三方账号 (从 Admin 服务获取)
  */
 export function getUserBindingsApi() {
-  return requestClient.get<OAuthApi.OAuthUser[]>('/auth/bindings');
+  return authRequestClient.get<OAuthApi.OAuthUser[]>('/bindings');
 }
 
 /**
- * 解绑第三方账号
+ * 解绑第三方账号 (发送到 Admin 服务)
  */
 export function unbindOAuthApi(provider: string) {
-  return requestClient.delete(`/auth/unbind/${provider}`);
+  return authRequestClient.delete(`/unbind/${provider}`);
 }
 
 /**
@@ -205,12 +205,12 @@ export interface OAuthLoginResult {
 }
 
 /**
- * OAuth回调登录
+ * OAuth回调登录 (发送到 Admin 服务)
  * 注意：OAuth回调需要后端请求第三方服务器，可能较慢，设置较长超时时间
  */
 export function oauthCallbackApi(provider: string, code: string) {
-  return requestClient.get<OAuthLoginResult>(
-    `/auth/oauth/${provider}/callback`,
+  return authRequestClient.get<OAuthLoginResult>(
+    `/oauth/${provider}/callback`,
     {
       params: { code },
       timeout: 30_000, // 30秒超时，OAuth回调需要请求第三方服务器
