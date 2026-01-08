@@ -37,7 +37,6 @@ const props = withDefaults(defineProps<Props>(), {
   page: 1,
   pageSize: 10,
   rowKey: 'id',
-  scrollX: 'max-content',
   showPagination: true,
   showAdd: true,
   addText: '新增',

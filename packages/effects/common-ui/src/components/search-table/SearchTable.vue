@@ -66,7 +66,6 @@ const props = withDefaults(defineProps<Props>(), {
   page: 1,
   pageSize: 10,
   rowKey: 'id',
-  scrollX: 'max-content',
   showPagination: true,
   showAdd: true,
   addText: '新增',
@@ -135,6 +134,27 @@ const visibleSearchFields = computed(() => {
 // 是否有更多搜索字段
 const hasMoreFields = computed(() => {
   return (props.searchFields?.length || 0) > props.defaultCollapsedCount;
+});
+
+// 计算 scrollX：如果有列同时设置了 width 和 ellipsis，则使用列宽总和，否则使用传入值或 max-content
+const computedScrollX = computed(() => {
+  // 如果用户明确传入了 scrollX，使用传入值
+  if (props.scrollX !== undefined) {
+    return props.scrollX;
+  }
+  // 检查是否有列同时设置了 width 和 ellipsis
+  const hasEllipsisWithWidth = displayColumns.value.some(
+    (col) => col.ellipsis && col.width,
+  );
+  if (hasEllipsisWithWidth) {
+    // 计算所有列宽总和，让 ellipsis 生效
+    return displayColumns.value.reduce((sum, col) => {
+      const width = typeof col.width === 'number' ? col.width : 100;
+      return sum + width;
+    }, 0);
+  }
+  // 默认使用 max-content
+  return 'max-content';
 });
 
 // 分页配置
@@ -416,7 +436,7 @@ function getFieldWidth(field: SearchFieldConfig) {
         :data-source="dataSource"
         :loading="loading"
         :pagination="paginationConfig"
-        :scroll-x="scrollX"
+        :scroll-x="computedScrollX"
         :row-key="rowKey"
         :default-expand-all-rows="defaultExpandAllRows"
       >

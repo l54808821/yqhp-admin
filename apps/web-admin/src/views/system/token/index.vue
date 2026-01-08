@@ -26,13 +26,13 @@ const searchFields: SearchFieldConfig[] = [
 // 表格列配置
 const columns: ColumnConfig[] = [
   { title: '用户ID', dataIndex: 'userId', key: 'userId', width: 100 },
-  { title: '设备', dataIndex: 'device', key: 'device', width: 100 },
-  { title: '平台', dataIndex: 'platform', key: 'platform', width: 100 },
-  { title: 'IP地址', dataIndex: 'ip', key: 'ip', width: 130 },
-  { title: 'User-Agent', dataIndex: 'userAgent', key: 'userAgent', ellipsis: true, width: 230 },
-  { title: '过期时间', dataIndex: 'expireAt', key: 'expireAt', width: 180 },
-  { title: '最后活跃', dataIndex: 'lastActiveAt', key: 'lastActiveAt', width: 180 },
-  { title: '操作', key: 'action', width: 200, fixed: 'right' as const, fixedLock: true },
+  { title: '设备', dataIndex: 'device', key: 'device', width: 80 },
+  { title: '平台', dataIndex: 'platform', key: 'platform', width: 80 },
+  { title: 'IP地址', dataIndex: 'ip', key: 'ip', width: 120 },
+  { title: 'User-Agent', dataIndex: 'userAgent', key: 'userAgent', ellipsis: true , width: 280},
+  { title: '过期时间', dataIndex: 'expireAt', key: 'expireAt', width: 170 },
+  { title: '最后活跃', dataIndex: 'lastActiveAt', key: 'lastActiveAt', width: 170 },
+  { title: '操作', key: 'action', width: 180, fixed: 'right' as const, fixedLock: true },
 ];
 
 // 表格数据
