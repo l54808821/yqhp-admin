@@ -95,6 +95,11 @@ function setupAccessGuard(router: Router) {
     const userInfo = userStore.userInfo || (await authStore.fetchUserInfo());
     const userRoles = userInfo.roles ?? [];
 
+    // 获取用户权限码
+    const { getAccessCodesApi } = await import('#/api');
+    const accessCodes = await getAccessCodesApi();
+    accessStore.setAccessCodes(accessCodes);
+
     // 生成菜单和路由
     const { accessibleMenus, accessibleRoutes } = await generateAccess({
       roles: userRoles,

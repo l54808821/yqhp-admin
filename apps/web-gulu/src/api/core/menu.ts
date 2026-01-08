@@ -88,7 +88,6 @@ function buildMenuTree(menus: BackendMenuResponse[]): BackendMenuResponse[] {
  */
 export async function getAllMenusApi() {
   const menus = await requestClient.get<BackendMenuResponse[]>('/user/menus');
-  // 构建菜单树并转换为路由格式
-  const menuTree = buildMenuTree(menus);
-  return menuTree.map(convertToRouteRecord);
+  // 后端返回的数据已经是树形结构，直接转换为路由格式
+  return menus.map(convertToRouteRecord);
 }
