@@ -18,8 +18,6 @@ export interface SearchFieldConfig {
   options?: { label: string; value: any }[];
   // 字典编码（dict类型）
   dictCode?: string;
-  // 是否默认显示（折叠时）
-  defaultShow?: boolean;
 }
 
 // 列配置扩展
@@ -58,6 +56,29 @@ export interface ViewConfig {
   searchParams?: Record<string, any>;
 }
 
+// 视图 API 接口（由使用方实现）
+export interface ViewApi {
+  // 获取视图列表
+  getViews: (tableKey: string) => Promise<{ views: ViewConfig[] }>;
+  // 保存视图
+  saveView: (data: {
+    id?: number;
+    tableKey: string;
+    name: string;
+    isSystem?: boolean;
+    isDefault?: boolean;
+    columns: string[];
+    columnFixed?: ColumnFixedConfig[];
+    searchParams?: Record<string, any>;
+  }) => Promise<ViewConfig>;
+  // 删除视图
+  deleteView: (id: number) => Promise<void>;
+  // 设置默认视图
+  setDefaultView: (tableKey: string, viewId: number) => Promise<void>;
+  // 更新视图排序
+  updateViewSort: (tableKey: string, viewIds: number[]) => Promise<void>;
+}
+
 // 组件属性
 export interface SearchTableProps {
   // 唯一标识（用于存储视图配置）
@@ -79,7 +100,7 @@ export interface SearchTableProps {
   // 行键
   rowKey?: string;
   // 横向滚动宽度
-  scrollX?: number;
+  scrollX?: number | string;
   // 是否显示分页
   showPagination?: boolean;
   // 是否显示新增按钮
@@ -90,6 +111,10 @@ export interface SearchTableProps {
   useCard?: boolean;
   // 默认展开所有行（树形表格）
   defaultExpandAllRows?: boolean;
-  // 默认折叠搜索区域的行数
-  defaultCollapsedRows?: number;
+  // 默认折叠搜索区域显示的字段数
+  defaultCollapsedCount?: number;
+  // 是否允许创建系统视图
+  allowSystemView?: boolean;
+  // 视图 API（可选，不提供则禁用视图功能）
+  viewApi?: ViewApi;
 }

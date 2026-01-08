@@ -3,8 +3,6 @@ import type { SearchFieldConfig } from './types';
 
 import { Button, Input, Select } from 'ant-design-vue';
 
-import { Dict } from '#/components/dict';
-
 interface Props {
   searchFields: SearchFieldConfig[];
   searchParams: Record<string, any>;
@@ -37,18 +35,18 @@ function getFieldWidth(field: SearchFieldConfig) {
 </script>
 
 <template>
-  <div class="h-full flex flex-col">
-    <div class="flex items-center justify-end mb-3">
+  <div class="flex h-full flex-col">
+    <div class="mb-3 flex items-center justify-end">
       <Button size="small" @click="clearAll">清空</Button>
     </div>
 
-    <div class="flex-1 overflow-auto space-y-3">
+    <div class="flex-1 space-y-3 overflow-auto">
       <div
         v-for="field in searchFields"
         :key="field.field"
         class="flex items-center gap-3"
       >
-        <span class="w-20 text-gray-600 text-sm text-right flex-shrink-0">
+        <span class="w-20 flex-shrink-0 text-right text-sm text-gray-600">
           {{ field.label }}
         </span>
         <div class="flex-1">
@@ -69,14 +67,21 @@ function getFieldWidth(field: SearchFieldConfig) {
             allow-clear
             @update:value="(v: any) => updateParam(field.field, v)"
           />
-          <Dict
+          <!-- dict 类型通过插槽渲染 -->
+          <slot
             v-else-if="field.type === 'dict'"
+            :name="`field-${field.field}`"
+            :field="field"
             :value="searchParams[field.field]"
-            type="select"
-            :code="field.dictCode!"
-            :placeholder="field.placeholder || `请选择${field.label}`"
-            :style="{ width: getFieldWidth(field) }"
-            @update:value="(v: any) => updateParam(field.field, v)"
+            :on-change="(v: any) => updateParam(field.field, v)"
+          />
+          <!-- 自定义类型通过插槽渲染 -->
+          <slot
+            v-else-if="field.type === 'custom'"
+            :name="`field-${field.field}`"
+            :field="field"
+            :value="searchParams[field.field]"
+            :on-change="(v: any) => updateParam(field.field, v)"
           />
         </div>
       </div>

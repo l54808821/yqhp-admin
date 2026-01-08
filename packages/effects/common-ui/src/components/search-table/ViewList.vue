@@ -45,24 +45,24 @@ function handleSetDefault(id: number, checked: boolean) {
 </script>
 
 <template>
-  <div class="flex flex-col h-full">
-    <div class="flex items-center justify-between mb-3">
+  <div class="flex h-full flex-col">
+    <div class="mb-3 flex items-center justify-between">
       <span class="font-medium">视图列表</span>
       <Button type="primary" size="small" @click="emit('add')">
-        <IconifyIcon icon="ant-design:plus-outlined" class="size-3 mr-1" />
+        <IconifyIcon icon="ant-design:plus-outlined" class="mr-1 size-3" />
         新建
       </Button>
     </div>
 
-    <div class="flex-1 overflow-auto space-y-1">
+    <div class="flex-1 space-y-1 overflow-auto">
       <div
         v-for="(view, index) in views"
         :key="view.id"
-        class="group flex items-center gap-2 p-2 rounded cursor-pointer transition-colors"
+        class="group flex cursor-pointer items-center gap-2 rounded p-2 transition-colors"
         :class="[
           selectedId === view.id
-            ? 'bg-blue-50 border border-blue-200'
-            : 'hover:bg-gray-50 border border-transparent',
+            ? 'border border-blue-200 bg-blue-50'
+            : 'border border-transparent hover:bg-gray-50',
         ]"
         draggable="true"
         @click="emit('select', view.id)"
@@ -83,19 +83,24 @@ function handleSetDefault(id: number, checked: boolean) {
         <!-- 拖拽手柄 -->
         <IconifyIcon
           icon="ant-design:holder-outlined"
-          class="size-4 text-gray-400 cursor-move"
+          class="size-4 cursor-move text-gray-400"
         />
 
         <!-- 视图名称 -->
-        <div class="flex-1 min-w-0">
-          <span class="truncate block">{{ view.name }}</span>
+        <div class="min-w-0 flex-1">
+          <span class="block truncate">{{ view.name }}</span>
         </div>
 
         <!-- 标签 -->
         <div class="flex items-center gap-1">
-          <span v-if="view.id < 0" class="text-xs text-orange-500">[未保存]</span>
+          <span v-if="view.id < 0" class="text-xs text-orange-500"
+            >[未保存]</span
+          >
           <Tooltip v-if="view.isSystem" title="系统视图">
-            <IconifyIcon icon="ant-design:global-outlined" class="size-3 text-orange-500" />
+            <IconifyIcon
+              icon="ant-design:global-outlined"
+              class="size-3 text-orange-500"
+            />
           </Tooltip>
         </div>
 
@@ -108,14 +113,17 @@ function handleSetDefault(id: number, checked: boolean) {
         >
           <IconifyIcon
             icon="ant-design:delete-outlined"
-            class="size-4 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+            class="size-4 text-gray-400 opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
             @click.stop
           />
         </Popconfirm>
       </div>
 
-      <div v-if="views.length === 0" class="text-center text-gray-400 py-8">
-        <IconifyIcon icon="ant-design:inbox-outlined" class="size-10 mb-2" />
+      <div
+        v-if="views.length === 0"
+        class="flex flex-col items-center justify-center py-8 text-gray-400"
+      >
+        <IconifyIcon icon="ant-design:inbox-outlined" class="mb-2 size-10" />
         <p>暂无个人视图</p>
         <p class="text-sm">点击上方"新建"按钮创建</p>
       </div>

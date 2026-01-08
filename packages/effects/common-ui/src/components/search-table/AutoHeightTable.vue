@@ -5,7 +5,7 @@
  */
 import type { TableProps } from 'ant-design-vue';
 
-import { onMounted, onUnmounted, ref, computed } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 import { Table } from 'ant-design-vue';
 
@@ -48,7 +48,8 @@ const scrollY = ref<number | undefined>(undefined);
 function updateScrollY() {
   if (!wrapperRef.value) return;
   const height = wrapperRef.value.clientHeight;
-  scrollY.value = height > props.headerHeight ? height - props.headerHeight : undefined;
+  scrollY.value =
+    height > props.headerHeight ? height - props.headerHeight : undefined;
 }
 
 // ResizeObserver 监听容器大小变化
@@ -100,13 +101,37 @@ const scrollConfig = computed(() => ({
 </template>
 
 <style scoped>
-/* 鼠标悬停在表格区域时显示滚动条，使用 overlay 避免挤压内容 */
+/* 表格容器样式 */
+.auto-height-table :deep(.ant-table) {
+  /* 确保表格内部布局正确 */
+}
+
+/* 表头和表体滚动条对齐 - 关键修复 */
+.auto-height-table :deep(.ant-table-header) {
+  overflow-y: scroll !important;
+  scrollbar-gutter: stable;
+}
+
 .auto-height-table :deep(.ant-table-body) {
   overflow-y: scroll !important;
   scrollbar-gutter: stable;
 }
 
-/* 默认隐藏滚动条 */
+/* 隐藏表头的滚动条（只保留占位） */
+.auto-height-table :deep(.ant-table-header)::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.auto-height-table :deep(.ant-table-header)::-webkit-scrollbar-thumb {
+  background-color: transparent !important;
+}
+
+.auto-height-table :deep(.ant-table-header)::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+/* 表体滚动条样式 */
 .auto-height-table :deep(.ant-table-body)::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -121,7 +146,7 @@ const scrollConfig = computed(() => ({
   background-color: transparent;
 }
 
-/* 悬停时显示滚动条 */
+/* 悬停时显示表体滚动条 */
 .auto-height-table:hover :deep(.ant-table-body)::-webkit-scrollbar-thumb {
   background-color: rgba(0, 0, 0, 0.2);
 }

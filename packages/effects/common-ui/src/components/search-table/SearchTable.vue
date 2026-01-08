@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ColumnConfig, SearchFieldConfig } from './types';
+import type { ColumnConfig, SearchFieldConfig, ViewApi } from './types';
 
 import { computed, ref, watch } from 'vue';
 
@@ -16,9 +16,7 @@ import {
   Space,
 } from 'ant-design-vue';
 
-import { Dict } from '#/components/dict';
-import { AutoHeightTable } from '#/components/table';
-
+import AutoHeightTable from './AutoHeightTable.vue';
 import { useView } from './useView';
 import ViewManagerModal from './ViewManagerModal.vue';
 
@@ -58,6 +56,8 @@ interface Props {
   defaultCollapsedCount?: number;
   // 是否允许创建系统视图
   allowSystemView?: boolean;
+  // 视图 API（可选，不提供则禁用视图功能）
+  viewApi?: ViewApi;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -99,9 +99,10 @@ const {
   currentView,
   displayColumns,
   initialized,
+  viewEnabled,
   loadViews,
   switchView,
-} = useView(props.tableKey, () => props.columns, searchParams);
+} = useView(props.tableKey, () => props.columns, searchParams, props.viewApi);
 
 // 视图管理弹框
 const viewManagerModalRef = ref<InstanceType<typeof ViewManagerModal>>();
@@ -118,15 +119,11 @@ watch(
 );
 
 // 监听视图切换，触发搜索
-watch(
-  currentViewId,
-  (newId, oldId) => {
-    // 只有在初始化完成后且视图确实变化时才触发搜索
-    if (initialized.value && oldId !== undefined && newId !== oldId) {
-      emit('search');
-    }
-  },
-);
+watch(currentViewId, (newId, oldId) => {
+  if (initialized.value && oldId !== undefined && newId !== oldId) {
+    emit('search');
+  }
+});
 
 // 计算显示的搜索字段
 const visibleSearchFields = computed(() => {
@@ -210,7 +207,6 @@ function handleViewManagerSaved() {
 
 // 默认视图变更（实时生效）
 function handleDefaultChange() {
-  // 重新加载视图列表以同步状态
   loadViews();
 }
 
@@ -224,9 +220,26 @@ function getFieldWidth(field: SearchFieldConfig) {
 </script>
 
 <template>
-  <component :is="useCard ? Card : 'div'" class="flex flex-col h-full overflow-hidden" :body-style="useCard ? { display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', padding: '16px' } : undefined">
+  <component
+    :is="useCard ? Card : 'div'"
+    class="flex h-full flex-col overflow-hidden"
+    :body-style="
+      useCard
+        ? {
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+            overflow: 'hidden',
+            padding: '16px',
+          }
+        : undefined
+    "
+  >
     <!-- 搜索区域 -->
-    <div v-if="searchFields?.length || $slots.search" class="mb-4 flex-shrink-0">
+    <div
+      v-if="searchFields?.length || $slots.search"
+      class="mb-4 flex-shrink-0"
+    >
       <div class="flex flex-wrap items-center gap-4">
         <!-- 配置的搜索字段 -->
         <template v-if="searchFields?.length">
@@ -235,7 +248,9 @@ function getFieldWidth(field: SearchFieldConfig) {
             :key="field.field"
             class="flex items-center gap-2"
           >
-            <span class="text-gray-600 text-sm whitespace-nowrap">{{ field.label }}</span>
+            <span class="whitespace-nowrap text-sm text-gray-600">{{
+              field.label
+            }}</span>
             <!-- Input -->
             <Input
               v-if="field.type === 'input'"
@@ -256,21 +271,19 @@ function getFieldWidth(field: SearchFieldConfig) {
               allow-clear
               @change="handleSelectChange"
             />
-            <!-- Dict -->
-            <Dict
+            <!-- Dict 类型通过插槽渲染 -->
+            <slot
               v-else-if="field.type === 'dict'"
-              v-model:value="searchParams[field.field]"
-              type="select"
-              :code="field.dictCode!"
-              :placeholder="field.placeholder || `请选择${field.label}`"
-              :style="{ width: getFieldWidth(field) }"
-              @change="handleSelectChange"
+              :name="`search-${field.field}`"
+              :field="field"
+              :on-change="handleSelectChange"
             />
             <!-- 自定义插槽 -->
             <slot
               v-else-if="field.type === 'custom'"
               :name="`search-${field.field}`"
               :field="field"
+              :on-change="handleSelectChange"
             />
           </div>
         </template>
@@ -289,15 +302,23 @@ function getFieldWidth(field: SearchFieldConfig) {
             @click="toggleSearchExpand"
           >
             {{ searchExpanded ? '收起' : '展开' }}
-            <IconifyIcon v-if="searchExpanded" icon="ant-design:up-outlined" class="ml-1 size-3" />
-            <IconifyIcon v-else icon="ant-design:down-outlined" class="ml-1 size-3" />
+            <IconifyIcon
+              v-if="searchExpanded"
+              icon="ant-design:up-outlined"
+              class="ml-1 size-3"
+            />
+            <IconifyIcon
+              v-else
+              icon="ant-design:down-outlined"
+              class="ml-1 size-3"
+            />
           </Button>
         </Space>
       </div>
     </div>
 
     <!-- 工具栏 -->
-    <div class="mb-3 flex items-center justify-between flex-shrink-0">
+    <div class="mb-3 flex flex-shrink-0 items-center justify-between">
       <Space>
         <Button v-if="showAdd" type="primary" @click="handleAdd">
           {{ addText }}
@@ -306,12 +327,16 @@ function getFieldWidth(field: SearchFieldConfig) {
       </Space>
 
       <Space class="ml-auto">
-        <!-- 视图切换 -->
-        <Dropdown>
-          <div class="inline-flex items-center cursor-pointer text-gray-600 hover:text-blue-500">
-            <IconifyIcon icon="ant-design:eye-outlined" class="size-4 mr-1" />
-            <span class="text-gray-500 mr-1">视图</span>
-            <span class="text-blue-500 font-medium">{{ currentView?.name || '全部' }}</span>
+        <!-- 视图切换（仅在启用视图功能时显示） -->
+        <Dropdown v-if="viewEnabled">
+          <div
+            class="inline-flex cursor-pointer items-center text-gray-600 hover:text-blue-500"
+          >
+            <IconifyIcon icon="ant-design:eye-outlined" class="mr-1 size-4" />
+            <span class="mr-1 text-gray-500">视图</span>
+            <span class="font-medium text-blue-500">{{
+              currentView?.name || '全部'
+            }}</span>
             <IconifyIcon icon="ant-design:down-outlined" class="ml-1 size-3" />
           </div>
           <template #overlay>
@@ -319,7 +344,9 @@ function getFieldWidth(field: SearchFieldConfig) {
               <!-- 系统视图分组 -->
               <div class="px-3 py-1.5 text-xs text-gray-400">系统视图</div>
               <MenuItem
-                v-for="view in allViews.filter(v => v.isVirtual || v.isSystem)"
+                v-for="view in allViews.filter(
+                  (v) => v.isVirtual || v.isSystem,
+                )"
                 :key="view.id"
               >
                 <div
@@ -337,11 +364,17 @@ function getFieldWidth(field: SearchFieldConfig) {
               </MenuItem>
 
               <!-- 个人视图分组 -->
-              <template v-if="allViews.filter(v => !v.isVirtual && !v.isSystem).length > 0">
+              <template
+                v-if="
+                  allViews.filter((v) => !v.isVirtual && !v.isSystem).length > 0
+                "
+              >
                 <Menu.Divider />
                 <div class="px-3 py-1.5 text-xs text-gray-400">个人视图</div>
                 <MenuItem
-                  v-for="view in allViews.filter(v => !v.isVirtual && !v.isSystem)"
+                  v-for="view in allViews.filter(
+                    (v) => !v.isVirtual && !v.isSystem,
+                  )"
                   :key="view.id"
                 >
                   <div
@@ -363,7 +396,10 @@ function getFieldWidth(field: SearchFieldConfig) {
               <Menu.Divider />
               <MenuItem key="__manage__" @click="openViewManager">
                 <span class="inline-flex items-center text-gray-600">
-                  <IconifyIcon icon="ant-design:setting-outlined" class="mr-2 size-4" />
+                  <IconifyIcon
+                    icon="ant-design:setting-outlined"
+                    class="mr-2 size-4"
+                  />
                   配置个人视图
                 </span>
               </MenuItem>
@@ -374,7 +410,7 @@ function getFieldWidth(field: SearchFieldConfig) {
     </div>
 
     <!-- 表格 -->
-    <div class="flex-1 min-h-0 overflow-hidden">
+    <div class="min-h-0 flex-1 overflow-hidden">
       <AutoHeightTable
         :columns="displayColumns"
         :data-source="dataSource"
@@ -395,17 +431,26 @@ function getFieldWidth(field: SearchFieldConfig) {
 
     <!-- 视图管理弹框 -->
     <ViewManagerModal
+      v-if="viewEnabled"
       ref="viewManagerModalRef"
       :table-key="tableKey"
       :columns="columns"
       :search-fields="searchFields"
       :allow-system-view="allowSystemView"
+      :view-api="viewApi"
       @saved="handleViewManagerSaved"
       @default-change="handleDefaultChange"
-    />
+    >
+      <template
+        v-for="field in searchFields"
+        :key="field.field"
+        #[`search-field-${field.field}`]="slotProps"
+      >
+        <slot :name="`search-field-${field.field}`" v-bind="slotProps" />
+      </template>
+    </ViewManagerModal>
   </component>
 </template>
-
 
 <style scoped>
 /* 确保 Card 组件能正确限制高度 */

@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import type { ColumnConfig, ColumnFixedConfig, SearchFieldConfig, ViewConfig } from './types';
+import type {
+  ColumnConfig,
+  ColumnFixedConfig,
+  SearchFieldConfig,
+  ViewApi,
+  ViewConfig,
+} from './types';
 
-import { ref, computed } from 'vue';
+import { computed, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { Checkbox, Input, Modal, Tabs, TabPane, message } from 'ant-design-vue';
-
-import { deleteTableViewApi, saveTableViewApi, setDefaultViewApi, updateViewSortApi } from '#/api/system/table-view';
+import { Checkbox, Input, message, Modal, TabPane, Tabs } from 'ant-design-vue';
 
 import ViewColumnEditor from './ViewColumnEditor.vue';
 import ViewList from './ViewList.vue';
@@ -18,6 +22,7 @@ interface Props {
   columns: ColumnConfig[];
   searchFields?: SearchFieldConfig[];
   allowSystemView?: boolean;
+  viewApi?: ViewApi;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -51,7 +56,6 @@ const currentColumns = computed({
   get: () => selectedView.value?.columns || [],
   set: (val) => {
     if (selectedView.value) {
-      // 比较是否真的有变化
       const oldVal = selectedView.value.columns;
       if (JSON.stringify(oldVal) !== JSON.stringify(val)) {
         selectedView.value.columns = val;
@@ -66,7 +70,6 @@ const currentColumnFixed = computed({
   get: () => selectedView.value?.columnFixed || [],
   set: (val) => {
     if (selectedView.value) {
-      // 比较是否真的有变化
       const oldVal = selectedView.value.columnFixed;
       if (JSON.stringify(oldVal) !== JSON.stringify(val)) {
         selectedView.value.columnFixed = val;
@@ -81,7 +84,6 @@ const currentSearchParams = computed({
   get: () => selectedView.value?.searchParams || {},
   set: (val) => {
     if (selectedView.value) {
-      // 比较是否真的有变化
       const oldVal = selectedView.value.searchParams;
       if (JSON.stringify(oldVal) !== JSON.stringify(val)) {
         selectedView.value.searchParams = val;
@@ -91,26 +93,26 @@ const currentSearchParams = computed({
   },
 });
 
-// 是否显示搜索条件tab（只要有searchFields配置且选中了视图就显示）
+// 是否显示搜索条件tab
 const showSearchTab = computed(() => {
   return !!props.searchFields?.length && selectedView.value;
 });
 
 // 打开弹框
 function open(views: ViewConfig[], currentSearchParams: Record<string, any>) {
-  // 深拷贝视图列表（过滤掉虚拟视图）
   localViews.value = views
     .filter((v) => !v.isVirtual)
     .map((v) => ({
       ...v,
       columns: [...v.columns],
       columnFixed: v.columnFixed ? [...v.columnFixed] : [],
-      searchParams: v.searchParams ? { ...v.searchParams } : { ...currentSearchParams },
+      searchParams: v.searchParams
+        ? { ...v.searchParams }
+        : { ...currentSearchParams },
     }));
   tempIdCounter = -1;
   modifiedViewIds.value = new Set();
 
-  // 默认选中第一个视图，如果没有则为null
   selectedViewId.value = localViews.value[0]?.id ?? null;
   activeTab.value = props.searchFields?.length ? 'search' : 'columns';
   visible.value = true;
@@ -121,11 +123,13 @@ function close() {
   visible.value = false;
 }
 
-// 取消（需要重新加载以恢复状态）
+// 取消
 function handleCancel() {
   close();
-  // 如果有未保存的修改，通知外部重新加载
-  if (modifiedViewIds.value.size > 0 || localViews.value.some((v) => v.id < 0)) {
+  if (
+    modifiedViewIds.value.size > 0 ||
+    localViews.value.some((v) => v.id < 0)
+  ) {
     emit('saved');
   }
 }
@@ -142,7 +146,6 @@ const hasUnsavedView = computed(() => {
 
 // 新建视图
 function handleAddView() {
-  // 如果已有未保存的视图，不允许再新建
   if (hasUnsavedView.value) {
     message.warning('请先保存当前新建的视图');
     return;
@@ -155,7 +158,10 @@ function handleAddView() {
   const defaultFixed: ColumnFixedConfig[] = [];
   props.columns.forEach((col) => {
     if (col.fixed && col.key) {
-      defaultFixed.push({ key: String(col.key), fixed: col.fixed as 'left' | 'right' });
+      defaultFixed.push({
+        key: String(col.key),
+        fixed: col.fixed as 'left' | 'right',
+      });
     }
   });
 
@@ -173,17 +179,16 @@ function handleAddView() {
   selectedViewId.value = newView.id;
 }
 
-// 删除视图（实时删除）
+// 删除视图
 async function handleDeleteView(id: number) {
   const view = localViews.value.find((v) => v.id === id);
   if (!view) return;
 
-  // 如果是已保存的视图，调用删除 API
-  if (id > 0) {
+  if (id > 0 && props.viewApi) {
     try {
-      await deleteTableViewApi(id);
+      await props.viewApi.deleteView(id);
       message.success('删除成功');
-    } catch (error) {
+    } catch {
       message.error('删除失败');
       return;
     }
@@ -192,7 +197,6 @@ async function handleDeleteView(id: number) {
   const index = localViews.value.findIndex((v) => v.id === id);
   localViews.value.splice(index, 1);
 
-  // 如果删除的是当前选中的，选中第一个
   if (selectedViewId.value === id) {
     selectedViewId.value = localViews.value[0]?.id ?? null;
   }
@@ -218,62 +222,59 @@ function handleUpdateSystem(id: number, isSystem: boolean) {
   }
 }
 
-// 视图排序（实时保存）
+// 视图排序
 async function handleReorder(fromIndex: number, toIndex: number) {
   const item = localViews.value.splice(fromIndex, 1)[0];
   if (item) {
     localViews.value.splice(toIndex, 0, item);
   }
 
-  // 只对已保存的视图调用排序 API
-  const savedViewIds = localViews.value.filter((v) => v.id > 0).map((v) => v.id);
-  if (savedViewIds.length > 0) {
+  const savedViewIds = localViews.value
+    .filter((v) => v.id > 0)
+    .map((v) => v.id);
+  if (savedViewIds.length > 0 && props.viewApi) {
     try {
-      await updateViewSortApi(props.tableKey, savedViewIds);
-    } catch (error) {
+      await props.viewApi.updateViewSort(props.tableKey, savedViewIds);
+    } catch {
       message.error('排序保存失败');
     }
   }
 }
 
-// 设置默认视图（实时保存）
+// 设置默认视图
 async function handleSetDefault(id: number, isDefault: boolean) {
   const view = localViews.value.find((v) => v.id === id);
   if (!view) return;
 
-  // 只有已保存的视图才能设为默认
   if (id < 0) {
     message.warning('请先保存视图后再设为默认');
     return;
   }
 
+  if (!props.viewApi) return;
+
   try {
     if (isDefault) {
-      // 调用 API 设置默认视图
-      await setDefaultViewApi(props.tableKey, id);
-      // 更新本地状态
+      await props.viewApi.setDefaultView(props.tableKey, id);
       localViews.value.forEach((v) => {
         v.isDefault = v.id === id;
       });
       emit('defaultChange');
     } else {
-      // 取消默认：设置 viewId 为 0 表示清除默认
-      await setDefaultViewApi(props.tableKey, 0);
-      // 更新本地状态
+      await props.viewApi.setDefaultView(props.tableKey, 0);
       localViews.value.forEach((v) => {
         v.isDefault = false;
       });
       emit('defaultChange');
     }
     message.success(isDefault ? '已设为默认视图' : '已取消默认视图');
-  } catch (error) {
+  } catch {
     message.error('操作失败');
   }
 }
 
 // 确认保存
 async function handleConfirm() {
-  // 验证
   for (const view of localViews.value) {
     if (!view.name.trim()) {
       message.error('视图名称不能为空');
@@ -287,7 +288,6 @@ async function handleConfirm() {
     }
   }
 
-  // 找出需要保存的视图：新建的（id < 0）或被修改的
   const viewsToSave = localViews.value.filter(
     (v) => v.id < 0 || modifiedViewIds.value.has(v.id),
   );
@@ -297,9 +297,14 @@ async function handleConfirm() {
     return;
   }
 
+  if (!props.viewApi) {
+    close();
+    return;
+  }
+
   try {
     for (const view of viewsToSave) {
-      await saveTableViewApi({
+      await props.viewApi.saveView({
         id: view.id > 0 ? view.id : undefined,
         tableKey: props.tableKey,
         name: view.name,
@@ -313,7 +318,7 @@ async function handleConfirm() {
     message.success('保存成功');
     emit('saved');
     close();
-  } catch (error) {
+  } catch {
     message.error('保存失败');
   }
 }
@@ -332,7 +337,7 @@ defineExpose({ open, close });
   >
     <div class="flex h-[60vh]">
       <!-- 左侧视图列表 -->
-      <div class="w-56 border-r p-4 flex-shrink-0">
+      <div class="w-56 flex-shrink-0 border-r p-4">
         <ViewList
           :views="localViews"
           :selected-id="selectedViewId"
@@ -346,38 +351,66 @@ defineExpose({ open, close });
       </div>
 
       <!-- 右侧编辑区域 -->
-      <div class="flex-1 px-4 flex flex-col min-w-0 overflow-hidden">
+      <div class="flex min-w-0 flex-1 flex-col overflow-hidden px-4">
         <template v-if="selectedView">
           <!-- 视图名称 -->
-          <div class="py-3 border-b flex-shrink-0">
+          <div class="flex-shrink-0 border-b py-3">
             <div class="flex items-center gap-3">
-              <span class="text-gray-600 text-sm flex-shrink-0">视图名称</span>
+              <span class="flex-shrink-0 text-sm text-gray-600">视图名称</span>
               <Input
                 :value="selectedView.name"
                 placeholder="请输入视图名称"
                 class="flex-1"
-                @change="(e: any) => handleUpdateName(selectedView!.id, e.target.value)"
+                @change="
+                  (e: any) => handleUpdateName(selectedView!.id, e.target.value)
+                "
               />
-              <span v-if="selectedView.id < 0" class="text-xs text-orange-500 flex-shrink-0">[未保存]</span>
+              <span
+                v-if="selectedView.id < 0"
+                class="flex-shrink-0 text-xs text-orange-500"
+                >[未保存]</span
+              >
             </div>
           </div>
 
           <!-- 系统视图选项 -->
-          <div v-if="allowSystemView" class="py-2 flex-shrink-0">
+          <div v-if="allowSystemView" class="flex-shrink-0 py-2">
             <Checkbox
               :checked="selectedView.isSystem"
-              @change="(e: any) => handleUpdateSystem(selectedView!.id, e.target.checked)"
+              @change="
+                (e: any) =>
+                  handleUpdateSystem(selectedView!.id, e.target.checked)
+              "
             >
               设为系统视图（所有用户可见）
             </Checkbox>
           </div>
 
-          <Tabs v-model:activeKey="activeTab" class="flex-1 flex flex-col min-h-0">
-            <TabPane v-if="showSearchTab" key="search" tab="查询条件" class="flex-1 overflow-hidden">
+          <Tabs
+            v-model:activeKey="activeTab"
+            class="flex min-h-0 flex-1 flex-col"
+          >
+            <TabPane
+              v-if="showSearchTab"
+              key="search"
+              tab="查询条件"
+              class="flex-1 overflow-hidden"
+            >
               <ViewSearchEditor
                 v-model:search-params="currentSearchParams"
                 :search-fields="searchFields!"
-              />
+              >
+                <template
+                  v-for="field in searchFields"
+                  :key="field.field"
+                  #[`field-${field.field}`]="slotProps"
+                >
+                  <slot
+                    :name="`search-field-${field.field}`"
+                    v-bind="slotProps"
+                  />
+                </template>
+              </ViewSearchEditor>
             </TabPane>
 
             <TabPane key="columns" tab="列设置" class="flex-1 overflow-hidden">
@@ -390,9 +423,15 @@ defineExpose({ open, close });
           </Tabs>
         </template>
 
-        <div v-else class="flex-1 flex items-center justify-center text-gray-400">
+        <div
+          v-else
+          class="flex flex-1 items-center justify-center text-gray-400"
+        >
           <div class="flex flex-col items-center text-center">
-            <IconifyIcon icon="ant-design:inbox-outlined" class="size-12 mb-2" />
+            <IconifyIcon
+              icon="ant-design:inbox-outlined"
+              class="mb-2 size-12"
+            />
             <p>请选择或新建一个视图</p>
           </div>
         </div>

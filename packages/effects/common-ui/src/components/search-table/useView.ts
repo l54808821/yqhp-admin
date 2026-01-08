@@ -1,19 +1,14 @@
 import type { Ref } from 'vue';
 
-import type { ColumnConfig, ColumnFixedConfig, ViewConfig } from './types';
+import type { ColumnConfig, ColumnFixedConfig, ViewApi, ViewConfig } from './types';
 
 import { computed, ref, toRaw } from 'vue';
-
-import {
-  deleteTableViewApi,
-  getTableViewsApi,
-  saveTableViewApi,
-} from '#/api/system/table-view';
 
 export function useView(
   tableKey: string,
   columnsRef: () => ColumnConfig[],
   searchParams: Ref<Record<string, any>>,
+  viewApi?: ViewApi,
 ) {
   // 虚拟视图ID（不保存到数据库）
   const VIRTUAL_ALL_VIEW_ID = 0;
@@ -30,6 +25,8 @@ export function useView(
   const initialized = ref(false);
   // 是否正在加载
   const loading = ref(false);
+  // 是否启用视图功能
+  const viewEnabled = computed(() => !!viewApi);
 
   function getColumns() {
     return columnsRef();
@@ -77,9 +74,15 @@ export function useView(
     visibleColumnKeys.value = getDefaultColumnKeys();
     applyDefaultFixed();
 
+    // 如果没有提供 viewApi，直接返回
+    if (!viewApi) {
+      initialized.value = true;
+      return;
+    }
+
     loading.value = true;
     try {
-      const data = await getTableViewsApi(tableKey);
+      const data = await viewApi.getViews(tableKey);
       if (data.views && data.views.length > 0) {
         views.value = data.views.map((v) => ({
           id: v.id,
@@ -188,10 +191,11 @@ export function useView(
 
   // 保存视图
   async function saveView(view: ViewConfig) {
-    // 保存到服务端
+    if (!viewApi) return;
+
     try {
-      const result = await saveTableViewApi({
-        id: view.id || undefined,
+      const result = await viewApi.saveView({
+        id: view.id > 0 ? view.id : undefined,
         tableKey,
         name: view.name,
         isSystem: view.isSystem,
@@ -242,11 +246,13 @@ export function useView(
 
   // 删除视图
   async function deleteView(viewId: number) {
+    if (!viewApi) return;
+
     const view = views.value.find((v) => v.id === viewId);
     if (!view || view.isDefault) return;
 
     try {
-      await deleteTableViewApi(viewId);
+      await viewApi.deleteView(viewId);
 
       const index = views.value.findIndex((v) => v.id === viewId);
       if (index > -1) {
@@ -259,53 +265,6 @@ export function useView(
       }
     } catch (error) {
       console.error('删除视图失败:', error);
-      throw error;
-    }
-  }
-
-  // 批量保存视图
-  async function saveViews(newViews: ViewConfig[], deletedIds: number[]) {
-    try {
-      // 先删除
-      for (const id of deletedIds) {
-        await deleteTableViewApi(id);
-      }
-
-      // 保存/更新所有视图
-      const savedViews: ViewConfig[] = [];
-      for (const view of newViews) {
-        const result = await saveTableViewApi({
-          id: view.id > 0 ? view.id : undefined,
-          tableKey,
-          name: view.name,
-          isSystem: view.isSystem,
-          isDefault: view.isDefault,
-          columns: toRaw(view.columns),
-          columnFixed: toRaw(view.columnFixed),
-          searchParams: toRaw(view.searchParams),
-        });
-
-        savedViews.push({
-          id: result.id,
-          name: result.name,
-          isSystem: result.isSystem,
-          isDefault: result.isDefault,
-          columns: result.columns,
-          columnFixed: result.columnFixed,
-          searchParams: result.searchParams,
-        });
-      }
-
-      views.value = savedViews;
-
-      // 如果当前视图被删除，切换到默认视图或虚拟视图
-      if (currentViewId.value !== VIRTUAL_ALL_VIEW_ID && !views.value.find((v) => v.id === currentViewId.value)) {
-        const defaultView = views.value.find((v) => v.isDefault);
-        currentViewId.value = defaultView?.id || VIRTUAL_ALL_VIEW_ID;
-      }
-      applyCurrentView();
-    } catch (error) {
-      console.error('批量保存视图失败:', error);
       throw error;
     }
   }
@@ -359,10 +318,10 @@ export function useView(
     displayColumns,
     initialized,
     loading,
+    viewEnabled,
     loadViews,
     switchView,
     saveView,
-    saveViews,
     deleteView,
   };
 }
