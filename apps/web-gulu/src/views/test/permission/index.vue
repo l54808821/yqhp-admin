@@ -1,32 +1,17 @@
 <script lang="ts" setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed } from 'vue';
 
 import { useAccess } from '@vben/access';
-import { useUserStore } from '@vben/stores';
+import { useAccessStore, useUserStore } from '@vben/stores';
 
 import { Button, Card, Descriptions, DescriptionsItem, Space, Tag } from 'ant-design-vue';
 
-import { getAccessCodesApi } from '#/api';
-
 const userStore = useUserStore();
+const accessStore = useAccessStore();
 const { hasAccessByCodes } = useAccess();
 
-const permissionCodes = ref<string[]>([]);
-const loading = ref(false);
-
-// 获取用户权限码
-async function fetchPermissionCodes() {
-  loading.value = true;
-  try {
-    permissionCodes.value = await getAccessCodesApi();
-  } finally {
-    loading.value = false;
-  }
-}
-
-onMounted(() => {
-  fetchPermissionCodes();
-});
+// 直接从 store 获取权限码（已在路由守卫中加载）
+const permissionCodes = computed(() => accessStore.accessCodes);
 
 // 按钮权限检查
 const canView = computed(() => hasAccessByCodes(['test:permission:view:btn']));
@@ -59,7 +44,7 @@ const canDelete = computed(() => hasAccessByCodes(['test:permission:delete:btn']
       </Descriptions>
     </Card>
 
-    <Card title="权限码列表" class="mb-5" :loading="loading">
+    <Card title="权限码列表" class="mb-5">
       <div v-if="permissionCodes.length > 0" class="flex flex-wrap gap-2">
         <Tag v-for="code in permissionCodes" :key="code" color="blue">
           {{ code }}
