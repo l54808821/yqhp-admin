@@ -8,6 +8,7 @@ import type { Workflow } from '#/api/workflow';
 const Undo = createIconifyIcon('lucide:undo-2');
 const Redo = createIconifyIcon('lucide:redo-2');
 const Save = createIconifyIcon('lucide:save');
+const Play = createIconifyIcon('lucide:play');
 
 interface Props {
   workflow: Workflow | null;
@@ -23,6 +24,7 @@ const emit = defineEmits<{
   (e: 'save'): void;
   (e: 'undo'): void;
   (e: 'redo'): void;
+  (e: 'execute'): void;
 }>();
 </script>
 
@@ -50,6 +52,12 @@ const emit = defineEmits<{
           <template #icon><Save class="size-4" /></template>
           保存
         </Button>
+        <Tooltip title="执行工作流">
+          <Button type="primary" ghost @click="emit('execute')">
+            <template #icon><Play class="size-4" /></template>
+            执行
+          </Button>
+        </Tooltip>
       </Space>
     </div>
   </div>

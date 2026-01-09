@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 
 import { message, Spin } from 'ant-design-vue';
 
@@ -12,6 +13,7 @@ import WorkflowTreeEditor from '../editor/WorkflowTreeEditor.vue';
 import type { StepNode } from '../editor/WorkflowTreeEditor.vue';
 
 import EditorToolbar from './EditorToolbar.vue';
+import ExecuteModal from './ExecuteModal.vue';
 
 interface Props {
   workflowId: number;
@@ -24,10 +26,13 @@ const emit = defineEmits<{
   (e: 'titleChange', title: string): void;
 }>();
 
+const router = useRouter();
+
 const loading = ref(false);
 const saving = ref(false);
 const workflow = ref<Workflow | null>(null);
 const selectedNode = ref<StepNode | null>(null);
+const executeModalOpen = ref(false);
 const showPropertyPanel = ref(false);
 const workflowDefinition = ref<{ name: string; steps: StepNode[] }>({ name: '', steps: [] });
 const historyStack = ref<string[]>([]);
@@ -172,8 +177,17 @@ function undo() {
   if (historyIndex.value > 0) {
     historyIndex.value--;
     workflowDefinition.value = JSON.parse(historyStack.value[historyIndex.value]!);
-    selectedNode.value = null;
-    showPropertyPanel.value = false;
+    // 尝试保持当前选中的节点（如果节点还存在）
+    if (selectedNode.value) {
+      const node = findNodeById(workflowDefinition.value.steps, selectedNode.value.id);
+      if (node) {
+        selectedNode.value = node;
+      } else {
+        selectedNode.value = null;
+        showPropertyPanel.value = false;
+        treeSelectedKeys.value = [];
+      }
+    }
     checkModified();
   }
 }
@@ -182,10 +196,31 @@ function redo() {
   if (historyIndex.value < historyStack.value.length - 1) {
     historyIndex.value++;
     workflowDefinition.value = JSON.parse(historyStack.value[historyIndex.value]!);
-    selectedNode.value = null;
-    showPropertyPanel.value = false;
+    // 尝试保持当前选中的节点（如果节点还存在）
+    if (selectedNode.value) {
+      const node = findNodeById(workflowDefinition.value.steps, selectedNode.value.id);
+      if (node) {
+        selectedNode.value = node;
+      } else {
+        selectedNode.value = null;
+        showPropertyPanel.value = false;
+        treeSelectedKeys.value = [];
+      }
+    }
     checkModified();
   }
+}
+
+// 根据 ID 查找节点
+function findNodeById(steps: StepNode[], id: string): StepNode | null {
+  for (const step of steps) {
+    if (step.id === id) return step;
+    if (step.children) {
+      const found = findNodeById(step.children, id);
+      if (found) return found;
+    }
+  }
+  return null;
 }
 
 function checkModified() {
@@ -286,6 +321,19 @@ defineExpose({
   save: handleSave,
   isModified: () => isModified.value,
 });
+
+// 执行相关
+function handleExecute() {
+  if (isModified.value) {
+    message.warning('请先保存工作流');
+    return;
+  }
+  executeModalOpen.value = true;
+}
+
+function handleExecuteSuccess(executionId: number) {
+  router.push({ name: 'ExecutionDetail', params: { id: executionId } });
+}
 </script>
 
 <template>
@@ -299,6 +347,7 @@ defineExpose({
       @save="handleSave"
       @undo="undo"
       @redo="redo"
+      @execute="handleExecute"
     />
     <div class="editor-main">
       <Spin :spinning="loading" class="editor-spin">
@@ -340,6 +389,13 @@ defineExpose({
         />
       </Spin>
     </div>
+
+    <!-- 执行对话框 -->
+    <ExecuteModal
+      v-model:open="executeModalOpen"
+      :workflow="workflow"
+      @success="handleExecuteSuccess"
+    />
   </div>
 </template>
 
