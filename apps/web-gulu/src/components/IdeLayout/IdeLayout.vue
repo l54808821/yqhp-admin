@@ -141,10 +141,13 @@ function handleCloseOthers() {
   display: flex;
   flex-direction: column;
   height: 100%;
+  width: 100%;
 }
 
 .editor-content {
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
+  display: flex;
+  min-height: 0;
 }
 </style>

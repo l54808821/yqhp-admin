@@ -10,7 +10,7 @@ import { useCategoryStore } from '#/store/category';
 import { useProjectStore } from '#/store/project';
 
 import CategoryTree from './components/CategoryTree.vue';
-import WorkflowDetail from './components/WorkflowDetail.vue';
+import WorkflowEditor from './components/WorkflowEditor.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -19,7 +19,7 @@ const projectStore = useProjectStore();
 
 const loading = ref(false);
 const ideLayoutRef = ref<InstanceType<typeof IdeLayout> | null>(null);
-const activeTab = ref<TabItem | undefined>();
+const editorRefs = ref<Map<string | number, InstanceType<typeof WorkflowEditor>>>(new Map());
 
 // 从路由或 store 获取 projectId
 function getProjectId(): number {
@@ -76,27 +76,37 @@ onMounted(async () => {
 // 选择工作流时打开 tab
 function handleSelectWorkflow(workflow: { id: number; name: string }) {
   ideLayoutRef.value?.openTab({
-    id: workflow.id,
+    id: `workflow-${workflow.id}`,
     title: workflow.name,
     data: { type: 'workflow', workflowId: workflow.id },
   });
 }
 
-function handleTabChange(tab: TabItem | undefined) {
-  activeTab.value = tab;
+function handleTabChange(_tab: TabItem | undefined) {
+  // tab 切换时的处理
 }
 
-function handleEditWorkflow(workflowId: number) {
-  router.push(`/project/${getProjectId()}/workflow/${workflowId}/edit`);
+// 处理编辑器修改状态变化
+function handleEditorModified(tabId: string | number, modified: boolean) {
+  ideLayoutRef.value?.setModified(tabId, modified);
 }
 
-function handleExecuteWorkflow(workflowId: number) {
-  router.push(`/project/${getProjectId()}/workflow/${workflowId}/execute`);
+// 处理标题变化
+function handleTitleChange(_tabId: string | number, _title: string) {
+  // 可以在这里更新 tab 标题
+}
+
+// 注册编辑器引用
+function registerEditorRef(tabId: string | number, ref: any) {
+  if (ref) {
+    editorRefs.value.set(tabId, ref);
+  } else {
+    editorRefs.value.delete(tabId);
+  }
 }
 
 // 新建工作流
 function handleAddWorkflow() {
-  // TODO: 打开新建工作流弹窗或跳转到新建页面
   router.push(`/project/${getProjectId()}/workflow/new`);
 }
 </script>
@@ -116,14 +126,19 @@ function handleAddWorkflow() {
             @select-workflow="handleSelectWorkflow"
           />
         </template>
-        <template #editor="{ activeTab: tab }">
+        <template #editor="{ activeTab: tab, tabs }">
           <div class="workflow-content">
-            <WorkflowDetail
-              v-if="tab?.data?.workflowId"
-              :workflow-id="tab.data.workflowId"
-              @edit="handleEditWorkflow"
-              @execute="handleExecuteWorkflow"
-            />
+            <template v-if="tab?.data?.workflowId">
+              <WorkflowEditor
+                v-for="t in tabs.filter(t => t.data?.workflowId)"
+                v-show="t.id === tab.id"
+                :key="t.id"
+                :ref="(el) => registerEditorRef(t.id, el)"
+                :workflow-id="t.data!.workflowId"
+                @modified="(m) => handleEditorModified(t.id, m)"
+                @title-change="(title) => handleTitleChange(t.id, title)"
+              />
+            </template>
             <Empty v-else description="请从左侧选择一个工作流" />
           </div>
         </template>
@@ -134,7 +149,7 @@ function handleAddWorkflow() {
 
 <style scoped>
 .workflow-page {
-  height: calc(100vh - 48px);
+  height: calc(100vh - 50px);
   background: hsl(var(--background));
 }
 
@@ -153,11 +168,14 @@ function handleAddWorkflow() {
 
 .workflow-content {
   flex: 1;
-  padding: 16px;
-  overflow: auto;
+  overflow: hidden;
   display: flex;
-  align-items: center;
-  justify-content: center;
   height: 100%;
+  width: 100%;
+}
+
+.workflow-content > * {
+  flex: 1;
+  width: 100%;
 }
 </style>

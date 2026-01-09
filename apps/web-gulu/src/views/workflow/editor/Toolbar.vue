@@ -19,17 +19,17 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="toolbar flex items-center justify-between px-4 py-2 bg-white border-b">
-    <div class="flex items-center gap-4">
+  <div class="toolbar">
+    <div class="toolbar-left">
       <Button @click="emit('back')">
         <template #icon>
           <span class="i-lucide-arrow-left" />
         </template>
         返回
       </Button>
-      <span v-if="workflow" class="text-lg font-medium">
+      <span v-if="workflow" class="workflow-title">
         {{ workflow.name }}
-        <span class="text-gray-400 text-sm ml-2">v{{ workflow.version }}</span>
+        <span class="version-tag">v{{ workflow.version }}</span>
       </span>
     </div>
     <Space>
@@ -57,6 +57,30 @@ const emit = defineEmits<{
 
 <style scoped>
 .toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
   height: 56px;
+  background: hsl(var(--background));
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.workflow-title {
+  font-size: 18px;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+}
+
+.version-tag {
+  color: hsl(var(--foreground) / 50%);
+  font-size: 14px;
+  margin-left: 8px;
 }
 </style>

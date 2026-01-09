@@ -97,6 +97,7 @@ const leftStyle = computed(() => ({
   display: flex;
   height: 100%;
   width: 100%;
+  min-height: 0;
 }
 
 .split-pane-left {
@@ -104,16 +105,17 @@ const leftStyle = computed(() => ({
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .split-pane-divider {
-  width: 4px;
-  height: 100%;
+  width: 5px;
   cursor: col-resize;
   background: transparent;
   position: relative;
   flex-shrink: 0;
   z-index: 10;
+  align-self: stretch;
 }
 
 .split-pane-divider:hover .divider-line,
@@ -123,11 +125,11 @@ const leftStyle = computed(() => ({
 
 .divider-line {
   position: absolute;
-  left: 1px;
+  left: 2px;
   top: 0;
   bottom: 0;
-  width: 2px;
-  background: hsl(var(--border));
+  width: 1px;
+  background: hsl(var(--border) / 90%);
   transition: background 0.2s;
 }
 
@@ -137,6 +139,8 @@ const leftStyle = computed(() => ({
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  min-width: 0;
 }
 
 .split-pane.dragging {

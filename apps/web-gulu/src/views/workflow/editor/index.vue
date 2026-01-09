@@ -186,7 +186,7 @@ function updateNodeInSteps(steps: StepNode[], updatedNode: StepNode): boolean {
 
 <style scoped>
 .workflow-editor {
-  background: #f5f5f5;
+  background: hsl(var(--background));
 }
 
 .workflow-editor :deep(.workflow-tree-editor) {
