@@ -5,18 +5,9 @@ import {
   ChevronDown,
   ChevronRight,
   Copy,
-  GripVertical,
   Plus,
   X,
 } from '@vben/icons';
-import {
-  Clock,
-  Code,
-  Database,
-  GitBranch,
-  Globe,
-  MessageSquare,
-} from '#/components/icons';
 import {
   Button,
   Checkbox,
@@ -28,9 +19,11 @@ import {
 } from 'ant-design-vue';
 import type { TreeProps } from 'ant-design-vue';
 
+import { getNodeTypeConfig, getNodeTypes } from './node-types';
+
 export interface StepNode {
   id: string;
-  type: 'http' | 'script' | 'condition' | 'loop' | 'database' | 'wait' | 'mq';
+  type: string;
   name: string;
   config?: Record<string, any>;
   condition?: {
@@ -66,6 +59,9 @@ const expandedKeys = ref<string[]>([]);
 const selectedKeys = ref<string[]>([]);
 const checkedKeys = ref<string[]>([]);
 
+// 获取所有节点类型
+const nodeTypes = getNodeTypes();
+
 // 切换展开/收缩
 function toggleExpand(nodeId: string, event: Event) {
   event.stopPropagation();
@@ -86,51 +82,22 @@ function toggleCheck(nodeId: string, checked: boolean) {
   }
 }
 
-// 判断节点是否可展开（条件和循环节点都可以展开，不管有没有子节点）
+// 判断节点是否可展开
 function isExpandable(step: StepNode): boolean {
-  return step.type === 'condition' || step.type === 'loop';
+  const config = getNodeTypeConfig(step.type);
+  return config?.canHaveChildren ?? false;
 }
-
-// 节点类型配置
-const nodeTypes = [
-  { key: 'http', label: 'HTTP请求', icon: Globe, color: '#52c41a' },
-  { key: 'script', label: '脚本', icon: Code, color: '#722ed1' },
-  { key: 'condition', label: '条件判断', icon: GitBranch, color: '#fa8c16' },
-  { key: 'loop', label: '循环', icon: GripVertical, color: '#13c2c2' },
-  { key: 'database', label: '数据库', icon: Database, color: '#1890ff' },
-  { key: 'wait', label: '等待', icon: Clock, color: '#eb2f96' },
-  { key: 'mq', label: 'MQ消息', icon: MessageSquare, color: '#faad14' },
-];
 
 // 获取节点类型配置
 function getNodeType(type: string) {
-  return nodeTypes.find((t) => t.key === type) || nodeTypes[0];
+  return getNodeTypeConfig(type) || nodeTypes[0];
 }
 
 // 获取步骤描述
 function getStepDescription(step: StepNode | null | undefined): string {
   if (!step || !step.type) return '';
-  switch (step.type) {
-    case 'http':
-      return step.config?.url ? `${step.config.method || 'GET'} ${step.config.url}` : '';
-    case 'script':
-      return step.config?.language || '';
-    case 'condition':
-      return step.condition?.expression || '';
-    case 'loop':
-      if (step.loop?.count && step.loop.count > 0) return `循环 ${step.loop.count} 次`;
-      if (step.loop?.items) return `遍历 ${step.loop.items}`;
-      if (step.loop?.condition) return step.loop.condition;
-      return '';
-    case 'database':
-      return step.config?.query ? step.config.query.slice(0, 30) : '';
-    case 'wait':
-      return step.config?.duration ? `${step.config.duration}ms` : '';
-    case 'mq':
-      return step.config?.topic || '';
-    default:
-      return '';
-  }
+  const config = getNodeTypeConfig(step.type);
+  return config?.getDescription?.(step) || '';
 }
 
 // 获取节点序号
@@ -158,13 +125,16 @@ const treeData = computed<TreeProps['treeData']>(() => {
 });
 
 function buildTreeData(steps: StepNode[]): TreeProps['treeData'] {
-  return steps.map((step) => ({
-    key: step.id,
-    title: step.name,
-    children: step.children ? buildTreeData(step.children) : undefined,
-    isLeaf: !step.children?.length && step.type !== 'condition' && step.type !== 'loop',
-    stepData: step,
-  }));
+  return steps.map((step) => {
+    const config = getNodeTypeConfig(step.type);
+    return {
+      key: step.id,
+      title: step.name,
+      children: step.children ? buildTreeData(step.children) : undefined,
+      isLeaf: !step.children?.length && !config?.canHaveChildren,
+      stepData: step,
+    };
+  });
 }
 
 // 选择节点
@@ -199,15 +169,16 @@ function handleDrop(info: any) {
   emit('update', { ...props.definition, steps: newSteps });
 }
 
-// 限制拖拽目标：只有条件和循环节点才能接收子节点
+// 限制拖拽目标：只有可以有子节点的节点才能接收子节点
 function allowDrop(options: { dropNode: any; dropPosition: number }): boolean {
   const { dropNode, dropPosition } = options;
   const targetStep = dropNode.stepData as StepNode | undefined;
 
   // dropPosition: -1 表示放在节点前面，0 表示放入节点内部，1 表示放在节点后面
-  // 如果是放入节点内部（dropPosition === 0），只允许条件和循环节点
+  // 如果是放入节点内部（dropPosition === 0），只允许可以有子节点的节点
   if (dropPosition === 0) {
-    return targetStep?.type === 'condition' || targetStep?.type === 'loop';
+    const config = getNodeTypeConfig(targetStep?.type || '');
+    return config?.canHaveChildren ?? false;
   }
 
   // 放在节点前后都允许
@@ -327,37 +298,16 @@ function handleDeleteNode(nodeId: string) {
 // 创建新节点
 function createNode(type: string): StepNode {
   const id = `step_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-  const nodeType = nodeTypes.find((t) => t.key === type);
-  const name = nodeType?.label || '未知节点';
+  const config = getNodeTypeConfig(type);
+  const name = config?.label || '未知节点';
+  const defaultConfig = config?.defaultConfig() || {};
 
-  const baseNode: StepNode = { id, type: type as StepNode['type'], name };
-
-  switch (type) {
-    case 'http':
-      baseNode.config = { method: 'GET', url: '', headers: {}, body: '' };
-      break;
-    case 'script':
-      baseNode.config = { language: 'javascript', script: '' };
-      break;
-    case 'condition':
-      baseNode.condition = { expression: '', then: [], else: [] };
-      baseNode.children = []; // 前端显示用
-      break;
-    case 'loop':
-      baseNode.loop = { count: 1 };
-      baseNode.children = []; // 前端显示用
-      break;
-    case 'database':
-      baseNode.config = { database_config: '', query: '', params: [] };
-      break;
-    case 'wait':
-      baseNode.config = { duration: 1000 };
-      break;
-    case 'mq':
-      baseNode.config = { mq_config: '', action: 'send', topic: '', message: '' };
-      break;
-  }
-  return baseNode;
+  return {
+    id,
+    type,
+    name,
+    ...defaultConfig,
+  };
 }
 
 // 渲染添加节点菜单
@@ -450,7 +400,7 @@ function renderAddMenu(parentId?: string) {
             </span>
             <div class="node-actions" v-if="!readonly" @click.stop>
               <Dropdown
-                v-if="nodeProps.stepData.type === 'condition' || nodeProps.stepData.type === 'loop'"
+                v-if="getNodeTypeConfig(nodeProps.stepData.type)?.canHaveChildren"
                 :trigger="['click']"
               >
                 <Tooltip title="添加子步骤">
