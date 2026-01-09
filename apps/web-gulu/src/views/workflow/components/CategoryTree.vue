@@ -41,7 +41,7 @@ interface Props {
 const props = defineProps<Props>();
 
 const emit = defineEmits<{
-  (e: 'selectWorkflow', workflowId: number): void;
+  (e: 'selectWorkflow', workflow: { id: number; name: string }): void;
 }>();
 
 const categoryStore = useCategoryStore();
@@ -128,7 +128,7 @@ function handleSelect(keys: (string | number)[], info: any) {
   selectedKeys.value = keys;
   const node = info.node;
   if (node.data?.type === 'workflow' && node.data?.source_id) {
-    emit('selectWorkflow', node.data.source_id);
+    emit('selectWorkflow', { id: node.data.source_id, name: node.data.name });
   }
 }
 
