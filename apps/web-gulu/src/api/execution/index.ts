@@ -3,25 +3,22 @@ import type { PageResult } from '#/api/types';
 
 export interface Execution {
   id: number;
+  created_at?: string;
+  updated_at?: string;
   project_id: number;
   workflow_id: number;
-  workflow_name?: string;
   env_id: number;
-  env_name?: string;
-  executor_id?: number;
-  executor_name?: string;
+  executor_id?: string;
   execution_id: string;
-  status: 'pending' | 'running' | 'success' | 'failed' | 'stopped' | 'paused';
-  total_steps?: number;
-  completed_steps?: number;
-  started_at?: string;
-  finished_at?: string;
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'stopped' | 'paused';
+  start_time?: string;
+  end_time?: string;
   duration?: number;
   result?: string;
   logs?: string;
-  created_at?: string;
-  updated_at?: string;
   created_by?: number;
+  total_steps?: number;
+  completed_steps?: number;
 }
 
 export interface CreateExecutionParams {
@@ -78,13 +75,6 @@ export async function getExecutionLogsApi(id: number) {
  * 停止执行
  */
 export async function stopExecutionApi(id: number) {
-  return requestClient.post(`/executions/${id}/stop`);
-}
-
-/**
- * 删除执行记录
- */
-export async function deleteExecutionApi(id: number) {
   return requestClient.delete(`/executions/${id}`);
 }
 

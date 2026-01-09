@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
-import { Page } from '@vben/common-ui';
+import { Page } from '#/components/page';
 
 import {
   Button,
@@ -33,14 +33,15 @@ const execution = ref<Execution | null>(null);
 const logs = ref<any[]>([]);
 const pollingTimer = ref<number | null>(null);
 
-const executionId = computed(() => Number(route.params.id));
+const executionId = computed(() => Number(route.params.executionId));
 
 const statusMap: Record<string, { color: string; text: string }> = {
   pending: { color: 'default', text: '等待中' },
   running: { color: 'processing', text: '执行中' },
-  success: { color: 'success', text: '成功' },
+  completed: { color: 'success', text: '成功' },
   failed: { color: 'error', text: '失败' },
   stopped: { color: 'warning', text: '已停止' },
+  paused: { color: 'orange', text: '已暂停' },
 };
 
 const isRunning = computed(() =>
@@ -123,6 +124,13 @@ function getLogColor(level: string): string {
   };
   return colors[level] || 'gray';
 }
+
+function formatDuration(ms: number | null | undefined): string {
+  if (!ms) return '-';
+  if (ms < 1000) return `${ms}ms`;
+  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+  return `${(ms / 60000).toFixed(1)}min`;
+}
 </script>
 
 <template>
@@ -144,17 +152,20 @@ function getLogColor(level: string): string {
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card title="执行信息">
           <Descriptions :column="1" size="small">
-            <Descriptions.Item label="执行ID">
+            <Descriptions.Item label="ID">
               {{ execution?.id }}
             </Descriptions.Item>
-            <Descriptions.Item label="工作流">
-              {{ execution?.workflow_name }}
+            <Descriptions.Item label="执行ID">
+              {{ execution?.execution_id }}
             </Descriptions.Item>
-            <Descriptions.Item label="环境">
-              {{ execution?.env_name }}
+            <Descriptions.Item label="工作流ID">
+              {{ execution?.workflow_id }}
             </Descriptions.Item>
-            <Descriptions.Item label="执行机">
-              {{ execution?.executor_name }}
+            <Descriptions.Item label="环境ID">
+              {{ execution?.env_id }}
+            </Descriptions.Item>
+            <Descriptions.Item label="执行机ID">
+              {{ execution?.executor_id || '-' }}
             </Descriptions.Item>
             <Descriptions.Item label="状态">
               <Tag :color="statusMap[execution?.status || 'pending']?.color">
@@ -162,13 +173,13 @@ function getLogColor(level: string): string {
               </Tag>
             </Descriptions.Item>
             <Descriptions.Item label="开始时间">
-              {{ execution?.started_at || '-' }}
+              {{ execution?.start_time ? new Date(execution.start_time).toLocaleString('zh-CN') : '-' }}
             </Descriptions.Item>
             <Descriptions.Item label="结束时间">
-              {{ execution?.finished_at || '-' }}
+              {{ execution?.end_time ? new Date(execution.end_time).toLocaleString('zh-CN') : '-' }}
             </Descriptions.Item>
             <Descriptions.Item label="耗时">
-              {{ execution?.duration ? `${execution.duration}ms` : '-' }}
+              {{ execution?.duration ? formatDuration(execution.duration) : '-' }}
             </Descriptions.Item>
           </Descriptions>
 

@@ -332,7 +332,7 @@ function handleExecute() {
 }
 
 function handleExecuteSuccess(executionId: number) {
-  router.push({ name: 'ExecutionDetail', params: { id: executionId } });
+  router.push({ name: 'ExecutionDetail', params: { executionId: String(executionId) } });
 }
 </script>
 
