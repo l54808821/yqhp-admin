@@ -174,7 +174,7 @@ watch(
       />
     </template>
     <template #header-right-40>
-      <EnvSwitcher />
+      <EnvSwitcher style="margin-right: 8px;"/>
     </template>
     <template #extra>
       <AuthenticationLoginExpiredModal
