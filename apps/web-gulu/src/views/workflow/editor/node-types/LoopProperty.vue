@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, watch } from 'vue';
 
 import { Form, Input, InputNumber, Select } from 'ant-design-vue';
 
@@ -11,31 +11,50 @@ const emit = defineEmits<{
   update: [node: any];
 }>();
 
-// 循环类型（根据 loop 配置推断）
-const loopType = computed({
-  get() {
-    if (!props.node?.loop) return 'count';
-    if (props.node.loop.items) return 'foreach';
-    if (props.node.loop.condition) return 'while';
-    return 'count';
+// 本地循环类型状态
+const loopType = ref('count');
+
+// 根据 node.loop 推断循环类型
+function inferLoopType(): string {
+  if (!props.node?.loop) return 'count';
+  if (props.node.loop.items) return 'foreach';
+  if (props.node.loop.condition) return 'while';
+  return 'count';
+}
+
+// 监听 node 变化，更新本地状态
+watch(
+  () => props.node,
+  () => {
+    loopType.value = inferLoopType();
   },
-  set(val: string) {
-    if (!props.node.loop) props.node.loop = {};
-    // 清除其他类型的配置
-    if (val === 'count') {
-      props.node.loop.items = '';
-      props.node.loop.condition = '';
-      if (!props.node.loop.count) props.node.loop.count = 1;
-    } else if (val === 'foreach') {
-      props.node.loop.count = 0;
-      props.node.loop.condition = '';
-    } else if (val === 'while') {
-      props.node.loop.count = 0;
-      props.node.loop.items = '';
-    }
-    handleUpdate();
-  },
-});
+  { immediate: true, deep: true },
+);
+
+// 切换循环类型
+function handleLoopTypeChange(val: string) {
+  loopType.value = val;
+  if (!props.node.loop) props.node.loop = {};
+
+  // 清除其他类型的配置
+  if (val === 'count') {
+    props.node.loop.items = '';
+    props.node.loop.item_var = '';
+    props.node.loop.index_var = '';
+    props.node.loop.condition = '';
+    if (!props.node.loop.count) props.node.loop.count = 1;
+  } else if (val === 'foreach') {
+    props.node.loop.count = 0;
+    props.node.loop.condition = '';
+  } else if (val === 'while') {
+    props.node.loop.count = 0;
+    props.node.loop.items = '';
+    props.node.loop.item_var = '';
+    props.node.loop.index_var = '';
+  }
+
+  handleUpdate();
+}
 
 function handleUpdate() {
   emit('update', props.node);
@@ -44,7 +63,7 @@ function handleUpdate() {
 
 <template>
   <Form.Item label="循环类型">
-    <Select v-model:value="loopType">
+    <Select :value="loopType" @change="handleLoopTypeChange">
       <Select.Option value="count">固定次数</Select.Option>
       <Select.Option value="foreach">遍历数组</Select.Option>
       <Select.Option value="while">条件循环</Select.Option>

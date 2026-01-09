@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, ref } from 'vue';
+import { computed, h, ref, watch } from 'vue';
 
 import {
   ChevronDown,
@@ -44,20 +44,36 @@ export interface StepNode {
 interface Props {
   definition: { name: string; steps: StepNode[] };
   readonly?: boolean;
+  expandedKeys?: string[];
+  selectedKeys?: string[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
   readonly: false,
+  expandedKeys: () => [],
+  selectedKeys: () => [],
 });
 
 const emit = defineEmits<{
   (e: 'update', definition: { name: string; steps: StepNode[] }): void;
   (e: 'select', node: StepNode | null): void;
+  (e: 'update:expandedKeys', keys: string[]): void;
+  (e: 'update:selectedKeys', keys: string[]): void;
 }>();
 
-const expandedKeys = ref<string[]>([]);
-const selectedKeys = ref<string[]>([]);
+// 本地状态，从 props 初始化
+const localExpandedKeys = ref<string[]>([...props.expandedKeys]);
+const localSelectedKeys = ref<string[]>([...props.selectedKeys]);
 const checkedKeys = ref<string[]>([]);
+
+// 同步外部传入的 keys
+watch(() => props.expandedKeys, (newKeys) => {
+  localExpandedKeys.value = [...newKeys];
+}, { immediate: true });
+
+watch(() => props.selectedKeys, (newKeys) => {
+  localSelectedKeys.value = [...newKeys];
+}, { immediate: true });
 
 // 获取所有节点类型
 const nodeTypes = getNodeTypes();
@@ -65,12 +81,13 @@ const nodeTypes = getNodeTypes();
 // 切换展开/收缩
 function toggleExpand(nodeId: string, event: Event) {
   event.stopPropagation();
-  const index = expandedKeys.value.indexOf(nodeId);
+  const index = localExpandedKeys.value.indexOf(nodeId);
   if (index > -1) {
-    expandedKeys.value = expandedKeys.value.filter((k) => k !== nodeId);
+    localExpandedKeys.value = localExpandedKeys.value.filter((k) => k !== nodeId);
   } else {
-    expandedKeys.value = [...expandedKeys.value, nodeId];
+    localExpandedKeys.value = [...localExpandedKeys.value, nodeId];
   }
+  emit('update:expandedKeys', localExpandedKeys.value);
 }
 
 // 切换勾选
@@ -139,14 +156,16 @@ function buildTreeData(steps: StepNode[]): TreeProps['treeData'] {
 
 // 选择节点
 function handleSelect(keys: (string | number)[], info: any) {
-  selectedKeys.value = keys as string[];
+  localSelectedKeys.value = keys as string[];
+  emit('update:selectedKeys', localSelectedKeys.value);
   const node = info.node?.stepData as StepNode | undefined;
   emit('select', node || null);
 }
 
 // 展开/折叠
 function handleExpand(keys: (string | number)[]) {
-  expandedKeys.value = keys as string[];
+  localExpandedKeys.value = keys as string[];
+  emit('update:expandedKeys', localExpandedKeys.value);
 }
 
 // 拖拽排序
@@ -240,7 +259,8 @@ function handleAddNode(type: string, parentId?: string) {
 
   emit('update', { ...props.definition, steps: newSteps });
   emit('select', newNode);
-  selectedKeys.value = [newNode.id];
+  localSelectedKeys.value = [newNode.id];
+  emit('update:selectedKeys', localSelectedKeys.value);
 }
 
 function addNodeToParent(steps: StepNode[], node: StepNode, parentId: string) {
@@ -289,8 +309,9 @@ function handleDeleteNode(nodeId: string) {
   const newSteps = JSON.parse(JSON.stringify(props.definition.steps));
   findAndRemoveNode(newSteps, nodeId);
   emit('update', { ...props.definition, steps: newSteps });
-  if (selectedKeys.value.includes(nodeId)) {
-    selectedKeys.value = [];
+  if (localSelectedKeys.value.includes(nodeId)) {
+    localSelectedKeys.value = [];
+    emit('update:selectedKeys', localSelectedKeys.value);
     emit('select', null);
   }
 }
@@ -343,8 +364,8 @@ function renderAddMenu(parentId?: string) {
     <!-- 树形结构 -->
     <div class="tree-content">
       <Tree
-        v-model:expandedKeys="expandedKeys"
-        v-model:selectedKeys="selectedKeys"
+        v-model:expandedKeys="localExpandedKeys"
+        v-model:selectedKeys="localSelectedKeys"
         :tree-data="treeData"
         :show-icon="false"
         :show-line="false"
@@ -378,7 +399,7 @@ function renderAddMenu(parentId?: string) {
               class="expand-btn"
               @click="toggleExpand(nodeProps.stepData.id, $event)"
             >
-              <ChevronDown v-if="expandedKeys.includes(nodeProps.stepData.id)" class="size-4" />
+              <ChevronDown v-if="localExpandedKeys.includes(nodeProps.stepData.id)" class="size-4" />
               <ChevronRight v-else class="size-4" />
             </span>
             <span v-else class="expand-placeholder"></span>

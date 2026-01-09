@@ -34,6 +34,10 @@ const historyStack = ref<string[]>([]);
 const historyIndex = ref(-1);
 const isModified = ref(false);
 
+// 树形编辑器状态（提升到父组件避免切换时丢失）
+const treeExpandedKeys = ref<string[]>([]);
+const treeSelectedKeys = ref<string[]>([]);
+
 // 初始快照，用于判断是否修改
 const initialSnapshot = ref('');
 
@@ -234,6 +238,16 @@ async function handleSave() {
 function handleNodeSelect(node: StepNode | null) {
   selectedNode.value = node;
   showPropertyPanel.value = !!node;
+  // 更新选中状态
+  treeSelectedKeys.value = node ? [node.id] : [];
+}
+
+function handleExpandedKeysChange(keys: string[]) {
+  treeExpandedKeys.value = keys;
+}
+
+function handleSelectedKeysChange(keys: string[]) {
+  treeSelectedKeys.value = keys;
 }
 
 function handleClosePropertyPanel() {
@@ -298,8 +312,12 @@ defineExpose({
           <template #left>
             <WorkflowTreeEditor
               :definition="workflowDefinition"
+              :expanded-keys="treeExpandedKeys"
+              :selected-keys="treeSelectedKeys"
               @update="handleDefinitionUpdate"
               @select="handleNodeSelect"
+              @update:expanded-keys="handleExpandedKeysChange"
+              @update:selected-keys="handleSelectedKeysChange"
             />
           </template>
           <template #right>
@@ -313,8 +331,12 @@ defineExpose({
         <WorkflowTreeEditor
           v-else
           :definition="workflowDefinition"
+          :expanded-keys="treeExpandedKeys"
+          :selected-keys="treeSelectedKeys"
           @update="handleDefinitionUpdate"
           @select="handleNodeSelect"
+          @update:expanded-keys="handleExpandedKeysChange"
+          @update:selected-keys="handleSelectedKeysChange"
         />
       </Spin>
     </div>
