@@ -82,14 +82,14 @@ function handleMenuClick(key: string) {
 
       <button
         v-if="showAddButton"
-        class="action-btn"
+        class="action-btn action-btn-first"
         title="新建"
         @click="emit('add')"
       >
         <Plus class="action-icon" />
       </button>
 
-      <Dropdown :trigger="['click']" placement="bottomRight">
+      <Dropdown :trigger="['click']" placement="bottomLeft">
         <button class="action-btn" title="更多操作">
           <Ellipsis class="action-icon" />
         </button>
@@ -139,7 +139,6 @@ function handleMenuClick(key: string) {
   display: flex;
   align-items: center;
   padding: 8px 10px;
-  background: #f8f8f8;
   border-right: 1px solid #e7e7e7;
   cursor: pointer;
   user-select: none;
@@ -147,9 +146,6 @@ function handleMenuClick(key: string) {
   max-width: 200px;
 }
 
-.tab:hover {
-  background: #f0f0f0;
-}
 
 /* 激活的 Tab */
 .tab.active {
@@ -196,9 +192,7 @@ function handleMenuClick(key: string) {
   padding-right: 2px;
 }
 
-.tab:not(.active) .tab-label {
-  color: #6e6e6e;
-}
+
 
 /* Tab 操作区域 */
 .tab-actions {
@@ -266,14 +260,19 @@ function handleMenuClick(key: string) {
   display: flex;
   align-items: center;
   justify-content: center;
+  align-self: center;
   width: 28px;
   height: 28px;
   border: none;
   background: transparent;
-  border-radius: 3px;
+  border-radius: 8px;
   cursor: pointer;
   color: #6e6e6e;
   flex-shrink: 0;
+}
+
+.action-btn-first {
+  margin-left: 4px;
 }
 
 .action-btn:hover {
