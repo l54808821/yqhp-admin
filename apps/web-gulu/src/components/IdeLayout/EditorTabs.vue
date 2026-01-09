@@ -1,13 +1,20 @@
 <script setup lang="ts">
+import type { Component } from 'vue';
+
 import { Ellipsis, Plus, X } from '@vben/icons';
+import { createIconifyIcon } from '@vben/icons';
 import { Dropdown, Menu } from 'ant-design-vue';
 
 import type { TabItem } from './types';
+
+// 默认文件图标
+const FileIcon = createIconifyIcon('lucide:file');
 
 defineProps<{
   tabs: TabItem[];
   activeTabId: string | number | null;
   showAddButton?: boolean;
+  defaultIcon?: Component;
 }>();
 
 const emit = defineEmits<{
@@ -50,7 +57,7 @@ function handleMenuClick(key: string) {
       <div
         v-for="tab in tabs"
         :key="tab.id"
-        class="tab-item"
+        class="tab"
         :class="{
           active: tab.id === activeTabId,
           preview: !tab.pinned && !tab.modified,
@@ -58,21 +65,21 @@ function handleMenuClick(key: string) {
         @click="handleClick(tab.id)"
         @dblclick="handleDblClick(tab.id)"
       >
-        <span class="tab-title" :class="{ italic: !tab.pinned && !tab.modified }">
+        <component
+          :is="defaultIcon || FileIcon"
+          class="tab-icon"
+        />
+        <span class="tab-label" :class="{ italic: !tab.pinned && !tab.modified }">
           {{ tab.title }}
         </span>
-        <span
-          class="tab-close"
-          :class="{ 'show-dot': tab.modified }"
-          @click="(e) => handleClose(e, tab.id)"
-        >
-          <span v-if="tab.modified" class="modified-dot" />
-          <X v-else class="close-icon" />
+        <span class="tab-actions">
+          <span v-if="tab.modified" class="tab-modified" />
+          <span class="tab-close" @click="(e) => handleClose(e, tab.id)">
+            <X class="tab-close-icon" />
+          </span>
         </span>
       </div>
-    </div>
 
-    <div class="tabs-actions">
       <button
         v-if="showAddButton"
         class="action-btn"
@@ -105,122 +112,156 @@ function handleMenuClick(key: string) {
 <style scoped>
 .editor-tabs {
   display: flex;
-  align-items: center;
-  height: 44px;
-  background: var(--component-background, #fff);
-  border-bottom: 1px solid var(--border-color, #f0f0f0);
-  padding: 0 12px;
-  gap: 8px;
+  align-items: stretch;
+  min-height: 35px;
+  background: #fff;
+  border-bottom: 1px solid #e7e7e7;
 }
 
 .tabs-container {
   display: flex;
-  flex: 1;
+  align-items: stretch;
   overflow-x: auto;
   overflow-y: hidden;
-  align-items: center;
-  gap: 8px;
 }
 
 .tabs-container::-webkit-scrollbar {
-  height: 0;
+  height: 3px;
 }
 
-.tab-item {
+.tabs-container::-webkit-scrollbar-thumb {
+  background: #c4c4c4;
+}
+
+/* 单个 Tab */
+.tab {
   position: relative;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  padding-right: 28px;
+  padding: 8px 10px;
+  background: #f8f8f8;
+  border-right: 1px solid #e7e7e7;
   cursor: pointer;
-  white-space: nowrap;
   user-select: none;
-  transition: all 0.2s;
-  color: #666;
-  font-size: 13px;
-  border: 1px solid #e8e8e8;
-  border-radius: 6px;
-  background: #fafafa;
+  min-width: 0;
+  max-width: 200px;
 }
 
-.tab-item:hover {
-  border-color: #d9d9d9;
+.tab:hover {
+  background: #f0f0f0;
+}
+
+/* 激活的 Tab */
+.tab.active {
   background: #fff;
 }
 
-.tab-item.active {
-  color: #7c3aed;
-  border-color: #7c3aed;
-  background: #faf5ff;
+/* 激活 Tab 顶部主题色边框 */
+.tab.active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--primary-color, #1890ff);
 }
 
-.tab-title {
-  max-width: 150px;
+/* Tab 图标 */
+.tab-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  flex-shrink: 0;
+  color: #6e6e6e;
+}
+
+.tab.active .tab-icon {
+  color: var(--primary-color, #1890ff);
+}
+
+/* Tab 标签文字 */
+.tab-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: #333;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.tab-title.italic {
+.tab-label.italic {
   font-style: italic;
-  opacity: 0.7;
+  padding-right: 2px;
 }
 
-.tab-close {
+.tab:not(.active) .tab-label {
+  color: #6e6e6e;
+}
+
+/* Tab 操作区域 */
+.tab-actions {
+  display: flex;
+  align-items: center;
+  margin-left: 4px;
+  width: 16px;
+  height: 16px;
+  position: relative;
+}
+
+/* 修改标记圆点 */
+.tab-modified {
   position: absolute;
-  right: 6px;
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border-radius: 50%;
+}
+
+.tab-modified::after {
+  content: '';
+  position: absolute;
   top: 50%;
-  transform: translateY(-50%);
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  background: var(--primary-color, #1890ff);
+  border-radius: 50%;
+}
+
+/* 关闭按钮 */
+.tab-close {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 16px;
   height: 16px;
   border-radius: 3px;
-  transition: opacity 0.15s, background 0.15s;
-}
-
-.tab-close:not(.show-dot) {
   opacity: 0;
+  position: absolute;
 }
 
-.tab-item:hover .tab-close:not(.show-dot) {
+.tab:hover .tab-close {
   opacity: 1;
 }
 
-.tab-close:hover {
-  background: rgba(0, 0, 0, 0.08);
-}
-
-.close-icon {
-  width: 12px;
-  height: 12px;
-}
-
-.modified-dot {
-  width: 6px;
-  height: 6px;
-  background: #7c3aed;
-  border-radius: 50%;
-}
-
-.tab-item:hover .tab-close.show-dot .modified-dot {
+.tab:hover .tab-modified {
   display: none;
 }
 
-.tab-item:hover .tab-close.show-dot::after {
-  content: '×';
-  font-size: 12px;
-  line-height: 1;
+.tab-close:hover {
+  background: rgba(0, 0, 0, 0.1);
 }
 
-.tabs-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
+.tab-close-icon {
+  width: 14px;
+  height: 14px;
+  color: #6e6e6e;
 }
 
+/* 操作按钮 */
 .action-btn {
   display: flex;
   align-items: center;
@@ -229,14 +270,14 @@ function handleMenuClick(key: string) {
   height: 28px;
   border: none;
   background: transparent;
-  border-radius: 4px;
+  border-radius: 3px;
   cursor: pointer;
-  transition: all 0.15s;
-  color: #666;
+  color: #6e6e6e;
+  flex-shrink: 0;
 }
 
 .action-btn:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: rgba(0, 0, 0, 0.06);
   color: #333;
 }
 
