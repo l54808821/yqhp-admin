@@ -135,7 +135,7 @@ function handleAddWorkflow() {
 <style scoped>
 .workflow-page {
   height: calc(100vh - 48px);
-  background: #fff;
+  background: hsl(var(--background));
 }
 
 .workflow-spin {

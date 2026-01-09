@@ -384,14 +384,14 @@ function handleMenuClick(key: string, node: any) {
 
 .tree-header {
   padding: 12px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid hsl(var(--border));
 }
 
 .tree-toolbar {
   display: flex;
   gap: 4px;
   padding: 8px 12px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid hsl(var(--border));
 }
 
 .tree-content {

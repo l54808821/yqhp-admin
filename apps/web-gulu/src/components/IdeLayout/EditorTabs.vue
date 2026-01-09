@@ -114,8 +114,8 @@ function handleMenuClick(key: string) {
   display: flex;
   align-items: stretch;
   min-height: 35px;
-  background: #fff;
-  border-bottom: 1px solid #e7e7e7;
+  background: hsl(var(--background));
+  border-bottom: 1px solid hsl(var(--border));
 }
 
 .tabs-container {
@@ -130,7 +130,7 @@ function handleMenuClick(key: string) {
 }
 
 .tabs-container::-webkit-scrollbar-thumb {
-  background: #c4c4c4;
+  background: hsl(var(--border));
 }
 
 /* 单个 Tab */
@@ -139,17 +139,18 @@ function handleMenuClick(key: string) {
   display: flex;
   align-items: center;
   padding: 8px 10px;
-  border-right: 1px solid #e7e7e7;
+  border-right: 1px solid hsl(var(--border));
   cursor: pointer;
   user-select: none;
   min-width: 0;
   max-width: 200px;
+  background: hsl(var(--background));
 }
 
 
 /* 激活的 Tab */
 .tab.active {
-  background: #fff;
+  background: hsl(var(--background));
 }
 
 /* 激活 Tab 顶部主题色边框 */
@@ -160,7 +161,7 @@ function handleMenuClick(key: string) {
   left: 0;
   right: 0;
   height: 2px;
-  background: var(--primary-color, #1890ff);
+  background: hsl(var(--primary));
 }
 
 /* Tab 图标 */
@@ -169,11 +170,11 @@ function handleMenuClick(key: string) {
   height: 16px;
   margin-right: 6px;
   flex-shrink: 0;
-  color: #6e6e6e;
+  color: hsl(var(--foreground) / 60%);
 }
 
 .tab.active .tab-icon {
-  color: var(--primary-color, #1890ff);
+  color: hsl(var(--primary));
 }
 
 /* Tab 标签文字 */
@@ -181,7 +182,7 @@ function handleMenuClick(key: string) {
   flex: 1;
   min-width: 0;
   font-size: 13px;
-  color: #333;
+  color: hsl(var(--foreground));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -209,7 +210,7 @@ function handleMenuClick(key: string) {
   position: absolute;
   width: 10px;
   height: 10px;
-  background: #fff;
+  background: hsl(var(--background));
   border-radius: 50%;
 }
 
@@ -221,7 +222,7 @@ function handleMenuClick(key: string) {
   transform: translate(-50%, -50%);
   width: 8px;
   height: 8px;
-  background: var(--primary-color, #1890ff);
+  background: hsl(var(--primary));
   border-radius: 50%;
 }
 
@@ -246,13 +247,13 @@ function handleMenuClick(key: string) {
 }
 
 .tab-close:hover {
-  background: rgba(0, 0, 0, 0.1);
+  background: hsl(var(--accent));
 }
 
 .tab-close-icon {
   width: 14px;
   height: 14px;
-  color: #6e6e6e;
+  color: hsl(var(--foreground) / 60%);
 }
 
 /* 操作按钮 */
@@ -267,7 +268,7 @@ function handleMenuClick(key: string) {
   background: transparent;
   border-radius: 8px;
   cursor: pointer;
-  color: #6e6e6e;
+  color: hsl(var(--foreground) / 60%);
   flex-shrink: 0;
 }
 
@@ -276,8 +277,8 @@ function handleMenuClick(key: string) {
 }
 
 .action-btn:hover {
-  background: rgba(0, 0, 0, 0.06);
-  color: #333;
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
 }
 
 .action-icon {

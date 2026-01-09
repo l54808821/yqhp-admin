@@ -118,7 +118,7 @@ const leftStyle = computed(() => ({
 
 .split-pane-divider:hover .divider-line,
 .split-pane.dragging .divider-line {
-  background: #1890ff;
+  background: hsl(var(--primary));
 }
 
 .divider-line {
@@ -127,7 +127,7 @@ const leftStyle = computed(() => ({
   top: 0;
   bottom: 0;
   width: 2px;
-  background: #f0f0f0;
+  background: hsl(var(--border));
   transition: background 0.2s;
 }
 
