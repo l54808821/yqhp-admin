@@ -7,6 +7,8 @@ import { startProgress, stopProgress } from '@vben/utils';
 
 import { accessRoutes, coreRouteNames } from '#/router/routes';
 import { useAuthStore } from '#/store';
+import { useProjectStore } from '#/store/project';
+import { replaceProjectIdInMenus } from '#/utils/menu';
 
 import { generateAccess } from './access';
 
@@ -49,6 +51,7 @@ function setupAccessGuard(router: Router) {
     const accessStore = useAccessStore();
     const userStore = useUserStore();
     const authStore = useAuthStore();
+    const projectStore = useProjectStore();
 
     // 基本路由，这些路由不需要进入权限拦截
     if (coreRouteNames.includes(to.name as string)) {
@@ -108,8 +111,17 @@ function setupAccessGuard(router: Router) {
       routes: accessRoutes,
     });
 
+    // 加载项目列表（如果还没加载）
+    if (projectStore.projects.length === 0) {
+      await projectStore.loadProjects();
+    }
+
+    // 替换菜单中的 :projectId 为实际的项目ID
+    const projectId = projectStore.currentProjectId || projectStore.projects[0]?.id || 1;
+    const menusWithProjectId = replaceProjectIdInMenus(accessibleMenus, projectId);
+
     // 保存菜单信息和路由信息
-    accessStore.setAccessMenus(accessibleMenus);
+    accessStore.setAccessMenus(menusWithProjectId);
     accessStore.setAccessRoutes(accessibleRoutes);
     accessStore.setIsAccessChecked(true);
 

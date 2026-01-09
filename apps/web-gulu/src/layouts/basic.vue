@@ -16,6 +16,7 @@ import { preferences } from '@vben/preferences';
 import { useAccessStore, useUserStore } from '@vben/stores';
 // import { openWindow } from '@vben/utils';
 
+import { EnvSwitcher } from '#/components/env';
 import { $t } from '#/locales';
 import { appCustomPreferences } from '#/preferences';
 import { useAuthStore } from '#/store';
@@ -171,6 +172,9 @@ watch(
         @remove="(item) => item.id && remove(item.id)"
         @make-all="handleMakeAll"
       />
+    </template>
+    <template #header-right-40>
+      <EnvSwitcher />
     </template>
     <template #extra>
       <AuthenticationLoginExpiredModal

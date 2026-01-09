@@ -8,7 +8,7 @@ import { defineOverridesPreferences } from '@vben/preferences';
 export const overridesPreferences = defineOverridesPreferences({
   // overrides
   app: {
-    // 使用后端权限模式
+    // 使用混合权限模式（前后端路由都展示）
     accessMode: 'mixed',
     name: import.meta.env.VITE_APP_TITLE,
     "authPageLayout": "panel-center"

@@ -20,6 +20,7 @@ async function generateAccess(options: GenerateMenuAndRoutesOptions) {
   const layoutMap: ComponentRecordType = {
     BasicLayout,
     IFrameView,
+    LAYOUT: BasicLayout,
   };
 
   return await generateAccessible(preferences.app.accessMode, {
