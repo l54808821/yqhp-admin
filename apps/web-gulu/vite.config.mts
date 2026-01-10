@@ -6,6 +6,12 @@ export default defineConfig(async () => {
     vite: {
       server: {
         proxy: {
+          // WebSocket 代理到 Gulu 后端（调试功能）
+          '/ws': {
+            changeOrigin: true,
+            target: 'http://localhost:5321',
+            ws: true,
+          },
           // 系统管理 API 代理到 Admin 服务 (用户、角色、权限等)
           '/api/system': {
             changeOrigin: true,

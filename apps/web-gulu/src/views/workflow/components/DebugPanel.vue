@@ -79,7 +79,7 @@ const statusText = computed(() => {
   if (wsState.value === 'error') return '连接错误';
   if (debugSummary.value) {
     const status = debugSummary.value.status;
-    if (status === 'completed') return '调试完成';
+    if (status === 'completed' || status === 'success') return '调试完成';
     if (status === 'failed') return '调试失败';
     if (status === 'timeout') return '调试超时';
     if (status === 'stopped') return '已停止';
@@ -91,7 +91,7 @@ const statusText = computed(() => {
 const statusColor = computed(() => {
   if (debugSummary.value) {
     const status = debugSummary.value.status;
-    if (status === 'completed') return 'success';
+    if (status === 'completed' || status === 'success') return 'success';
     if (status === 'failed' || status === 'timeout') return 'error';
     if (status === 'stopped') return 'warning';
   }
@@ -349,7 +349,7 @@ defineExpose({
       v-if="isRunning || isCompleted"
       :percent="progressPercent"
       :status="debugSummary?.status === 'failed' ? 'exception' : undefined"
-      :stroke-color="debugSummary?.status === 'completed' ? '#52c41a' : undefined"
+      :stroke-color="(debugSummary?.status === 'completed' || debugSummary?.status === 'success') ? '#52c41a' : undefined"
     />
 
     <!-- 错误提示 -->
