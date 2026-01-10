@@ -32,11 +32,14 @@ export interface StepNode {
     else?: StepNode[];
   };
   loop?: {
-    count?: number;
-    items?: string;
-    item_var?: string;
-    index_var?: string;
-    condition?: string;
+    mode?: string;           // 循环模式: for, foreach, while
+    count?: number;          // for 模式的迭代次数
+    items?: string;          // foreach 模式的集合
+    item_var?: string;       // foreach 模式的元素变量名
+    condition?: string;      // while 模式的条件表达式
+    max_iterations?: number; // while 模式的最大迭代次数
+    break_condition?: string;    // 跳出条件
+    continue_condition?: string; // 跳过条件
   };
   children?: StepNode[]; // 前端用于显示，保存时会转换
 }

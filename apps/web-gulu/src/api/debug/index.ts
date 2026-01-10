@@ -1,13 +1,13 @@
 import { requestClient } from '#/api/request';
 
 // 调试会话状态
-export type DebugSessionStatus = 'running' | 'completed' | 'failed' | 'stopped' | 'timeout';
+export type DebugSessionStatus = 'running' | 'completed' | 'success' | 'failed' | 'stopped' | 'timeout';
 
 // 执行模式
 export type ExecutionMode = 'debug' | 'execute';
 
 // 步骤状态
-export type StepStatus = 'pending' | 'running' | 'success' | 'failed' | 'skipped';
+export type StepStatus = 'pending' | 'running' | 'success' | 'completed' | 'failed' | 'skipped';
 
 // 调试会话
 export interface DebugSession {
@@ -46,6 +46,9 @@ export interface StartDebugResponse {
 export interface StepResult {
   step_id: string;
   step_name: string;
+  step_type?: string;
+  parent_id?: string;
+  iteration?: number;
   status: StepStatus;
   duration_ms: number;
   output?: Record<string, unknown>;
@@ -100,6 +103,9 @@ export interface WSMessage {
 export interface StepStartedData {
   step_id: string;
   step_name: string;
+  step_type?: string;
+  parent_id?: string;
+  iteration?: number;
 }
 
 // 错误数据

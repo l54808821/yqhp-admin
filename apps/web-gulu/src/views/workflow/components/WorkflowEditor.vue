@@ -96,14 +96,17 @@ function frontendToBackend(steps: StepNode[]): any[] {
       };
     }
 
-    // 循环节点
+    // 循环节点：直接使用与后端一致的字段结构
     if (step.type === 'loop') {
       node.loop = {
-        count: step.loop?.count || 1,
+        mode: step.loop?.mode || 'for',
+        count: step.loop?.count || 0,
         items: step.loop?.items || '',
         item_var: step.loop?.item_var || '',
-        index_var: step.loop?.index_var || '',
         condition: step.loop?.condition || '',
+        max_iterations: step.loop?.max_iterations || 0,
+        break_condition: step.loop?.break_condition || '',
+        continue_condition: step.loop?.continue_condition || '',
       };
       // 循环的子步骤放在 children 中
       if (step.children?.length) {

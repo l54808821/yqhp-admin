@@ -48,7 +48,7 @@ function handleClose() {
 
 function handleDebugComplete(summary: DebugSummary) {
   emit('complete', summary);
-  if (summary.status === 'completed') {
+  if (summary.status === 'success' || summary.status === 'completed') {
     message.success('调试完成');
   } else if (summary.status === 'failed') {
     message.error('调试失败');
@@ -61,7 +61,7 @@ function handleDebugComplete(summary: DebugSummary) {
     :open="open"
     title="调试工作流"
     placement="right"
-    :width="600"
+    :width="900"
     :mask-closable="false"
     @close="handleClose"
   >

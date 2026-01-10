@@ -30,9 +30,16 @@ watch(
       if (localNode.value.type === 'condition' && !localNode.value.condition) {
         localNode.value.condition = { expression: '', then: [], else: [] };
       }
-      // 确保 loop 存在
+      // 确保 loop 存在（使用与后端一致的字段结构）
       if (localNode.value.type === 'loop' && !localNode.value.loop) {
-        localNode.value.loop = { count: 1 };
+        localNode.value.loop = {
+          mode: 'for',
+          count: 1,
+          items: '',
+          item_var: '',
+          condition: '',
+          max_iterations: 0,
+        };
       }
     } else {
       localNode.value = null;

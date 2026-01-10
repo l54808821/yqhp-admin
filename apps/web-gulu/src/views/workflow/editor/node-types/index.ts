@@ -78,13 +78,24 @@ export const nodeTypeRegistry: Record<string, NodeTypeConfig> = {
     color: '#13c2c2',
     propertyComponent: LoopProperty,
     defaultConfig: () => ({
-      loop: { count: 1 },
+      loop: {
+        mode: 'for',
+        count: 1,
+        items: '',
+        item_var: '',
+        condition: '',
+        max_iterations: 0,
+        break_condition: '',
+        continue_condition: '',
+      },
       children: [],
     }),
     getDescription: (node) => {
-      if (node.loop?.count && node.loop.count > 0) return `循环 ${node.loop.count} 次`;
-      if (node.loop?.items) return `遍历 ${node.loop.items}`;
-      if (node.loop?.condition) return node.loop.condition;
+      const loop = node.loop;
+      if (!loop) return '';
+      if (loop.mode === 'for' && loop.count > 0) return `循环 ${loop.count} 次`;
+      if (loop.mode === 'foreach' && loop.items) return `遍历 ${loop.items}`;
+      if (loop.mode === 'while' && loop.condition) return loop.condition;
       return '';
     },
     canHaveChildren: true,
