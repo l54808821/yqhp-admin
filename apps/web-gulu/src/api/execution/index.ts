@@ -1,6 +1,12 @@
 import { requestClient } from '#/api/request';
 import type { PageResult } from '#/api/types';
 
+// 执行模式
+export type ExecutionMode = 'debug' | 'execute';
+
+// 执行状态
+export type ExecutionStatus = 'pending' | 'running' | 'completed' | 'failed' | 'stopped' | 'timeout';
+
 export interface Execution {
   id: number;
   created_at?: string;
@@ -8,23 +14,26 @@ export interface Execution {
   project_id: number;
   workflow_id: number;
   env_id: number;
-  executor_id?: string;
+  executor_id?: number;
   execution_id: string;
-  status: 'pending' | 'running' | 'completed' | 'failed' | 'stopped' | 'paused';
+  mode?: ExecutionMode;
+  status: ExecutionStatus;
   start_time?: string;
   end_time?: string;
   duration?: number;
+  total_steps?: number;
+  success_steps?: number;
+  failed_steps?: number;
   result?: string;
   logs?: string;
   created_by?: number;
-  total_steps?: number;
-  completed_steps?: number;
 }
 
 export interface CreateExecutionParams {
   workflow_id: number;
   env_id: number;
-  executor_id: number;
+  executor_id?: number;
+  mode?: ExecutionMode;
 }
 
 export interface ExecutionListParams {

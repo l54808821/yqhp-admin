@@ -19,6 +19,7 @@ import {
   Menu,
   message,
   Modal,
+  Select,
   Tree,
 } from 'ant-design-vue';
 import type { TreeProps } from 'ant-design-vue';
@@ -53,10 +54,21 @@ const selectedKeys = ref<(string | number)[]>([]);
 // 编辑弹框
 const editModalVisible = ref(false);
 const editModalTitle = ref('');
-const editForm = ref({ name: '', type: 'folder' as 'folder' | 'workflow' });
+const editForm = ref({
+  name: '',
+  type: 'folder' as 'folder' | 'workflow',
+  workflow_type: 'normal' as 'normal' | 'performance' | 'data_generation',
+});
 const editingCategory = ref<CategoryTreeNode | null>(null);
 const isCreating = ref(false);
 const parentIdForCreate = ref<number>(0);
+
+// 工作流类型选项
+const workflowTypeOptions = [
+  { label: '普通流程', value: 'normal' },
+  { label: '压测流程', value: 'performance' },
+  { label: '造数流程', value: 'data_generation' },
+];
 
 // 将分类数据转换为树形结构
 const treeData = computed(() => {
@@ -182,7 +194,7 @@ function handleCreateWorkflow(parentId: number = 0) {
   isCreating.value = true;
   parentIdForCreate.value = parentId;
   editingCategory.value = null;
-  editForm.value = { name: '', type: 'workflow' };
+  editForm.value = { name: '', type: 'workflow', workflow_type: 'normal' };
   editModalTitle.value = '新建工作流';
   editModalVisible.value = true;
 }
@@ -191,7 +203,7 @@ function handleCreateWorkflow(parentId: number = 0) {
 function handleRename(category: CategoryTreeNode) {
   isCreating.value = false;
   editingCategory.value = category;
-  editForm.value = { name: category.name, type: category.type };
+  editForm.value = { name: category.name, type: category.type, workflow_type: 'normal' };
   editModalTitle.value = '重命名';
   editModalVisible.value = true;
 }
@@ -231,6 +243,7 @@ async function handleSaveEdit() {
           project_id: props.projectId,
           name: editForm.value.name,
           description: '',
+          workflow_type: editForm.value.workflow_type,
           definition: JSON.stringify({ steps: [] }),
         });
         // 再创建分类节点
@@ -366,11 +379,25 @@ function handleMenuClick(key: string, node: any) {
       :title="editModalTitle"
       @ok="handleSaveEdit"
     >
-      <Input
-        v-model:value="editForm.name"
-        :placeholder="editForm.type === 'folder' ? '文件夹名称' : '工作流名称'"
-        @pressEnter="handleSaveEdit"
-      />
+      <div class="edit-form">
+        <Input
+          v-model:value="editForm.name"
+          :placeholder="editForm.type === 'folder' ? '文件夹名称' : '工作流名称'"
+          @pressEnter="handleSaveEdit"
+        />
+        <div v-if="isCreating && editForm.type === 'workflow'" class="workflow-type-select">
+          <div class="select-label">工作流类型</div>
+          <Select
+            v-model:value="editForm.workflow_type"
+            :options="workflowTypeOptions"
+            style="width: 100%"
+          />
+          <div class="type-hint">
+            <span v-if="editForm.workflow_type === 'normal'">普通流程仅支持调试</span>
+            <span v-else>支持调试和正式执行</span>
+          </div>
+        </div>
+      </div>
     </Modal>
   </div>
 </template>
@@ -444,5 +471,27 @@ function handleMenuClick(key: string, node: any) {
 /* 确保没有展开图标的节点也对齐 */
 :deep(.ant-tree-switcher-noop) {
   width: 20px;
+}
+
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.workflow-type-select {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.select-label {
+  font-size: 14px;
+  color: hsl(var(--foreground));
+}
+
+.type-hint {
+  font-size: 12px;
+  color: #999;
 }
 </style>

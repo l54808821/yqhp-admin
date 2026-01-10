@@ -34,24 +34,7 @@ const routes: RouteRecordRaw[] = [
           title: '工作流管理',
         },
       },
-      {
-        name: 'WorkflowEditor',
-        path: ':workflowId/edit',
-        component: () => import('#/views/workflow/editor/index.vue'),
-        meta: {
-          hideInMenu: true,
-          title: '工作流编辑器',
-        },
-      },
-      {
-        name: 'WorkflowExecute',
-        path: ':workflowId/execute',
-        component: () => import('#/views/workflow/execution/ExecuteDialog.vue'),
-        meta: {
-          hideInMenu: true,
-          title: '执行工作流',
-        },
-      },
+
     ],
   },
   // 执行历史
@@ -81,6 +64,15 @@ const routes: RouteRecordRaw[] = [
         meta: {
           hideInMenu: true,
           title: '执行详情',
+        },
+      },
+      {
+        name: 'ExecutionReport',
+        path: ':executionId/report',
+        component: () => import('#/views/workflow/execution/Report.vue'),
+        meta: {
+          hideInMenu: true,
+          title: '执行报告',
         },
       },
     ],

@@ -77,6 +77,7 @@ async function handleOk() {
       workflow_id: props.workflow.id,
       env_id: projectStore.currentEnvId,
       executor_id: formState.value.executor_id,
+      mode: 'execute', // 正式执行模式
     });
     message.success('执行已提交');
     emit('update:open', false);

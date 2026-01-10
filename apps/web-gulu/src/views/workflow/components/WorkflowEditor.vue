@@ -12,6 +12,7 @@ import PropertyPanel from '../editor/PropertyPanel.vue';
 import WorkflowTreeEditor from '../editor/WorkflowTreeEditor.vue';
 import type { StepNode } from '../editor/WorkflowTreeEditor.vue';
 
+import DebugModal from './DebugModal.vue';
 import EditorToolbar from './EditorToolbar.vue';
 import ExecuteModal from './ExecuteModal.vue';
 
@@ -33,6 +34,7 @@ const saving = ref(false);
 const workflow = ref<Workflow | null>(null);
 const selectedNode = ref<StepNode | null>(null);
 const executeModalOpen = ref(false);
+const debugModalOpen = ref(false);
 const showPropertyPanel = ref(false);
 const workflowDefinition = ref<{ name: string; steps: StepNode[] }>({ name: '', steps: [] });
 const historyStack = ref<string[]>([]);
@@ -334,6 +336,19 @@ function handleExecute() {
 function handleExecuteSuccess(executionId: number) {
   router.push({ name: 'ExecutionDetail', params: { executionId: String(executionId) } });
 }
+
+// 调试相关
+function handleDebug() {
+  if (isModified.value) {
+    message.warning('请先保存工作流');
+    return;
+  }
+  debugModalOpen.value = true;
+}
+
+function handleDebugComplete() {
+  // 调试完成后的处理
+}
 </script>
 
 <template>
@@ -348,6 +363,7 @@ function handleExecuteSuccess(executionId: number) {
       @undo="undo"
       @redo="redo"
       @execute="handleExecute"
+      @debug="handleDebug"
     />
     <div class="editor-main">
       <Spin :spinning="loading" class="editor-spin">
@@ -395,6 +411,13 @@ function handleExecuteSuccess(executionId: number) {
       v-model:open="executeModalOpen"
       :workflow="workflow"
       @success="handleExecuteSuccess"
+    />
+
+    <!-- 调试对话框 -->
+    <DebugModal
+      v-model:open="debugModalOpen"
+      :workflow="workflow"
+      @complete="handleDebugComplete"
     />
   </div>
 </template>

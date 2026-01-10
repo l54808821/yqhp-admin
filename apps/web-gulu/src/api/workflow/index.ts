@@ -1,11 +1,37 @@
 import { requestClient } from '#/api/request';
 import type { PageResult } from '#/api/types';
 
+// 工作流类型
+export type WorkflowType = 'normal' | 'performance' | 'data_generation';
+
+// 工作流类型选项
+export const WORKFLOW_TYPE_OPTIONS = [
+  { label: '普通流程', value: 'normal' },
+  { label: '压测流程', value: 'performance' },
+  { label: '造数流程', value: 'data_generation' },
+];
+
+// 工作流类型标签颜色
+export const WORKFLOW_TYPE_COLORS: Record<WorkflowType, string> = {
+  normal: 'default',
+  performance: 'orange',
+  data_generation: 'purple',
+};
+
+// 工作流类型标签文本
+export const WORKFLOW_TYPE_LABELS: Record<WorkflowType, string> = {
+  normal: '普通',
+  performance: '压测',
+  data_generation: '造数',
+};
+
 export interface Workflow {
   id: number;
   project_id: number;
   name: string;
+  code?: string;
   description?: string;
+  workflow_type?: WorkflowType;
   version: number;
   definition: string;
   status: number;
@@ -18,14 +44,18 @@ export interface Workflow {
 export interface CreateWorkflowParams {
   project_id: number;
   name: string;
+  code?: string;
   description?: string;
+  workflow_type?: WorkflowType;
   definition: string;
   status?: number;
 }
 
 export interface UpdateWorkflowParams {
   name?: string;
+  code?: string;
   description?: string;
+  workflow_type?: WorkflowType;
   definition?: string;
   status?: number;
 }
@@ -41,6 +71,7 @@ export interface WorkflowListParams {
 
 export interface CopyWorkflowParams {
   name: string;
+  code?: string;
 }
 
 export interface ImportWorkflowParams {
