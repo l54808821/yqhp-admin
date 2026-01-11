@@ -1,10 +1,10 @@
 import { requestClient } from '#/api/request';
 
 // 调试会话状态
-export type DebugSessionStatus = 'running' | 'completed' | 'success' | 'failed' | 'stopped' | 'timeout';
+export type DebugSessionStatus = 'running' | 'completed' | 'success' | 'failed' | 'stopped' | 'timeout' | 'waiting_interaction';
 
 // 执行模式
-export type ExecutionMode = 'debug' | 'execute';
+export type ExecutionMode = 'streaming' | 'blocking';
 
 // 步骤状态
 export type StepStatus = 'pending' | 'running' | 'success' | 'completed' | 'failed' | 'skipped';
@@ -29,17 +29,40 @@ export interface DebugSession {
   created_at?: string;
 }
 
-// 开始调试请求参数
-export interface StartDebugParams {
+// 流式执行请求参数
+export interface RunStreamParams {
   env_id: number;
   variables?: Record<string, unknown>;
-  timeout?: number; // 超时时间（秒）
+  timeout?: number;
+  executor_type?: 'local' | 'remote';
+  slave_id?: string;
 }
 
-// 开始调试响应
-export interface StartDebugResponse {
+// 阻塞式执行请求参数
+export interface RunBlockingParams {
+  env_id: number;
+  variables?: Record<string, unknown>;
+  timeout?: number;
+  executor_type?: 'local' | 'remote';
+  slave_id?: string;
+}
+
+// 执行汇总响应
+export interface ExecutionSummary {
   session_id: string;
-  websocket_url: string;
+  total_steps: number;
+  success_steps: number;
+  failed_steps: number;
+  total_duration_ms: number;
+  status: string;
+  start_time: string;
+  end_time: string;
+}
+
+// 交互响应请求
+export interface InteractionResponseParams {
+  value: string;
+  skipped: boolean;
 }
 
 // 步骤执行结果
@@ -79,24 +102,29 @@ export interface DebugSummary {
   end_time: string;
 }
 
-// WebSocket 消息类型
-export type WSMessageType =
+// SSE 事件类型
+export type SSEEventType =
   | 'connected'
   | 'step_started'
   | 'step_completed'
   | 'step_failed'
   | 'progress'
-  | 'debug_completed'
+  | 'execution_completed'
+  | 'interaction_required'
   | 'error'
-  | 'ping'
-  | 'pong';
+  | 'heartbeat';
 
-// WebSocket 消息
-export interface WSMessage {
-  type: WSMessageType;
+// SSE 事件
+export interface SSEEvent {
+  event: SSEEventType;
+  data: StepResult | ProgressData | DebugSummary | ErrorData | StepStartedData | InteractionData | ConnectedData;
+}
+
+// 连接成功数据
+export interface ConnectedData {
   session_id: string;
-  timestamp: string;
-  data?: StepResult | ProgressData | DebugSummary | ErrorData | StepStartedData;
+  workflow_id: number;
+  mode: ExecutionMode;
 }
 
 // 步骤开始数据
@@ -108,61 +136,97 @@ export interface StepStartedData {
   iteration?: number;
 }
 
+// 交互请求数据
+export interface InteractionData {
+  step_id: string;
+  step_name: string;
+  prompt: string;
+  input_type: 'text' | 'select' | 'confirm';
+  options?: string[];
+  default_value?: string;
+  timeout?: number;
+}
+
 // 错误数据
 export interface ErrorData {
   code: string;
   message: string;
   details?: string;
+  recoverable?: boolean;
 }
 
+// ============ SSE API ============
+
 /**
- * 开始调试
+ * 阻塞式执行工作流
  * @param workflowId 工作流ID
- * @param params 调试参数
+ * @param params 执行参数
  */
-export async function startDebugApi(workflowId: number, params: StartDebugParams) {
-  return requestClient.post<StartDebugResponse>(`/workflows/${workflowId}/debug`, params);
+export async function runBlockingApi(workflowId: number, params: RunBlockingParams) {
+  return requestClient.post<ExecutionSummary>(`/workflows/${workflowId}/run`, params);
 }
 
 /**
- * 停止调试
+ * 停止执行
  * @param sessionId 会话ID
  */
-export async function stopDebugApi(sessionId: string) {
-  return requestClient.delete(`/debug/${sessionId}`);
+export async function stopExecutionApi(sessionId: string) {
+  return requestClient.delete(`/executions/${sessionId}/stop`);
 }
 
 /**
- * 获取调试会话详情
+ * 获取执行状态
  * @param sessionId 会话ID
  */
-export async function getDebugSessionApi(sessionId: string) {
-  return requestClient.get<DebugSession>(`/debug/${sessionId}`);
+export async function getExecutionStatusApi(sessionId: string) {
+  return requestClient.get<DebugSession>(`/executions/${sessionId}/status`);
 }
 
 /**
- * 获取调试会话列表
- * @param workflowId 工作流ID（可选）
- */
-export async function getDebugSessionsApi(workflowId?: number) {
-  const params = workflowId ? { workflow_id: workflowId } : {};
-  return requestClient.get<DebugSession[]>('/debug/sessions', { params });
-}
-
-/**
- * 构建 WebSocket URL
+ * 提交交互响应
  * @param sessionId 会话ID
+ * @param params 交互响应
  */
-export function buildWebSocketUrl(sessionId: string): string {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+export async function submitInteractionApi(sessionId: string, params: InteractionResponseParams) {
+  return requestClient.post(`/executions/${sessionId}/interaction`, params);
+}
+
+/**
+ * 构建 SSE URL
+ * @param workflowId 工作流ID
+ * @param params 执行参数
+ * @param token 认证 token（可选，用于 SSE 认证）
+ */
+export function buildSSEUrl(workflowId: number, params: RunStreamParams, token?: string): string {
   const apiUrl = import.meta.env.VITE_GLOB_API_URL || '';
+  const searchParams = new URLSearchParams();
 
-  // 如果 API URL 是完整的 URL（包含 http:// 或 https://），提取 host
-  if (apiUrl.startsWith('http://') || apiUrl.startsWith('https://')) {
-    const url = new URL(apiUrl);
-    return `${protocol}//${url.host}/ws/debug/${sessionId}`;
+  searchParams.set('env_id', String(params.env_id));
+
+  if (params.variables) {
+    searchParams.set('variables', JSON.stringify(params.variables));
+  }
+  if (params.timeout) {
+    searchParams.set('timeout', String(params.timeout));
+  }
+  if (params.executor_type) {
+    searchParams.set('executor_type', params.executor_type);
+  }
+  if (params.slave_id) {
+    searchParams.set('slave_id', params.slave_id);
+  }
+  // 添加认证 token（EventSource 不支持自定义 headers，需要通过 URL 参数传递）
+  if (token) {
+    searchParams.set('satoken', token);
   }
 
-  // 如果是相对路径（如 /api），使用当前页面的 host
-  return `${protocol}//${window.location.host}/ws/debug/${sessionId}`;
+  const path = `/workflows/${workflowId}/run/stream?${searchParams.toString()}`;
+
+  // 如果 API URL 是完整的 URL，拼接完整路径
+  if (apiUrl.startsWith('http://') || apiUrl.startsWith('https://')) {
+    return `${apiUrl}${path}`;
+  }
+
+  // 如果是相对路径，使用当前页面的 origin
+  return `${window.location.origin}${apiUrl}${path}`;
 }

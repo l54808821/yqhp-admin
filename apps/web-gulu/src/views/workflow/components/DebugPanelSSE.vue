@@ -8,11 +8,15 @@ import {
   Button,
   Card,
   Descriptions,
+  Modal,
   Progress,
   Space,
   Spin,
   Tag,
   Tree,
+  Input,
+  Radio,
+  RadioGroup,
 } from 'ant-design-vue';
 
 // 创建图标组件
@@ -27,15 +31,25 @@ import type {
   ProgressData,
   StepResult,
   StepStartedData,
-  WSMessage,
 } from '#/api/debug';
 
 import {
-  buildWebSocketUrl,
-  startDebugApi,
-  stopDebugApi,
+  buildSSEUrl,
+  stopExecutionApi,
+  submitInteractionApi,
 } from '#/api/debug';
-import { createWebSocketService, type WebSocketService, type WebSocketState } from '#/utils/websocket';
+import {
+  createSSEService,
+  type SSEService,
+  type SSEState,
+  type SSEEvent,
+  type AIInteractionData,
+  type AIChunkData,
+  type AICompleteData,
+  type WorkflowCompletedData,
+} from '#/utils/sse';
+import { useAccessStore } from '@vben/stores';
+
 
 // 树节点类型（动态构建）
 interface TreeNode {
@@ -53,10 +67,13 @@ interface Props {
   workflowId: number;
   envId: number;
   visible?: boolean;
+  executorType?: 'local' | 'remote';
+  slaveId?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   visible: false,
+  executorType: 'local',
 });
 
 const emit = defineEmits<{
@@ -68,8 +85,8 @@ const emit = defineEmits<{
 const loading = ref(false);
 const stopping = ref(false);
 const sessionId = ref<string | null>(null);
-const wsState = ref<WebSocketState>('disconnected');
-const stepResults = ref<StepResult[]>([]); // 改为数组，保持顺序
+const sseState = ref<SSEState>('disconnected');
+const stepResults = ref<StepResult[]>([]);
 const currentProgress = ref<ProgressData | null>(null);
 const debugSummary = ref<DebugSummary | null>(null);
 const logs = ref<string[]>([]);
@@ -77,14 +94,33 @@ const errorMessage = ref<string | null>(null);
 const selectedStepKey = ref<string | null>(null);
 const expandedKeys = ref<string[]>([]);
 
-let wsService: WebSocketService | null = null;
+// AI 相关状态
+const aiContent = ref<Map<string, string>>(new Map()); // stepId -> content
+const currentAIStepId = ref<string | null>(null);
+
+// AI 交互状态
+const interactionOpen = ref(false);
+const interactionData = ref<AIInteractionData | null>(null);
+const interactionValue = ref('');
+const interactionCountdown = ref(0);
+let interactionTimer: ReturnType<typeof setInterval> | null = null;
+
+// 连接断开状态
+const disconnected = ref(false);
+const reconnecting = ref(false);
+const reconnectAttempts = ref(0);
+const maxReconnectAttempts = 3;
+let lastSSEUrl = '';
+
+let sseService: SSEService | null = null;
 
 // 计算属性
-const isRunning = computed(() => wsState.value === 'connected' && !debugSummary.value);
+const isRunning = computed(() => sseState.value === 'connected' && !debugSummary.value);
 const isCompleted = computed(() => !!debugSummary.value);
 const progressPercent = computed(() => currentProgress.value?.percentage || 0);
 
-// 生成唯一的树节点key（考虑parent_id和iteration）
+
+// 生成唯一的树节点key
 function generateNodeKey(result: StepResult): string {
   if (result.parent_id && result.iteration) {
     return `${result.parent_id}_iter${result.iteration}_${result.step_id}`;
@@ -99,9 +135,8 @@ function generateNodeKey(result: StepResult): string {
 const treeData = computed<TreeNode[]>(() => {
   const rootNodes: TreeNode[] = [];
   const nodeMap = new Map<string, TreeNode>();
-  const parentChildMap = new Map<string, Map<number, TreeNode[]>>(); // parent_id -> iteration -> children
+  const parentChildMap = new Map<string, Map<number, TreeNode[]>>();
 
-  // 第一遍：创建所有节点
   for (const result of stepResults.value) {
     const nodeKey = generateNodeKey(result);
     const node: TreeNode = {
@@ -116,7 +151,6 @@ const treeData = computed<TreeNode[]>(() => {
     };
     nodeMap.set(nodeKey, node);
 
-    // 如果有parent_id，记录父子关系
     if (result.parent_id) {
       const iteration = result.iteration || 0;
       if (!parentChildMap.has(result.parent_id)) {
@@ -128,24 +162,20 @@ const treeData = computed<TreeNode[]>(() => {
       }
       iterMap.get(iteration)!.push(node);
     } else {
-      // 根节点
       rootNodes.push(node);
     }
   }
 
-  // 第二遍：构建树结构，为循环步骤添加迭代子节点
   for (const result of stepResults.value) {
     if (result.step_type === 'loop' && parentChildMap.has(result.step_id)) {
       const nodeKey = generateNodeKey(result);
       const parentNode = nodeMap.get(nodeKey);
       if (parentNode) {
         const iterMap = parentChildMap.get(result.step_id)!;
-        // 按迭代次数排序
         const iterations = Array.from(iterMap.keys()).sort((a, b) => a - b);
         for (const iter of iterations) {
           const children = iterMap.get(iter)!;
           if (iter > 0) {
-            // 创建迭代容器节点
             const iterNode: TreeNode = {
               key: `${result.step_id}_iteration_${iter}`,
               title: `第 ${iter} 次迭代`,
@@ -157,7 +187,6 @@ const treeData = computed<TreeNode[]>(() => {
             };
             parentNode.children!.push(iterNode);
           } else {
-            // iteration为0的直接作为子节点
             parentNode.children!.push(...children);
           }
         }
@@ -168,10 +197,10 @@ const treeData = computed<TreeNode[]>(() => {
   return rootNodes;
 });
 
+
 // 选中的步骤详情
 const selectedStep = computed<StepResult | null>(() => {
   if (!selectedStepKey.value) return null;
-  // 在所有结果中查找
   for (const result of stepResults.value) {
     const nodeKey = generateNodeKey(result);
     if (nodeKey === selectedStepKey.value) {
@@ -181,20 +210,25 @@ const selectedStep = computed<StepResult | null>(() => {
   return null;
 });
 
+// 选中步骤的 AI 内容
+const selectedStepAIContent = computed(() => {
+  if (!selectedStep.value) return null;
+  return aiContent.value.get(selectedStep.value.step_id) || null;
+});
+
 const statusText = computed(() => {
-  if (loading.value) return '正在启动调试...';
+  if (loading.value) return '正在启动...';
   if (stopping.value) return '正在停止...';
-  if (wsState.value === 'connecting') return '正在连接...';
-  if (wsState.value === 'reconnecting') return '正在重连...';
-  if (wsState.value === 'error') return '连接错误';
+  if (sseState.value === 'connecting') return '正在连接...';
+  if (sseState.value === 'error') return '连接错误';
   if (debugSummary.value) {
     const status = debugSummary.value.status;
-    if (status === 'completed' || status === 'success') return '调试完成';
-    if (status === 'failed') return '调试失败';
-    if (status === 'timeout') return '调试超时';
+    if (status === 'completed' || status === 'success') return '执行完成';
+    if (status === 'failed') return '执行失败';
+    if (status === 'timeout') return '执行超时';
     if (status === 'stopped') return '已停止';
   }
-  if (isRunning.value) return '调试中...';
+  if (isRunning.value) return '执行中...';
   return '未开始';
 });
 
@@ -205,7 +239,7 @@ const statusColor = computed(() => {
     if (status === 'failed' || status === 'timeout') return 'error';
     if (status === 'stopped') return 'warning';
   }
-  if (wsState.value === 'error') return 'error';
+  if (sseState.value === 'error') return 'error';
   if (isRunning.value) return 'processing';
   return 'default';
 });
@@ -249,7 +283,8 @@ onBeforeUnmount(() => {
   cleanup();
 });
 
-// 开始调试
+
+// 开始执行
 async function startDebug() {
   if (!props.workflowId || !props.envId) return;
 
@@ -262,78 +297,159 @@ async function startDebug() {
     logs.value = [];
     selectedStepKey.value = null;
     expandedKeys.value = [];
+    aiContent.value = new Map();
+    currentAIStepId.value = null;
 
-    const response = await startDebugApi(props.workflowId, {
+    // 获取认证 token
+    const accessStore = useAccessStore();
+    const token = accessStore.accessToken || '';
+
+    // 构建 SSE URL（包含认证 token）
+    const url = buildSSEUrl(props.workflowId, {
       env_id: props.envId,
-    });
+      executor_type: props.executorType,
+      slave_id: props.slaveId,
+    }, token);
 
-    sessionId.value = response.session_id;
-    connectWebSocket(response.session_id);
+    // 连接 SSE
+    connectSSE(url);
   } catch (error: any) {
-    errorMessage.value = error?.message || '启动调试失败';
-  } finally {
+    errorMessage.value = error?.message || '启动执行失败';
     loading.value = false;
   }
 }
 
-// 停止调试
+// 停止执行
 async function stopDebug() {
   if (!sessionId.value) return;
 
   try {
     stopping.value = true;
-    await stopDebugApi(sessionId.value);
+    await stopExecutionApi(sessionId.value);
   } catch (error: any) {
-    errorMessage.value = error?.message || '停止调试失败';
+    errorMessage.value = error?.message || '停止执行失败';
   } finally {
     stopping.value = false;
   }
 }
 
-// 连接 WebSocket
-function connectWebSocket(sid: string) {
-  const url = buildWebSocketUrl(sid);
+// 连接 SSE
+function connectSSE(url: string) {
+  lastSSEUrl = url;
+  disconnected.value = false;
 
-  wsService = createWebSocketService({
+  sseService = createSSEService({
     url,
-    onMessage: handleMessage,
+    onMessage: handleSSEMessage,
     onStateChange: (state) => {
-      wsState.value = state;
+      sseState.value = state;
+      if (state === 'connected') {
+        loading.value = false;
+        reconnecting.value = false;
+        reconnectAttempts.value = 0;
+        disconnected.value = false;
+      } else if (state === 'disconnected' && !debugSummary.value) {
+        // 非正常断开（执行未完成时断开）
+        handleDisconnect();
+      }
     },
     onError: () => {
-      errorMessage.value = 'WebSocket 连接错误';
+      loading.value = false;
+      if (!debugSummary.value) {
+        handleDisconnect();
+      }
     },
   });
 
-  wsService.connect();
+  sseService.connect();
 }
 
-// 处理 WebSocket 消息
-function handleMessage(message: WSMessage) {
-  addLog(`[${message.type}] ${JSON.stringify(message.data || {})}`);
+// 处理连接断开
+function handleDisconnect() {
+  if (debugSummary.value) return; // 执行已完成，不需要处理
 
-  switch (message.type) {
+  disconnected.value = true;
+  errorMessage.value = 'SSE 连接已断开';
+
+  // 自动重连（最多尝试 maxReconnectAttempts 次）
+  if (reconnectAttempts.value < maxReconnectAttempts && lastSSEUrl) {
+    autoReconnect();
+  }
+}
+
+// 自动重连
+function autoReconnect() {
+  if (reconnecting.value || debugSummary.value) return;
+
+  reconnecting.value = true;
+  reconnectAttempts.value++;
+  errorMessage.value = `正在尝试重连 (${reconnectAttempts.value}/${maxReconnectAttempts})...`;
+
+  // 延迟重连
+  setTimeout(() => {
+    if (disconnected.value && !debugSummary.value) {
+      sseService?.disconnect();
+      connectSSE(lastSSEUrl);
+    }
+  }, 2000 * reconnectAttempts.value); // 递增延迟
+}
+
+// 手动重连
+function handleReconnect() {
+  if (!lastSSEUrl) return;
+
+  reconnectAttempts.value = 0;
+  reconnecting.value = false;
+  disconnected.value = false;
+  errorMessage.value = null;
+
+  sseService?.disconnect();
+  connectSSE(lastSSEUrl);
+}
+
+// 处理 SSE 消息
+function handleSSEMessage(event: SSEEvent) {
+  // 保存会话ID
+  if (event.session_id && !sessionId.value) {
+    sessionId.value = event.session_id;
+  }
+
+  addLog(`[${event.type}] ${JSON.stringify(event.data || {})}`);
+
+  switch (event.type) {
+    case 'connected':
+      // 连接成功
+      break;
     case 'step_started':
-      handleStepStarted(message.data as StepStartedData);
+      handleStepStarted(event.data as StepStartedData);
       break;
     case 'step_completed':
     case 'step_failed':
-      handleStepResult(message.data as StepResult);
+      handleStepResult(event.data as StepResult);
       break;
     case 'progress':
-      handleProgress(message.data as ProgressData);
+      handleProgress(event.data as ProgressData);
       break;
-    case 'debug_completed':
-      handleDebugComplete(message.data as DebugSummary);
+    case 'workflow_completed':
+      handleWorkflowComplete(event.data as WorkflowCompletedData);
+      break;
+    case 'ai_chunk':
+      handleAIChunk(event.data as AIChunkData);
+      break;
+    case 'ai_complete':
+      handleAIComplete(event.data as AICompleteData);
+      break;
+    case 'ai_interaction_required':
+      handleAIInteraction(event.data as AIInteractionData);
       break;
     case 'error':
-      handleError(message.data as { message: string });
+      handleError(event.data as { message: string });
       break;
   }
 }
 
+
 function handleStepStarted(data: StepStartedData) {
-  // 添加一个 running 状态的步骤结果
   const result: StepResult = {
     step_id: data.step_id,
     step_name: data.step_name,
@@ -344,13 +460,10 @@ function handleStepStarted(data: StepStartedData) {
     duration_ms: 0,
   };
   stepResults.value = [...stepResults.value, result];
-
-  // 自动选中当前执行的步骤
   selectedStepKey.value = generateNodeKey(result);
 }
 
 function handleStepResult(result: StepResult) {
-  // 更新已有的步骤结果
   const index = stepResults.value.findIndex(r =>
     r.step_id === result.step_id &&
     r.parent_id === result.parent_id &&
@@ -362,7 +475,6 @@ function handleStepResult(result: StepResult) {
     newResults[index] = result;
     stepResults.value = newResults;
   } else {
-    // 如果没找到（可能step_started消息丢失），直接添加
     stepResults.value = [...stepResults.value, result];
   }
 }
@@ -371,14 +483,94 @@ function handleProgress(progress: ProgressData) {
   currentProgress.value = progress;
 }
 
-function handleDebugComplete(summary: DebugSummary) {
-  debugSummary.value = summary;
-  emit('complete', summary);
-  wsService?.disconnect();
+function handleWorkflowComplete(data: WorkflowCompletedData) {
+  debugSummary.value = {
+    session_id: data.session_id,
+    total_steps: data.total_steps,
+    success_steps: data.success_steps,
+    failed_steps: data.failed_steps,
+    total_duration_ms: data.total_duration_ms,
+    status: data.status as any,
+    step_results: stepResults.value,
+    start_time: '',
+    end_time: '',
+  };
+  emit('complete', debugSummary.value);
+  sseService?.disconnect();
+}
+
+function handleAIChunk(data: AIChunkData) {
+  currentAIStepId.value = data.step_id;
+  const current = aiContent.value.get(data.step_id) || '';
+  aiContent.value.set(data.step_id, current + data.chunk);
+  // 触发响应式更新
+  aiContent.value = new Map(aiContent.value);
+}
+
+function handleAIComplete(data: AICompleteData) {
+  aiContent.value.set(data.step_id, data.content);
+  aiContent.value = new Map(aiContent.value);
+  currentAIStepId.value = null;
+}
+
+function handleAIInteraction(data: AIInteractionData) {
+  interactionData.value = data;
+  interactionValue.value = data.default_value || '';
+  interactionOpen.value = true;
+
+  // 启动倒计时
+  if (data.timeout > 0) {
+    interactionCountdown.value = data.timeout;
+    interactionTimer = setInterval(() => {
+      interactionCountdown.value--;
+      if (interactionCountdown.value <= 0) {
+        handleInteractionTimeout();
+      }
+    }, 1000);
+  }
 }
 
 function handleError(data: { message: string }) {
   errorMessage.value = data.message;
+}
+
+
+// 交互超时处理
+function handleInteractionTimeout() {
+  if (interactionTimer) {
+    clearInterval(interactionTimer);
+    interactionTimer = null;
+  }
+  submitInteraction(interactionData.value?.default_value || '', true);
+}
+
+// 提交交互响应
+async function submitInteraction(value: string, skipped: boolean = false) {
+  if (!sessionId.value) return;
+
+  try {
+    await submitInteractionApi(sessionId.value, { value, skipped });
+  } catch (error: any) {
+    errorMessage.value = error?.message || '提交交互响应失败';
+  } finally {
+    interactionOpen.value = false;
+    interactionData.value = null;
+    interactionValue.value = '';
+    if (interactionTimer) {
+      clearInterval(interactionTimer);
+      interactionTimer = null;
+    }
+  }
+}
+
+// 确认交互
+function handleInteractionConfirm() {
+  submitInteraction(interactionValue.value, false);
+}
+
+// 跳过交互
+function handleInteractionSkip() {
+  submitInteraction('', true);
 }
 
 function addLog(log: string) {
@@ -391,9 +583,17 @@ function addLog(log: string) {
 
 // 清理资源
 function cleanup() {
-  wsService?.disconnect();
-  wsService = null;
+  sseService?.disconnect();
+  sseService = null;
   sessionId.value = null;
+  disconnected.value = false;
+  reconnecting.value = false;
+  reconnectAttempts.value = 0;
+  lastSSEUrl = '';
+  if (interactionTimer) {
+    clearInterval(interactionTimer);
+    interactionTimer = null;
+  }
 }
 
 // 关闭面板
@@ -456,6 +656,7 @@ defineExpose({
 });
 </script>
 
+
 <template>
   <div class="debug-panel">
     <!-- 头部状态 -->
@@ -473,7 +674,7 @@ defineExpose({
           :loading="loading"
           @click="startDebug"
         >
-          开始调试
+          开始执行
         </Button>
         <Button
           v-if="isRunning"
@@ -485,7 +686,7 @@ defineExpose({
           停止
         </Button>
         <Button v-if="isCompleted" @click="handleRestart">
-          重新调试
+          重新执行
         </Button>
         <Button @click="handleClose">关闭</Button>
       </Space>
@@ -502,7 +703,7 @@ defineExpose({
 
     <!-- 错误提示 -->
     <Alert
-      v-if="errorMessage"
+      v-if="errorMessage && !disconnected"
       type="error"
       :message="errorMessage"
       closable
@@ -510,13 +711,41 @@ defineExpose({
       @close="errorMessage = null"
     />
 
-    <!-- 调试汇总 -->
+    <!-- 连接断开提示 -->
+    <Alert
+      v-if="disconnected && !debugSummary"
+      type="warning"
+      class="disconnect-alert"
+    >
+      <template #message>
+        <div class="disconnect-message">
+          <span v-if="reconnecting">
+            {{ errorMessage || '正在尝试重连...' }}
+          </span>
+          <span v-else>
+            连接已断开
+            <span v-if="reconnectAttempts >= maxReconnectAttempts">（已达最大重试次数）</span>
+          </span>
+          <Button
+            v-if="!reconnecting"
+            type="link"
+            size="small"
+            @click="handleReconnect"
+          >
+            重新连接
+          </Button>
+        </div>
+      </template>
+    </Alert>
+
+    <!-- 执行汇总 -->
     <div v-if="debugSummary" class="summary-bar">
       <span>总步骤: <strong>{{ debugSummary.total_steps }}</strong></span>
       <span class="success">成功: <strong>{{ debugSummary.success_steps }}</strong></span>
       <span class="error">失败: <strong>{{ debugSummary.failed_steps }}</strong></span>
       <span>耗时: <strong>{{ formatDuration(debugSummary.total_duration_ms) }}</strong></span>
     </div>
+
 
     <!-- 主体内容：左右结构 -->
     <div class="debug-content">
@@ -540,6 +769,7 @@ defineExpose({
               />
               <span class="node-title">{{ title }}</span>
               <Tag v-if="type === 'loop'" color="purple" size="small">循环</Tag>
+              <Tag v-if="type === 'ai'" color="blue" size="small">AI</Tag>
               <Tag v-if="type === 'iteration'" color="cyan" size="small">迭代</Tag>
               <Tag v-if="status === 'running'" color="processing" size="small">执行中</Tag>
               <Tag v-else-if="status === 'success' || status === 'completed'" color="success" size="small">成功</Tag>
@@ -571,10 +801,20 @@ defineExpose({
             <Descriptions.Item label="耗时">{{ formatDuration(selectedStep.duration_ms) }}</Descriptions.Item>
           </Descriptions>
 
+
           <!-- 错误信息 -->
           <div v-if="selectedStep.error" class="detail-section">
             <div class="section-title">错误信息</div>
             <Alert type="error" :message="selectedStep.error" />
+          </div>
+
+          <!-- AI 输出内容 -->
+          <div v-if="selectedStep.step_type === 'ai' && selectedStepAIContent" class="detail-section">
+            <div class="section-title">AI 输出</div>
+            <div class="ai-output">
+              <pre>{{ selectedStepAIContent }}</pre>
+              <span v-if="currentAIStepId === selectedStep.step_id" class="typing-cursor">|</span>
+            </div>
           </div>
 
           <!-- 输出数据 -->
@@ -597,15 +837,84 @@ defineExpose({
       </Card>
     </div>
 
-    <!-- 底部：调试日志 -->
-    <Card class="logs-card" size="small" title="调试日志">
+    <!-- 底部：执行日志 -->
+    <Card class="logs-card" size="small" title="执行日志">
       <div class="logs-container">
         <div v-for="(log, idx) in logs" :key="idx" class="log-line">{{ log }}</div>
         <div v-if="logs.length === 0" class="empty-logs">暂无日志</div>
       </div>
     </Card>
+
+
+    <!-- AI 交互对话框 -->
+    <Modal
+      v-model:open="interactionOpen"
+      title="AI 交互"
+      :closable="false"
+      :maskClosable="false"
+      :footer="null"
+    >
+      <div v-if="interactionData" class="interaction-content">
+        <!-- 交互提示 -->
+        <div class="interaction-prompt">{{ interactionData.prompt }}</div>
+
+        <!-- 确认模式 -->
+        <div v-if="interactionData.type === 'confirm'" class="confirm-buttons">
+          <Space>
+            <Button type="primary" @click="interactionValue = 'confirm'; handleInteractionConfirm()">
+              确认
+            </Button>
+            <Button @click="interactionValue = 'reject'; handleInteractionConfirm()">
+              拒绝
+            </Button>
+          </Space>
+        </div>
+
+        <!-- 输入模式 -->
+        <div v-else-if="interactionData.type === 'input'">
+          <Input.TextArea
+            v-model:value="interactionValue"
+            :rows="4"
+            placeholder="请输入..."
+          />
+          <div class="interaction-actions">
+            <Space>
+              <Button @click="handleInteractionSkip">跳过</Button>
+              <Button type="primary" @click="handleInteractionConfirm">提交</Button>
+            </Space>
+          </div>
+        </div>
+
+        <!-- 选择模式 -->
+        <div v-else-if="interactionData.type === 'select'">
+          <RadioGroup v-model:value="interactionValue">
+            <Space direction="vertical">
+              <Radio
+                v-for="option in interactionData.options"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.label }}
+              </Radio>
+            </Space>
+          </RadioGroup>
+          <div class="interaction-actions">
+            <Space>
+              <Button @click="handleInteractionSkip">跳过</Button>
+              <Button type="primary" @click="handleInteractionConfirm">提交</Button>
+            </Space>
+          </div>
+        </div>
+
+        <!-- 倒计时 -->
+        <div v-if="interactionCountdown > 0" class="countdown">
+          剩余时间：{{ interactionCountdown }} 秒
+        </div>
+      </div>
+    </Modal>
   </div>
 </template>
+
 
 <style scoped>
 .debug-panel {
@@ -629,6 +938,16 @@ defineExpose({
 
 .error-alert {
   margin: 4px 0;
+}
+
+.disconnect-alert {
+  margin: 4px 0;
+}
+
+.disconnect-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .summary-bar {
@@ -714,6 +1033,31 @@ defineExpose({
   max-height: 200px;
 }
 
+.ai-output {
+  background: #f0f7ff;
+  padding: 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 300px;
+  overflow: auto;
+}
+
+.ai-output pre {
+  margin: 0;
+  font-family: inherit;
+}
+
+.typing-cursor {
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
 .step-logs {
   background: #1e1e1e;
   color: #d4d4d4;
@@ -751,5 +1095,30 @@ defineExpose({
   text-align: center;
   color: #999;
   padding: 20px;
+}
+
+.interaction-content {
+  padding: 16px 0;
+}
+
+.interaction-prompt {
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.confirm-buttons {
+  text-align: center;
+}
+
+.interaction-actions {
+  margin-top: 16px;
+  text-align: right;
+}
+
+.countdown {
+  margin-top: 12px;
+  text-align: center;
+  color: #ff4d4f;
+  font-size: 13px;
 }
 </style>

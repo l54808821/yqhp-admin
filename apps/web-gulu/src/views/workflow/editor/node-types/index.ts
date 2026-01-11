@@ -10,6 +10,7 @@ import {
   MessageSquare,
 } from '#/components/icons';
 
+import AIProperty from './AIProperty.vue';
 import ConditionProperty from './ConditionProperty.vue';
 import DatabaseProperty from './DatabaseProperty.vue';
 import HttpProperty from './HttpProperty.vue';
@@ -17,6 +18,10 @@ import LoopProperty from './LoopProperty.vue';
 import MqProperty from './MqProperty.vue';
 import ScriptProperty from './ScriptProperty.vue';
 import WaitProperty from './WaitProperty.vue';
+
+// AI 图标（使用 sparkles 表示 AI）
+import { createIconifyIcon } from '@vben/icons';
+const Sparkles = createIconifyIcon('lucide:sparkles');
 
 export interface NodeTypeConfig {
   key: string;
@@ -57,6 +62,39 @@ export const nodeTypeRegistry: Record<string, NodeTypeConfig> = {
       config: { language: 'javascript', script: '' },
     }),
     getDescription: (node) => node.config?.language || '',
+  },
+  ai: {
+    key: 'ai',
+    label: 'AI 节点',
+    icon: Sparkles,
+    color: '#1677ff',
+    propertyComponent: AIProperty,
+    defaultConfig: () => ({
+      config: {
+        provider: 'openai',
+        model: 'gpt-4o',
+        api_key: '',
+        base_url: '',
+        system_prompt: '',
+        prompt: '',
+        temperature: 0.7,
+        max_tokens: 2000,
+        streaming: true,
+        interactive: false,
+        interaction_type: 'confirm',
+        interaction_prompt: '',
+        interaction_options: [],
+        interaction_timeout: 300,
+        interaction_default: '',
+      },
+    }),
+    getDescription: (node) => {
+      const config = node.config;
+      if (!config) return '';
+      const provider = config.provider || 'openai';
+      const model = config.model || '';
+      return `${provider}/${model}`;
+    },
   },
   condition: {
     key: 'condition',

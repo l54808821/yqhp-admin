@@ -7,7 +7,7 @@ import type { DebugSummary } from '#/api/debug';
 import type { Workflow } from '#/api/workflow';
 
 import { useProjectStore } from '#/store/project';
-import DebugPanel from './DebugPanel.vue';
+import DebugPanelSSE from './DebugPanelSSE.vue';
 
 interface Props {
   open: boolean;
@@ -22,7 +22,7 @@ const emit = defineEmits<{
 }>();
 
 const projectStore = useProjectStore();
-const debugPanelRef = ref<InstanceType<typeof DebugPanel> | null>(null);
+const debugPanelRef = ref<InstanceType<typeof DebugPanelSSE> | null>(null);
 
 watch(
   () => props.open,
@@ -65,7 +65,7 @@ function handleDebugComplete(summary: DebugSummary) {
     :mask-closable="false"
     @close="handleClose"
   >
-    <DebugPanel
+    <DebugPanelSSE
       v-if="workflow && projectStore.currentEnvId"
       ref="debugPanelRef"
       :workflow-id="workflow.id"
