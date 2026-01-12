@@ -13,7 +13,7 @@ import {
 import AIProperty from './AIProperty.vue';
 import ConditionProperty from './ConditionProperty.vue';
 import DatabaseProperty from './DatabaseProperty.vue';
-import HttpProperty from './HttpProperty.vue';
+import HttpPropertyPanel from './http/HttpPropertyPanel.vue';
 import LoopProperty from './LoopProperty.vue';
 import MqProperty from './MqProperty.vue';
 import ScriptProperty from './ScriptProperty.vue';
@@ -45,9 +45,28 @@ export const nodeTypeRegistry: Record<string, NodeTypeConfig> = {
     label: 'HTTP请求',
     icon: Globe,
     color: '#52c41a',
-    propertyComponent: HttpProperty,
+    propertyComponent: HttpPropertyPanel,
     defaultConfig: () => ({
-      config: { method: 'GET', url: '', headers: {}, body: '' },
+      config: {
+        method: 'GET',
+        url: '',
+        domainCode: '',
+        params: [],
+        headers: [],
+        cookies: [],
+        body: { type: 'none', formData: [], urlencoded: [], raw: '' },
+        auth: { type: 'none' },
+        settings: {
+          connectTimeout: 30000,
+          readTimeout: 30000,
+          followRedirects: true,
+          maxRedirects: 10,
+          verifySsl: true,
+          saveCookies: true,
+        },
+      },
+      preProcessors: [],
+      postProcessors: [],
     }),
     getDescription: (node) =>
       node.config?.url ? `${node.config.method || 'GET'} ${node.config.url}` : '',

@@ -8,6 +8,7 @@ import { getNodeTypeConfig } from './node-types';
 
 const props = defineProps<{
   node: any;
+  envId?: number;
 }>();
 
 const emit = defineEmits<{
@@ -55,8 +56,15 @@ const propertyComponent = computed(() => {
   return config?.propertyComponent || null;
 });
 
-function handleUpdate() {
-  if (localNode.value) {
+// 是否是 HTTP 节点（使用特殊布局）
+const isHttpNode = computed(() => localNode.value?.type === 'http');
+
+function handleUpdate(updatedNode?: any) {
+  if (updatedNode) {
+    // 如果子组件传递了更新后的节点数据，直接使用
+    localNode.value = JSON.parse(JSON.stringify(updatedNode));
+    emit('update', JSON.parse(JSON.stringify(updatedNode)));
+  } else if (localNode.value) {
     emit('update', JSON.parse(JSON.stringify(localNode.value)));
   }
 }
@@ -69,30 +77,50 @@ function handleClose() {
 <template>
   <div class="property-panel">
     <div v-if="localNode" class="panel-content">
-      <div class="panel-header">
-        <span class="panel-title">节点属性</span>
-        <Button type="text" size="small" @click="handleClose">
-          <template #icon><X class="size-4" /></template>
-        </Button>
-      </div>
-
-      <Form layout="vertical" @finish="handleUpdate">
-        <Form.Item label="节点名称">
-          <Input v-model:value="localNode.name" @blur="handleUpdate" />
-        </Form.Item>
-
-        <!-- 动态加载节点类型对应的属性编辑组件 -->
+      <!-- HTTP 节点使用特殊布局 -->
+      <template v-if="isHttpNode">
+        <div class="panel-header">
+          <Input
+            v-model:value="localNode.name"
+            class="node-name-input"
+            placeholder="节点名称"
+            @blur="handleUpdate()"
+          />
+          <Button type="text" size="small" @click="handleClose">
+            <template #icon><X class="size-4" /></template>
+          </Button>
+        </div>
         <component
           :is="propertyComponent"
-          v-if="propertyComponent"
           :node="localNode"
+          :env-id="envId"
           @update="handleUpdate"
         />
+      </template>
 
-        <Button type="primary" html-type="submit" block class="submit-btn">
-          应用更改
-        </Button>
-      </Form>
+      <!-- 其他节点使用原有布局 -->
+      <template v-else>
+        <div class="panel-header">
+          <span class="panel-title">节点属性</span>
+          <Button type="text" size="small" @click="handleClose">
+            <template #icon><X class="size-4" /></template>
+          </Button>
+        </div>
+
+        <Form layout="vertical">
+          <Form.Item label="节点名称">
+            <Input v-model:value="localNode.name" @blur="handleUpdate()" />
+          </Form.Item>
+
+          <!-- 动态加载节点类型对应的属性编辑组件 -->
+          <component
+            :is="propertyComponent"
+            v-if="propertyComponent"
+            :node="localNode"
+            @update="handleUpdate()"
+          />
+        </Form>
+      </template>
     </div>
   </div>
 </template>
@@ -113,6 +141,8 @@ function handleClose() {
   padding: 16px;
   overflow-y: auto;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .panel-header {
@@ -120,6 +150,7 @@ function handleClose() {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 16px;
+  flex-shrink: 0;
 }
 
 .panel-title {
@@ -128,7 +159,21 @@ function handleClose() {
   color: hsl(var(--foreground));
 }
 
-.submit-btn {
-  margin-top: 16px;
+.node-name-input {
+  flex: 1;
+  margin-right: 8px;
+  font-weight: 500;
+}
+
+.node-name-input :deep(.ant-input) {
+  border: none;
+  background: transparent;
+  font-size: 16px;
+  padding-left: 0;
+}
+
+.node-name-input :deep(.ant-input:focus) {
+  box-shadow: none;
+  border-bottom: 1px solid hsl(var(--primary));
 }
 </style>

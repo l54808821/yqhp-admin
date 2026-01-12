@@ -230,3 +230,100 @@ export function buildSSEUrl(workflowId: number, params: RunStreamParams, token?:
   // 如果是相对路径，使用当前页面的 origin
   return `${window.location.origin}${apiUrl}${path}`;
 }
+
+// ============ 单步调试 API ============
+
+// 单步调试请求参数
+export interface DebugStepParams {
+  nodeConfig: {
+    id: string;
+    type: string;
+    name: string;
+    config: {
+      method: string;
+      url: string;
+      domainCode?: string;
+      params?: Array<{ id: string; enabled: boolean; key: string; value: string; type?: string; description?: string }>;
+      headers?: Array<{ id: string; enabled: boolean; key: string; value: string; type?: string; description?: string }>;
+      cookies?: Array<{ id: string; enabled: boolean; key: string; value: string; type?: string; description?: string }>;
+      body?: {
+        type: string;
+        formData?: Array<{ id: string; enabled: boolean; key: string; value: string; type?: string }>;
+        urlencoded?: Array<{ id: string; enabled: boolean; key: string; value: string }>;
+        raw?: string;
+      };
+      auth?: {
+        type: string;
+        basic?: { username: string; password: string };
+        bearer?: { token: string };
+        apikey?: { key: string; value: string; addTo: string };
+      };
+      settings?: {
+        connectTimeout?: number;
+        readTimeout?: number;
+        followRedirects?: boolean;
+        maxRedirects?: number;
+        verifySsl?: boolean;
+        saveCookies?: boolean;
+      };
+    };
+    preProcessors?: Array<{ id: string; type: string; enabled: boolean; name?: string; config: Record<string, unknown> }>;
+    postProcessors?: Array<{ id: string; type: string; enabled: boolean; name?: string; config: Record<string, unknown> }>;
+  };
+  envId?: number;
+  variables?: Record<string, unknown>;
+}
+
+// 单步调试响应
+export interface DebugStepResponse {
+  success: boolean;
+  response?: {
+    statusCode: number;
+    statusText: string;
+    duration: number;
+    size: number;
+    headers: Record<string, string>;
+    cookies?: Record<string, string>;
+    body: string;
+    bodyType: string;
+  };
+  preProcessorResults?: Array<{
+    keywordId: string;
+    type: string;
+    name?: string;
+    success: boolean;
+    message?: string;
+    output?: Record<string, unknown>;
+    logs?: string[];
+  }>;
+  postProcessorResults?: Array<{
+    keywordId: string;
+    type: string;
+    name?: string;
+    success: boolean;
+    message?: string;
+    output?: Record<string, unknown>;
+    logs?: string[];
+  }>;
+  assertionResults?: Array<{
+    name: string;
+    passed: boolean;
+    message?: string;
+  }>;
+  consoleLogs?: string[];
+  actualRequest?: {
+    url: string;
+    method: string;
+    headers: Record<string, string>;
+    body?: string;
+  };
+  error?: string;
+}
+
+/**
+ * 单步调试 HTTP 节点
+ * @param params 调试参数
+ */
+export async function debugStepApi(params: DebugStepParams): Promise<DebugStepResponse> {
+  return requestClient.post<DebugStepResponse>('/debug/step', params);
+}

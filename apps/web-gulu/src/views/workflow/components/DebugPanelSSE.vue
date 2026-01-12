@@ -33,6 +33,8 @@ import type {
   StepStartedData,
 } from '#/api/debug';
 
+import HttpStepDetail from './HttpStepDetail.vue';
+
 import {
   buildSSEUrl,
   stopExecutionApi,
@@ -608,6 +610,13 @@ function handleRestart() {
   startDebug();
 }
 
+// 调试 HTTP 步骤
+function handleDebugHttpStep() {
+  // TODO: 实现单步调试功能
+  // 需要获取选中步骤的配置，调用 /api/v1/debug/step 接口
+  console.log('Debug HTTP step:', selectedStep.value);
+}
+
 // 树节点选择
 function handleTreeSelect(selectedKeys: (string | number)[]) {
   const key = selectedKeys[0];
@@ -786,50 +795,60 @@ defineExpose({
       <!-- 右侧：步骤详情 -->
       <Card class="detail-panel" size="small" title="步骤详情">
         <template v-if="selectedStep">
-          <Descriptions :column="1" size="small" bordered>
-            <Descriptions.Item label="步骤名称">{{ selectedStep.step_name }}</Descriptions.Item>
-            <Descriptions.Item label="步骤ID">{{ selectedStep.step_id }}</Descriptions.Item>
-            <Descriptions.Item label="步骤类型">{{ selectedStep.step_type || '-' }}</Descriptions.Item>
-            <Descriptions.Item v-if="selectedStep.parent_id" label="父步骤">{{ selectedStep.parent_id }}</Descriptions.Item>
-            <Descriptions.Item v-if="selectedStep.iteration" label="迭代次数">第 {{ selectedStep.iteration }} 次</Descriptions.Item>
-            <Descriptions.Item label="状态">
-              <Tag v-if="selectedStep.status === 'running'" color="processing">执行中</Tag>
-              <Tag v-else-if="selectedStep.status === 'success'" color="success">成功</Tag>
-              <Tag v-else-if="selectedStep.status === 'failed'" color="error">失败</Tag>
-              <Tag v-else color="default">等待</Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="耗时">{{ formatDuration(selectedStep.duration_ms) }}</Descriptions.Item>
-          </Descriptions>
+          <!-- HTTP 步骤使用专用组件 -->
+          <HttpStepDetail
+            v-if="selectedStep.step_type === 'http'"
+            :step-result="selectedStep"
+            @debug-step="handleDebugHttpStep"
+          />
+
+          <!-- 其他步骤类型使用通用展示 -->
+          <template v-else>
+            <Descriptions :column="1" size="small" bordered>
+              <Descriptions.Item label="步骤名称">{{ selectedStep.step_name }}</Descriptions.Item>
+              <Descriptions.Item label="步骤ID">{{ selectedStep.step_id }}</Descriptions.Item>
+              <Descriptions.Item label="步骤类型">{{ selectedStep.step_type || '-' }}</Descriptions.Item>
+              <Descriptions.Item v-if="selectedStep.parent_id" label="父步骤">{{ selectedStep.parent_id }}</Descriptions.Item>
+              <Descriptions.Item v-if="selectedStep.iteration" label="迭代次数">第 {{ selectedStep.iteration }} 次</Descriptions.Item>
+              <Descriptions.Item label="状态">
+                <Tag v-if="selectedStep.status === 'running'" color="processing">执行中</Tag>
+                <Tag v-else-if="selectedStep.status === 'success'" color="success">成功</Tag>
+                <Tag v-else-if="selectedStep.status === 'failed'" color="error">失败</Tag>
+                <Tag v-else color="default">等待</Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="耗时">{{ formatDuration(selectedStep.duration_ms) }}</Descriptions.Item>
+            </Descriptions>
 
 
-          <!-- 错误信息 -->
-          <div v-if="selectedStep.error" class="detail-section">
-            <div class="section-title">错误信息</div>
-            <Alert type="error" :message="selectedStep.error" />
-          </div>
-
-          <!-- AI 输出内容 -->
-          <div v-if="selectedStep.step_type === 'ai' && selectedStepAIContent" class="detail-section">
-            <div class="section-title">AI 输出</div>
-            <div class="ai-output">
-              <pre>{{ selectedStepAIContent }}</pre>
-              <span v-if="currentAIStepId === selectedStep.step_id" class="typing-cursor">|</span>
+            <!-- 错误信息 -->
+            <div v-if="selectedStep.error" class="detail-section">
+              <div class="section-title">错误信息</div>
+              <Alert type="error" :message="selectedStep.error" />
             </div>
-          </div>
 
-          <!-- 输出数据 -->
-          <div v-if="selectedStep.output && Object.keys(selectedStep.output).length > 0" class="detail-section">
-            <div class="section-title">输出数据</div>
-            <pre class="output-json">{{ JSON.stringify(selectedStep.output, null, 2) }}</pre>
-          </div>
-
-          <!-- 步骤日志 -->
-          <div v-if="selectedStep.logs && selectedStep.logs.length > 0" class="detail-section">
-            <div class="section-title">步骤日志</div>
-            <div class="step-logs">
-              <div v-for="(log, idx) in selectedStep.logs" :key="idx" class="log-line">{{ log }}</div>
+            <!-- AI 输出内容 -->
+            <div v-if="selectedStep.step_type === 'ai' && selectedStepAIContent" class="detail-section">
+              <div class="section-title">AI 输出</div>
+              <div class="ai-output">
+                <pre>{{ selectedStepAIContent }}</pre>
+                <span v-if="currentAIStepId === selectedStep.step_id" class="typing-cursor">|</span>
+              </div>
             </div>
-          </div>
+
+            <!-- 输出数据 -->
+            <div v-if="selectedStep.output && Object.keys(selectedStep.output).length > 0" class="detail-section">
+              <div class="section-title">输出数据</div>
+              <pre class="output-json">{{ JSON.stringify(selectedStep.output, null, 2) }}</pre>
+            </div>
+
+            <!-- 步骤日志 -->
+            <div v-if="selectedStep.logs && selectedStep.logs.length > 0" class="detail-section">
+              <div class="section-title">步骤日志</div>
+              <div class="step-logs">
+                <div v-for="(log, idx) in selectedStep.logs" :key="idx" class="log-line">{{ log }}</div>
+              </div>
+            </div>
+          </template>
         </template>
         <div v-else class="empty-tip">
           请选择左侧步骤查看详情
