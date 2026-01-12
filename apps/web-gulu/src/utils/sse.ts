@@ -22,6 +22,7 @@ export type SSEEventType =
   | 'error';
 
 // SSE 事件结构
+// timestamp 格式: "2006-01-02 15:04:05.000"
 export interface SSEEvent<T = unknown> {
   type: SSEEventType;
   session_id: string;
