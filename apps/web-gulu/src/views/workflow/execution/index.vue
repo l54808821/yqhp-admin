@@ -112,7 +112,8 @@ async function handleStop() {
 }
 
 function handleBack() {
-  router.push({ name: 'ExecutionHistory' });
+  const projectId = route.params.projectId;
+  router.push({ name: 'HistoryIndex', params: { projectId } });
 }
 
 function getLogColor(level: string): string {
