@@ -10,7 +10,6 @@ import type { ResponseData } from '../../types';
 const CheckCircleIcon = createIconifyIcon('lucide:check-circle');
 const XCircleIcon = createIconifyIcon('lucide:x-circle');
 const CopyIcon = createIconifyIcon('lucide:copy');
-// const DownloadIcon = createIconifyIcon('lucide:download');
 
 interface Props {
   response: ResponseData;
@@ -18,7 +17,6 @@ interface Props {
 
 const props = defineProps<Props>();
 
-// 当前 Tab
 const activeTab = ref('body');
 
 // 状态码颜色
@@ -31,20 +29,17 @@ const statusColor = computed(() => {
   return '#666';
 });
 
-// 格式化大小
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
-// 格式化耗时
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms} ms`;
   return `${(ms / 1000).toFixed(2)} s`;
 }
 
-// 格式化 JSON
 function formatJson(str: string): string {
   try {
     return JSON.stringify(JSON.parse(str), null, 2);
@@ -53,7 +48,6 @@ function formatJson(str: string): string {
   }
 }
 
-// 复制到剪贴板
 async function copyToClipboard(text: string) {
   try {
     await navigator.clipboard.writeText(text);
@@ -62,7 +56,6 @@ async function copyToClipboard(text: string) {
   }
 }
 
-// 断言统计
 const assertionStats = computed(() => {
   const assertions = props.response.assertions || [];
   const passed = assertions.filter(a => a.passed).length;
@@ -73,20 +66,20 @@ const assertionStats = computed(() => {
 
 <template>
   <div class="response-panel">
-    <!-- 响应头部信息 -->
+    <!-- 响应头部 -->
     <div class="response-header">
-      <div class="response-status">
+      <div class="response-title">返回响应</div>
+
+      <div class="response-meta">
         <Tag :color="statusColor" class="status-tag">
           {{ response.statusCode }} {{ response.statusText }}
         </Tag>
-        <span class="response-meta">
-          <span class="meta-item">{{ formatDuration(response.duration) }}</span>
-          <span class="meta-divider">|</span>
-          <span class="meta-item">{{ formatSize(response.size) }}</span>
-        </span>
+        <span class="meta-item">{{ formatDuration(response.duration) }}</span>
+        <span class="meta-divider">|</span>
+        <span class="meta-item">{{ formatSize(response.size) }}</span>
       </div>
 
-      <!-- 断言结果统计 -->
+      <!-- 断言统计 -->
       <div v-if="assertionStats.total > 0" class="assertion-stats">
         <Badge
           :count="assertionStats.passed"
@@ -104,7 +97,6 @@ const assertionStats = computed(() => {
         </Badge>
       </div>
 
-      <!-- 工具按钮 -->
       <div class="response-actions">
         <Tooltip title="复制响应体">
           <button class="action-btn" @click="copyToClipboard(response.body)">
@@ -114,7 +106,7 @@ const assertionStats = computed(() => {
       </div>
     </div>
 
-    <!-- 响应内容 Tabs -->
+    <!-- 响应内容 -->
     <Tabs v-model:activeKey="activeTab" size="small" class="response-tabs">
       <Tabs.TabPane key="body" tab="Body">
         <div class="response-body">
@@ -128,7 +120,7 @@ const assertionStats = computed(() => {
       <Tabs.TabPane key="headers">
         <template #tab>
           <span>Headers</span>
-          <span class="tab-count">{{ Object.keys(response.headers).length }}</span>
+          <span class="tab-badge">{{ Object.keys(response.headers).length }}</span>
         </template>
         <div class="kv-list">
           <div
@@ -145,7 +137,7 @@ const assertionStats = computed(() => {
       <Tabs.TabPane key="cookies">
         <template #tab>
           <span>Cookies</span>
-          <span class="tab-count">{{ Object.keys(response.cookies).length }}</span>
+          <span class="tab-badge">{{ Object.keys(response.cookies).length }}</span>
         </template>
         <div class="kv-list">
           <div
@@ -166,8 +158,8 @@ const assertionStats = computed(() => {
         <template #tab>
           <span>断言</span>
           <span
-            class="tab-count"
-            :class="{ 'has-failed': assertionStats.failed > 0 }"
+            class="tab-badge"
+            :class="{ failed: assertionStats.failed > 0 }"
           >
             {{ assertionStats.passed }}/{{ assertionStats.total }}
           </span>
@@ -196,7 +188,7 @@ const assertionStats = computed(() => {
       <Tabs.TabPane key="console" v-if="response.console?.length">
         <template #tab>
           <span>控制台</span>
-          <span class="tab-count">{{ response.console.length }}</span>
+          <span class="tab-badge">{{ response.console.length }}</span>
         </template>
         <div class="console-output">
           <div v-for="(log, index) in response.console" :key="index" class="console-line">
@@ -235,12 +227,12 @@ const assertionStats = computed(() => {
   </div>
 </template>
 
-
 <style scoped>
 .response-panel {
   display: flex;
   flex-direction: column;
-  max-height: 400px;
+  height: 100%;
+  overflow: hidden;
 }
 
 .response-header {
@@ -248,29 +240,35 @@ const assertionStats = computed(() => {
   align-items: center;
   gap: 16px;
   padding-bottom: 12px;
+  border-bottom: 1px solid hsl(var(--border));
+  flex-shrink: 0;
 }
 
-.response-status {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.status-tag {
+.response-title {
+  font-size: 14px;
   font-weight: 600;
-  border-radius: 4px;
+  color: hsl(var(--foreground));
 }
 
 .response-meta {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: hsl(var(--foreground) / 70%);
+  gap: 10px;
+}
+
+.status-tag {
+  font-weight: 600;
+  border-radius: 4px;
+  margin: 0;
+}
+
+.meta-item {
+  font-size: 12px;
+  color: hsl(var(--foreground) / 60%);
 }
 
 .meta-divider {
-  color: hsl(var(--foreground) / 30%);
+  color: hsl(var(--foreground) / 20%);
 }
 
 .assertion-stats {
@@ -300,7 +298,7 @@ const assertionStats = computed(() => {
   border: none;
   border-radius: 4px;
   background: transparent;
-  color: hsl(var(--foreground) / 60%);
+  color: hsl(var(--foreground) / 50%);
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -312,61 +310,83 @@ const assertionStats = computed(() => {
 
 .response-tabs {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   min-height: 0;
   overflow: hidden;
 }
 
+.response-tabs :deep(.ant-tabs-nav) {
+  margin: 0;
+  margin-top: 8px;
+}
+
+.response-tabs :deep(.ant-tabs-nav::before) {
+  display: none;
+}
+
+.response-tabs :deep(.ant-tabs-tab) {
+  padding: 8px 4px;
+  font-size: 12px;
+}
+
+.response-tabs :deep(.ant-tabs-content-holder) {
+  flex: 1;
+  overflow: hidden;
+}
+
 .response-tabs :deep(.ant-tabs-content) {
-  height: calc(100% - 40px);
+  height: 100%;
+}
+
+.response-tabs :deep(.ant-tabs-tabpane) {
+  height: 100%;
+  padding-top: 8px;
   overflow-y: auto;
 }
 
-.tab-count {
+.tab-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 6px;
-  margin-left: 6px;
-  font-size: 11px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  margin-left: 4px;
+  font-size: 10px;
   font-weight: 500;
   color: hsl(var(--primary));
-  background: hsl(var(--primary) / 15%);
-  border-radius: 9px;
+  background: hsl(var(--primary) / 12%);
+  border-radius: 8px;
 }
 
-.tab-count.has-failed {
+.tab-badge.failed {
   color: #ff4d4f;
-  background: rgba(255, 77, 79, 0.15);
+  background: rgba(255, 77, 79, 0.12);
 }
 
 .response-body {
-  max-height: 300px;
+  height: 100%;
   overflow: auto;
 }
 
 .body-content {
   margin: 0;
   padding: 12px;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-all;
-  background: hsl(var(--accent) / 30%);
+  background: hsl(var(--accent) / 50%);
   border-radius: 6px;
+  color: hsl(var(--foreground) / 85%);
 }
-
-.body-content.json {
-  color: hsl(var(--foreground) / 90%);
-}
-
 
 .kv-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .kv-item {
@@ -378,31 +398,33 @@ const assertionStats = computed(() => {
 }
 
 .kv-item:hover {
-  background: hsl(var(--accent) / 30%);
+  background: hsl(var(--accent) / 50%);
 }
 
 .kv-key {
-  min-width: 150px;
+  min-width: 140px;
   font-weight: 500;
-  color: hsl(var(--foreground) / 80%);
+  color: hsl(var(--foreground) / 75%);
 }
 
 .kv-value {
   flex: 1;
-  color: hsl(var(--foreground) / 60%);
+  color: hsl(var(--foreground) / 55%);
   word-break: break-all;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
 }
 
 .empty-hint {
-  padding: 20px;
+  padding: 24px;
   text-align: center;
-  color: hsl(var(--foreground) / 40%);
+  color: hsl(var(--foreground) / 35%);
+  font-size: 13px;
 }
 
 .assertion-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .assertion-item {
@@ -411,7 +433,7 @@ const assertionStats = computed(() => {
   gap: 8px;
   padding: 8px 12px;
   border-radius: 6px;
-  background: hsl(var(--accent) / 20%);
+  background: hsl(var(--accent) / 30%);
 }
 
 .assertion-item.passed .assertion-icon {
@@ -435,26 +457,26 @@ const assertionStats = computed(() => {
 
 .assertion-message {
   font-size: 12px;
-  color: hsl(var(--foreground) / 60%);
+  color: hsl(var(--foreground) / 55%);
 }
 
 .console-output {
   padding: 12px;
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
   font-size: 12px;
-  background: hsl(var(--accent) / 30%);
+  background: hsl(var(--accent) / 50%);
   border-radius: 6px;
 }
 
 .console-line {
   line-height: 1.6;
-  color: hsl(var(--foreground) / 80%);
+  color: hsl(var(--foreground) / 75%);
 }
 
 .actual-request {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .request-line {
@@ -462,7 +484,7 @@ const assertionStats = computed(() => {
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: hsl(var(--accent) / 30%);
+  background: hsl(var(--accent) / 50%);
   border-radius: 6px;
 }
 
@@ -472,21 +494,21 @@ const assertionStats = computed(() => {
 }
 
 .request-url {
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
   font-size: 12px;
-  color: hsl(var(--foreground) / 80%);
+  color: hsl(var(--foreground) / 75%);
   word-break: break-all;
 }
 
 .request-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .section-title {
   font-size: 12px;
   font-weight: 500;
-  color: hsl(var(--foreground) / 70%);
+  color: hsl(var(--foreground) / 60%);
 }
 </style>

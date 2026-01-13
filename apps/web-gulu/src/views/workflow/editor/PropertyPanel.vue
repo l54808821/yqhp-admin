@@ -76,10 +76,10 @@ function handleClose() {
 
 <template>
   <div class="property-panel">
-    <div v-if="localNode" class="panel-content">
+    <div v-if="localNode" class="panel-content" :class="{ 'no-padding': isHttpNode }">
       <!-- HTTP 节点使用特殊布局 -->
       <template v-if="isHttpNode">
-        <div class="panel-header">
+        <div class="panel-header http-header">
           <Input
             v-model:value="localNode.name"
             class="node-name-input"
@@ -94,6 +94,7 @@ function handleClose() {
           :is="propertyComponent"
           :node="localNode"
           :env-id="envId"
+          class="http-panel-wrapper"
           @update="handleUpdate"
         />
       </template>
@@ -145,12 +146,24 @@ function handleClose() {
   flex-direction: column;
 }
 
+.panel-content.no-padding {
+  padding: 0;
+  overflow: hidden;
+}
+
 .panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 16px;
   flex-shrink: 0;
+}
+
+.panel-header.http-header {
+  padding: 12px 16px;
+  margin-bottom: 0;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
 }
 
 .panel-title {
@@ -168,12 +181,19 @@ function handleClose() {
 .node-name-input :deep(.ant-input) {
   border: none;
   background: transparent;
-  font-size: 16px;
+  font-size: 15px;
+  font-weight: 500;
   padding-left: 0;
 }
 
 .node-name-input :deep(.ant-input:focus) {
   box-shadow: none;
   border-bottom: 1px solid hsl(var(--primary));
+}
+
+.http-panel-wrapper {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 </style>

@@ -30,7 +30,7 @@ import ResponsePanel from './ResponsePanel.vue';
 const SendIcon = createIconifyIcon('lucide:send');
 const LinkIcon = createIconifyIcon('lucide:link');
 const ChevronDownIcon = createIconifyIcon('lucide:chevron-down');
-// const DownloadIcon = createIconifyIcon('lucide:download');
+const GripHorizontalIcon = createIconifyIcon('lucide:grip-horizontal');
 
 interface Props {
   node: HttpStepNode;
@@ -49,6 +49,11 @@ const activeTab = ref('params');
 const isDebugging = ref(false);
 const debugResponse = ref<any>(null);
 
+// 分割面板相关
+const containerRef = ref<HTMLElement | null>(null);
+const isDragging = ref(false);
+const requestPanelHeight = ref(60); // 请求面板高度百分比
+
 // HTTP 方法选项
 const methodOptions = [
   { label: 'GET', value: 'GET', color: HTTP_METHOD_COLORS.GET },
@@ -63,7 +68,6 @@ function ensureArray(value: any): ParamItem[] {
   if (Array.isArray(value)) {
     return value;
   }
-  // 如果是对象（旧格式），转换为数组
   if (value && typeof value === 'object') {
     return Object.entries(value).map(([key, val], index) => ({
       id: `param_${Date.now()}_${index}`,
@@ -83,11 +87,9 @@ watch(
   (newNode) => {
     if (newNode) {
       localNode.value = JSON.parse(JSON.stringify(newNode));
-      // 确保 config 存在
       if (!localNode.value!.config) {
         localNode.value!.config = createHttpConfig();
       }
-      // 确保各个数组存在且是正确的数组类型
       localNode.value!.config.params = ensureArray(localNode.value!.config.params);
       localNode.value!.config.headers = ensureArray(localNode.value!.config.headers);
       localNode.value!.config.cookies = ensureArray(localNode.value!.config.cookies);
@@ -115,12 +117,10 @@ const debouncedEmit = useDebounceFn(() => {
   }
 }, 300);
 
-// 触发更新
 function emitUpdate() {
   debouncedEmit();
 }
 
-// 更新方法
 function updateMethod(method: string) {
   if (localNode.value?.config) {
     localNode.value.config.method = method as any;
@@ -128,7 +128,6 @@ function updateMethod(method: string) {
   }
 }
 
-// 更新 URL
 function updateUrl(url: string) {
   if (localNode.value?.config) {
     localNode.value.config.url = url;
@@ -136,15 +135,6 @@ function updateUrl(url: string) {
   }
 }
 
-// 更新域名代码
-// function updateDomainCode(code: string) {
-//   if (localNode.value?.config) {
-//     localNode.value.config.domainCode = code;
-//     emitUpdate();
-//   }
-// }
-
-// 更新参数
 function updateParams(params: ParamItem[]) {
   if (localNode.value?.config) {
     localNode.value.config.params = params;
@@ -152,7 +142,6 @@ function updateParams(params: ParamItem[]) {
   }
 }
 
-// 更新请求头
 function updateHeaders(headers: ParamItem[]) {
   if (localNode.value?.config) {
     localNode.value.config.headers = headers;
@@ -160,7 +149,6 @@ function updateHeaders(headers: ParamItem[]) {
   }
 }
 
-// 更新 Cookies
 function updateCookies(cookies: ParamItem[]) {
   if (localNode.value?.config) {
     localNode.value.config.cookies = cookies;
@@ -168,7 +156,6 @@ function updateCookies(cookies: ParamItem[]) {
   }
 }
 
-// 更新请求体
 function updateBody(body: any) {
   if (localNode.value?.config) {
     localNode.value.config.body = body;
@@ -176,7 +163,6 @@ function updateBody(body: any) {
   }
 }
 
-// 更新认证
 function updateAuth(auth: any) {
   if (localNode.value?.config) {
     localNode.value.config.auth = auth;
@@ -184,7 +170,6 @@ function updateAuth(auth: any) {
   }
 }
 
-// 更新设置
 function updateSettings(settings: any) {
   if (localNode.value?.config) {
     localNode.value.config.settings = settings;
@@ -192,7 +177,6 @@ function updateSettings(settings: any) {
   }
 }
 
-// 更新前置处理器
 function updatePreProcessors(processors: KeywordConfig[]) {
   if (localNode.value) {
     localNode.value.preProcessors = processors;
@@ -200,7 +184,6 @@ function updatePreProcessors(processors: KeywordConfig[]) {
   }
 }
 
-// 更新后置处理器
 function updatePostProcessors(processors: KeywordConfig[]) {
   if (localNode.value) {
     localNode.value.postProcessors = processors;
@@ -208,7 +191,7 @@ function updatePostProcessors(processors: KeywordConfig[]) {
   }
 }
 
-// 发送请求（单步调试）
+// 发送请求
 async function handleSend() {
   if (!localNode.value || isDebugging.value) return;
 
@@ -216,7 +199,6 @@ async function handleSend() {
   debugResponse.value = null;
 
   try {
-    // 调用单步调试 API
     const response = await debugStepApi({
       nodeConfig: {
         id: localNode.value.id,
@@ -255,6 +237,10 @@ async function handleSend() {
         console: response.consoleLogs,
         actualRequest: response.actualRequest,
       };
+      // 有响应时调整面板比例
+      if (requestPanelHeight.value > 50) {
+        requestPanelHeight.value = 50;
+      }
     } else {
       debugResponse.value = {
         statusCode: 0,
@@ -285,7 +271,32 @@ async function handleSend() {
   }
 }
 
-// 计算各 Tab 的数量标记
+// 拖拽分割条
+function startDrag(e: MouseEvent) {
+  isDragging.value = true;
+  document.addEventListener('mousemove', onDrag);
+  document.addEventListener('mouseup', stopDrag);
+  e.preventDefault();
+}
+
+function onDrag(e: MouseEvent) {
+  if (!isDragging.value || !containerRef.value) return;
+
+  const rect = containerRef.value.getBoundingClientRect();
+  const offsetY = e.clientY - rect.top;
+  const percentage = (offsetY / rect.height) * 100;
+
+  // 限制范围 20% - 80%
+  requestPanelHeight.value = Math.min(80, Math.max(20, percentage));
+}
+
+function stopDrag() {
+  isDragging.value = false;
+  document.removeEventListener('mousemove', onDrag);
+  document.removeEventListener('mouseup', stopDrag);
+}
+
+// Tab 数量
 const paramsCount = computed(() => {
   const params = localNode.value?.config?.params;
   return Array.isArray(params) ? params.filter(p => p.enabled && p.key).length : 0;
@@ -309,227 +320,378 @@ const postProcessorsCount = computed(() => {
 </script>
 
 <template>
-  <div class="http-property-panel" v-if="localNode">
-    <!-- 请求头部 -->
-    <div class="request-header">
-      <!-- 方法选择器 -->
-      <Dropdown :trigger="['click']">
+  <div class="http-panel" ref="containerRef" v-if="localNode">
+    <!-- 请求区域 -->
+    <div
+      class="request-section"
+      :style="{ height: debugResponse ? `${requestPanelHeight}%` : '100%' }"
+    >
+      <!-- URL 栏 -->
+      <div class="url-bar">
+        <Dropdown :trigger="['click']">
+          <button
+            class="method-btn"
+            :style="{ '--method-color': currentMethodColor }"
+          >
+            {{ localNode.config?.method || 'GET' }}
+            <ChevronDownIcon class="size-3 ml-1 opacity-60" />
+          </button>
+          <template #overlay>
+            <Menu @click="({ key }: any) => updateMethod(key)">
+              <Menu.Item
+                v-for="opt in methodOptions"
+                :key="opt.value"
+                :style="{ color: opt.color }"
+              >
+                {{ opt.label }}
+              </Menu.Item>
+            </Menu>
+          </template>
+        </Dropdown>
+
+        <Tooltip title="域名代码">
+          <button class="icon-btn">
+            <LinkIcon class="size-4" />
+          </button>
+        </Tooltip>
+
+        <Input
+          :value="localNode.config?.url"
+          placeholder="输入请求 URL，支持变量 ${var}"
+          class="url-input"
+          :bordered="false"
+          @change="(e: any) => updateUrl(e.target.value)"
+        />
+
         <Button
-          class="method-selector"
-          :style="{
-            backgroundColor: currentMethodColor + '20',
-            color: currentMethodColor,
-            borderColor: currentMethodColor + '40',
-          }"
+          type="primary"
+          class="send-btn"
+          :loading="isDebugging"
+          @click="handleSend"
         >
-          {{ localNode.config?.method || 'GET' }}
-          <ChevronDownIcon class="size-4 ml-1" />
+          <template #icon><SendIcon class="size-4" /></template>
+          发 送
         </Button>
-        <template #overlay>
-          <Menu @click="({ key }: any) => updateMethod(key)">
-            <Menu.Item
-              v-for="opt in methodOptions"
-              :key="opt.value"
-              :style="{ color: opt.color }"
-            >
-              {{ opt.label }}
-            </Menu.Item>
-          </Menu>
-        </template>
-      </Dropdown>
+      </div>
 
-      <!-- 域名代码 -->
-      <Tooltip title="域名代码">
-        <Button type="text" class="domain-btn">
-          <LinkIcon class="size-4" />
-        </Button>
-      </Tooltip>
+      <!-- 请求配置 Tabs -->
+      <Tabs v-model:activeKey="activeTab" class="config-tabs" size="small">
+        <Tabs.TabPane key="params">
+          <template #tab>
+            <span>Params</span>
+            <span v-if="paramsCount > 0" class="tab-badge">{{ paramsCount }}</span>
+          </template>
+          <div class="tab-content">
+            <ParamTable
+              :items="localNode.config?.params || []"
+              :placeholder="{ key: '参数名', value: '参数值' }"
+              @update="updateParams"
+            />
+          </div>
+        </Tabs.TabPane>
 
-      <!-- URL 输入框 -->
-      <Input
-        :value="localNode.config?.url"
-        placeholder="请输入 URL，支持变量 ${var}"
-        class="url-input"
-        @change="(e: any) => updateUrl(e.target.value)"
-      />
+        <Tabs.TabPane key="body">
+          <template #tab>
+            <span>Body</span>
+          </template>
+          <div class="tab-content">
+            <BodyPanel
+              :body="localNode.config?.body"
+              @update="updateBody"
+            />
+          </div>
+        </Tabs.TabPane>
 
-      <!-- 发送按钮 -->
-      <Button
-        type="primary"
-        class="send-btn"
-        :loading="isDebugging"
-        @click="handleSend"
-      >
-        <template #icon><SendIcon class="size-4" /></template>
-        发送
-      </Button>
+        <Tabs.TabPane key="headers">
+          <template #tab>
+            <span>Headers</span>
+            <span v-if="headersCount > 0" class="tab-badge">{{ headersCount }}</span>
+          </template>
+          <div class="tab-content">
+            <ParamTable
+              :items="localNode.config?.headers || []"
+              :placeholder="{ key: 'Header 名称', value: 'Header 值' }"
+              @update="updateHeaders"
+            />
+          </div>
+        </Tabs.TabPane>
+
+        <Tabs.TabPane key="cookies">
+          <template #tab>
+            <span>Cookies</span>
+            <span v-if="cookiesCount > 0" class="tab-badge">{{ cookiesCount }}</span>
+          </template>
+          <div class="tab-content">
+            <ParamTable
+              :items="localNode.config?.cookies || []"
+              :placeholder="{ key: 'Cookie 名称', value: 'Cookie 值' }"
+              @update="updateCookies"
+            />
+          </div>
+        </Tabs.TabPane>
+
+        <Tabs.TabPane key="auth" tab="Auth">
+          <div class="tab-content">
+            <AuthPanel
+              :auth="localNode.config?.auth"
+              @update="updateAuth"
+            />
+          </div>
+        </Tabs.TabPane>
+
+        <Tabs.TabPane key="pre">
+          <template #tab>
+            <span>前置操作</span>
+            <span v-if="preProcessorsCount > 0" class="tab-badge">{{ preProcessorsCount }}</span>
+          </template>
+          <div class="tab-content">
+            <PreProcessorPanel
+              :processors="localNode.preProcessors || []"
+              @update="updatePreProcessors"
+            />
+          </div>
+        </Tabs.TabPane>
+
+        <Tabs.TabPane key="post">
+          <template #tab>
+            <span>后置操作</span>
+            <span v-if="postProcessorsCount > 0" class="tab-badge">{{ postProcessorsCount }}</span>
+          </template>
+          <div class="tab-content">
+            <PostProcessorPanel
+              :processors="localNode.postProcessors || []"
+              @update="updatePostProcessors"
+            />
+          </div>
+        </Tabs.TabPane>
+
+        <Tabs.TabPane key="settings" tab="设置">
+          <div class="tab-content">
+            <SettingsPanel
+              :settings="localNode.config?.settings"
+              @update="updateSettings"
+            />
+          </div>
+        </Tabs.TabPane>
+      </Tabs>
     </div>
 
-    <!-- Tab 导航 -->
-    <Tabs v-model:activeKey="activeTab" class="request-tabs" size="small">
-      <Tabs.TabPane key="params">
-        <template #tab>
-          <span>Params</span>
-          <span v-if="paramsCount > 0" class="tab-count">{{ paramsCount }}</span>
-        </template>
-        <ParamTable
-          :items="localNode.config?.params || []"
-          :placeholder="{ key: '参数名', value: '参数值' }"
-          @update="updateParams"
-        />
-      </Tabs.TabPane>
-
-      <Tabs.TabPane key="body" tab="Body">
-        <BodyPanel
-          :body="localNode.config?.body"
-          @update="updateBody"
-        />
-      </Tabs.TabPane>
-
-      <Tabs.TabPane key="headers">
-        <template #tab>
-          <span>Headers</span>
-          <span v-if="headersCount > 0" class="tab-count">{{ headersCount }}</span>
-        </template>
-        <ParamTable
-          :items="localNode.config?.headers || []"
-          :placeholder="{ key: 'Header 名称', value: 'Header 值' }"
-          @update="updateHeaders"
-        />
-      </Tabs.TabPane>
-
-      <Tabs.TabPane key="cookies">
-        <template #tab>
-          <span>Cookies</span>
-          <span v-if="cookiesCount > 0" class="tab-count">{{ cookiesCount }}</span>
-        </template>
-        <ParamTable
-          :items="localNode.config?.cookies || []"
-          :placeholder="{ key: 'Cookie 名称', value: 'Cookie 值' }"
-          @update="updateCookies"
-        />
-      </Tabs.TabPane>
-
-      <Tabs.TabPane key="auth" tab="Auth">
-        <AuthPanel
-          :auth="localNode.config?.auth"
-          @update="updateAuth"
-        />
-      </Tabs.TabPane>
-
-      <Tabs.TabPane key="pre">
-        <template #tab>
-          <span>前置操作</span>
-          <span v-if="preProcessorsCount > 0" class="tab-count">{{ preProcessorsCount }}</span>
-        </template>
-        <PreProcessorPanel
-          :processors="localNode.preProcessors || []"
-          @update="updatePreProcessors"
-        />
-      </Tabs.TabPane>
-
-      <Tabs.TabPane key="post">
-        <template #tab>
-          <span>后置操作</span>
-          <span v-if="postProcessorsCount > 0" class="tab-count">{{ postProcessorsCount }}</span>
-        </template>
-        <PostProcessorPanel
-          :processors="localNode.postProcessors || []"
-          @update="updatePostProcessors"
-        />
-      </Tabs.TabPane>
-
-      <Tabs.TabPane key="settings" tab="设置">
-        <SettingsPanel
-          :settings="localNode.config?.settings"
-          @update="updateSettings"
-        />
-      </Tabs.TabPane>
-    </Tabs>
+    <!-- 分割条 -->
+    <div
+      v-if="debugResponse"
+      class="resize-bar"
+      :class="{ dragging: isDragging }"
+      @mousedown="startDrag"
+    >
+      <GripHorizontalIcon class="resize-icon" />
+    </div>
 
     <!-- 响应区域 -->
-    <ResponsePanel
+    <div
       v-if="debugResponse"
-      :response="debugResponse"
       class="response-section"
-    />
+      :style="{ height: `calc(${100 - requestPanelHeight}% - 8px)` }"
+    >
+      <ResponsePanel :response="debugResponse" />
+    </div>
   </div>
 </template>
 
+
 <style scoped>
-.http-property-panel {
+.http-panel {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 16px;
+  background: hsl(var(--background));
   overflow: hidden;
 }
 
-.request-header {
+/* 请求区域 */
+.request-section {
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+  overflow: hidden;
+}
+
+/* URL 栏 */
+.url-bar {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 16px;
-  flex-shrink: 0;
+  padding: 12px 16px;
+  background: hsl(var(--card));
+  border-bottom: 1px solid hsl(var(--border));
 }
 
-.method-selector {
-  min-width: 90px;
+.method-btn {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 12px;
+  font-size: 13px;
   font-weight: 600;
+  color: var(--method-color);
+  background: color-mix(in srgb, var(--method-color) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--method-color) 30%, transparent);
   border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.domain-btn {
-  flex-shrink: 0;
+.method-btn:hover {
+  background: color-mix(in srgb, var(--method-color) 18%, transparent);
+}
+
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: hsl(var(--foreground) / 50%);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.icon-btn:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--accent));
 }
 
 .url-input {
   flex: 1;
+  height: 32px;
+  font-size: 13px;
+  background: hsl(var(--accent) / 50%);
+  border-radius: 6px;
 }
 
 .url-input :deep(.ant-input) {
-  border-radius: 6px;
+  background: transparent;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
 }
 
 .send-btn {
-  flex-shrink: 0;
+  height: 32px;
+  padding: 0 20px;
+  font-weight: 500;
   border-radius: 6px;
 }
 
-.request-tabs {
+/* 配置 Tabs */
+.config-tabs {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   min-height: 0;
   overflow: hidden;
 }
 
-.request-tabs :deep(.ant-tabs-content) {
-  height: calc(100% - 46px);
+.config-tabs :deep(.ant-tabs-nav) {
+  margin: 0;
+  padding: 0 16px;
+  background: hsl(var(--card));
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.config-tabs :deep(.ant-tabs-nav::before) {
+  display: none;
+}
+
+.config-tabs :deep(.ant-tabs-tab) {
+  padding: 10px 4px;
+  font-size: 13px;
+  color: hsl(var(--foreground) / 60%);
+}
+
+.config-tabs :deep(.ant-tabs-tab:hover) {
+  color: hsl(var(--foreground) / 80%);
+}
+
+.config-tabs :deep(.ant-tabs-tab-active .ant-tabs-tab-btn) {
+  color: hsl(var(--primary));
+  font-weight: 500;
+}
+
+.config-tabs :deep(.ant-tabs-ink-bar) {
+  background: hsl(var(--primary));
+}
+
+.config-tabs :deep(.ant-tabs-content-holder) {
+  flex: 1;
+  overflow: hidden;
+}
+
+.config-tabs :deep(.ant-tabs-content) {
+  height: 100%;
+}
+
+.config-tabs :deep(.ant-tabs-tabpane) {
+  height: 100%;
+  overflow: hidden;
+}
+
+.tab-content {
+  height: 100%;
+  padding: 12px 16px;
   overflow-y: auto;
 }
 
-.request-tabs :deep(.ant-tabs-tabpane) {
-  padding: 12px 0;
-}
-
-.tab-count {
+.tab-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-width: 18px;
   height: 18px;
-  padding: 0 6px;
+  padding: 0 5px;
   margin-left: 6px;
   font-size: 11px;
   font-weight: 500;
   color: hsl(var(--primary));
-  background: hsl(var(--primary) / 15%);
+  background: hsl(var(--primary) / 12%);
   border-radius: 9px;
 }
 
-.response-section {
+/* 分割条 */
+.resize-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 8px;
+  background: hsl(var(--border));
+  cursor: row-resize;
+  transition: background 0.2s;
   flex-shrink: 0;
-  margin-top: 16px;
-  border-top: 1px solid hsl(var(--border));
-  padding-top: 16px;
+}
+
+.resize-bar:hover,
+.resize-bar.dragging {
+  background: hsl(var(--primary) / 30%);
+}
+
+.resize-icon {
+  width: 24px;
+  height: 12px;
+  color: hsl(var(--foreground) / 30%);
+}
+
+.resize-bar:hover .resize-icon,
+.resize-bar.dragging .resize-icon {
+  color: hsl(var(--primary));
+}
+
+/* 响应区域 */
+.response-section {
+  display: flex;
+  flex-direction: column;
+  min-height: 150px;
+  padding: 12px 16px;
+  overflow: hidden;
+  background: hsl(var(--card));
 }
 </style>
