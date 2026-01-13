@@ -71,11 +71,14 @@ interface Props {
   visible?: boolean;
   executorType?: 'local' | 'remote';
   slaveId?: string;
+  definition?: { name: string; steps: any[] };  // 工作流定义（用于调试未保存的工作流）
+  selectedSteps?: string[];  // 选中的步骤 ID（用于选择性调试）
 }
 
 const props = withDefaults(defineProps<Props>(), {
   visible: false,
   executorType: 'local',
+  selectedSteps: () => [],
 });
 
 const emit = defineEmits<{
@@ -306,12 +309,25 @@ async function startDebug() {
     const accessStore = useAccessStore();
     const token = accessStore.accessToken || '';
 
-    // 构建 SSE URL（包含认证 token）
-    const url = buildSSEUrl(props.workflowId, {
+    // 构建请求参数
+    const params: any = {
       env_id: props.envId,
       executor_type: props.executorType,
       slave_id: props.slaveId,
-    }, token);
+    };
+
+    // 如果有工作流定义，添加到参数中（用于调试未保存的工作流）
+    if (props.definition) {
+      params.definition = JSON.stringify(props.definition);
+    }
+
+    // 如果有选中的步骤，添加到参数中（用于选择性调试）
+    if (props.selectedSteps && props.selectedSteps.length > 0) {
+      params.selected_steps = props.selectedSteps;
+    }
+
+    // 构建 SSE URL（包含认证 token）
+    const url = buildSSEUrl(props.workflowId, params, token);
 
     // 连接 SSE
     connectSSE(url);

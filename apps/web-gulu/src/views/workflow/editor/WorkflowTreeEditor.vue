@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, h, ref, watch } from 'vue';
 
+import { createIconifyIcon } from '@vben/icons';
 import {
   ChevronDown,
   ChevronRight,
@@ -8,6 +9,11 @@ import {
   Plus,
   X,
 } from '@vben/icons';
+
+// 创建全选相关图标
+const CheckSquare = createIconifyIcon('lucide:check-square');
+const MinusSquare = createIconifyIcon('lucide:minus-square');
+const Square = createIconifyIcon('lucide:square');
 import {
   Button,
   Checkbox,
@@ -49,12 +55,14 @@ interface Props {
   readonly?: boolean;
   expandedKeys?: string[];
   selectedKeys?: string[];
+  checkedKeys?: string[];  // 外部传入的勾选状态
 }
 
 const props = withDefaults(defineProps<Props>(), {
   readonly: false,
   expandedKeys: () => [],
   selectedKeys: () => [],
+  checkedKeys: () => [],
 });
 
 const emit = defineEmits<{
@@ -62,12 +70,13 @@ const emit = defineEmits<{
   (e: 'select', node: StepNode | null): void;
   (e: 'update:expandedKeys', keys: string[]): void;
   (e: 'update:selectedKeys', keys: string[]): void;
+  (e: 'update:checkedKeys', keys: string[]): void;  // 勾选状态变化
 }>();
 
 // 本地状态，从 props 初始化
 const localExpandedKeys = ref<string[]>([...props.expandedKeys]);
 const localSelectedKeys = ref<string[]>([...props.selectedKeys]);
-const checkedKeys = ref<string[]>([]);
+const localCheckedKeys = ref<string[]>([...props.checkedKeys]);
 
 // 同步外部传入的 keys
 watch(() => props.expandedKeys, (newKeys) => {
@@ -78,8 +87,44 @@ watch(() => props.selectedKeys, (newKeys) => {
   localSelectedKeys.value = [...newKeys];
 }, { immediate: true });
 
+watch(() => props.checkedKeys, (newKeys) => {
+  localCheckedKeys.value = [...newKeys];
+}, { immediate: true });
+
 // 获取所有节点类型
 const nodeTypes = getNodeTypes();
+
+// 获取所有步骤的 ID（递归）
+function getAllStepKeys(steps: StepNode[]): string[] {
+  const keys: string[] = [];
+  for (const step of steps) {
+    keys.push(step.id);
+    if (step.children) {
+      keys.push(...getAllStepKeys(step.children));
+    }
+  }
+  return keys;
+}
+
+// 计算选择状态：none / partial / all
+const selectionState = computed(() => {
+  const allKeys = getAllStepKeys(props.definition.steps);
+  if (allKeys.length === 0) return 'none';
+  if (localCheckedKeys.value.length === 0) return 'none';
+  if (localCheckedKeys.value.length >= allKeys.length) return 'all';
+  return 'partial';
+});
+
+// 全选/取消全选
+function toggleSelectAll() {
+  const allKeys = getAllStepKeys(props.definition.steps);
+  if (selectionState.value === 'all') {
+    localCheckedKeys.value = [];
+  } else {
+    localCheckedKeys.value = [...allKeys];
+  }
+  emit('update:checkedKeys', localCheckedKeys.value);
+}
 
 // 切换展开/收缩
 function toggleExpand(nodeId: string, event: Event) {
@@ -96,10 +141,11 @@ function toggleExpand(nodeId: string, event: Event) {
 // 切换勾选
 function toggleCheck(nodeId: string, checked: boolean) {
   if (checked) {
-    checkedKeys.value = [...checkedKeys.value, nodeId];
+    localCheckedKeys.value = [...localCheckedKeys.value, nodeId];
   } else {
-    checkedKeys.value = checkedKeys.value.filter((k) => k !== nodeId);
+    localCheckedKeys.value = localCheckedKeys.value.filter((k) => k !== nodeId);
   }
+  emit('update:checkedKeys', localCheckedKeys.value);
 }
 
 // 判断节点是否可展开
@@ -353,6 +399,22 @@ function renderAddMenu(parentId?: string) {
   <div class="workflow-tree-editor">
     <!-- 工具栏 -->
     <div class="tree-toolbar">
+      <!-- 全选按钮 -->
+      <Tooltip :title="selectionState === 'all' ? '取消全选' : '全选'">
+        <Button
+          size="small"
+          :disabled="readonly || !treeData?.length"
+          @click="toggleSelectAll"
+          class="select-all-btn"
+        >
+          <template #icon>
+            <CheckSquare v-if="selectionState === 'all'" class="size-4" />
+            <MinusSquare v-else-if="selectionState === 'partial'" class="size-4" />
+            <Square v-else class="size-4" />
+          </template>
+          {{ selectionState === 'all' ? '取消全选' : '全选' }}
+        </Button>
+      </Tooltip>
       <Dropdown :trigger="['click']" :disabled="readonly">
         <Button type="primary" size="small">
           <template #icon><Plus class="size-4" /></template>
@@ -392,7 +454,7 @@ function renderAddMenu(parentId?: string) {
           >
             <!-- 勾选框 -->
             <Checkbox
-              :checked="checkedKeys.includes(nodeProps.stepData.id)"
+              :checked="localCheckedKeys.includes(nodeProps.stepData.id)"
               @click.stop
               @change="(e: any) => toggleCheck(nodeProps.stepData.id, e.target.checked)"
             />
@@ -473,9 +535,17 @@ function renderAddMenu(parentId?: string) {
 }
 
 .tree-toolbar {
+  display: flex;
+  gap: 8px;
   padding: 12px;
   border-bottom: 1px solid hsl(var(--border));
   flex-shrink: 0;
+}
+
+.select-all-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .tree-content {

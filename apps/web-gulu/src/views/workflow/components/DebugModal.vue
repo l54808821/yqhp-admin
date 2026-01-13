@@ -5,6 +5,7 @@ import { Drawer, message } from 'ant-design-vue';
 
 import type { DebugSummary } from '#/api/debug';
 import type { Workflow } from '#/api/workflow';
+import type { StepNode } from '../editor/WorkflowTreeEditor.vue';
 
 import { useProjectStore } from '#/store/project';
 import DebugPanelSSE from './DebugPanelSSE.vue';
@@ -12,6 +13,8 @@ import DebugPanelSSE from './DebugPanelSSE.vue';
 interface Props {
   open: boolean;
   workflow: Workflow | null;
+  definition?: { name: string; steps: StepNode[] };  // 当前内存中的工作流定义
+  selectedSteps?: string[];  // 选中的步骤 ID
 }
 
 const props = defineProps<Props>();
@@ -71,6 +74,8 @@ function handleDebugComplete(summary: DebugSummary) {
       :workflow-id="workflow.id"
       :env-id="projectStore.currentEnvId"
       :visible="open"
+      :definition="definition"
+      :selected-steps="selectedSteps"
       @close="handleClose"
       @complete="handleDebugComplete"
     />

@@ -36,6 +36,8 @@ export interface RunStreamParams {
   timeout?: number;
   executor_type?: 'local' | 'remote';
   slave_id?: string;
+  definition?: string;  // 工作流定义 JSON 字符串（用于调试未保存的工作流）
+  selected_steps?: string[];  // 选中的步骤 ID（用于选择性调试）
 }
 
 // 阻塞式执行请求参数
@@ -214,6 +216,14 @@ export function buildSSEUrl(workflowId: number, params: RunStreamParams, token?:
   }
   if (params.slave_id) {
     searchParams.set('slave_id', params.slave_id);
+  }
+  // 添加工作流定义（用于调试未保存的工作流）
+  if (params.definition) {
+    searchParams.set('definition', params.definition);
+  }
+  // 添加选中的步骤 ID（用于选择性调试）
+  if (params.selected_steps && params.selected_steps.length > 0) {
+    searchParams.set('selected_steps', JSON.stringify(params.selected_steps));
   }
   // 添加认证 token（EventSource 不支持自定义 headers，需要通过 URL 参数传递）
   if (token) {

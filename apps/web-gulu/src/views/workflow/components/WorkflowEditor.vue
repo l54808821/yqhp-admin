@@ -44,6 +44,7 @@ const isModified = ref(false);
 // 树形编辑器状态（提升到父组件避免切换时丢失）
 const treeExpandedKeys = ref<string[]>([]);
 const treeSelectedKeys = ref<string[]>([]);
+const treeCheckedKeys = ref<string[]>([]);  // 勾选的步骤 ID
 
 // 初始快照，用于判断是否修改
 const initialSnapshot = ref('');
@@ -342,11 +343,12 @@ function handleExecuteSuccess(executionId: number) {
 
 // 调试相关
 function handleDebug() {
-  if (isModified.value) {
-    message.warning('请先保存工作流');
-    return;
-  }
+  // 移除保存检查，允许调试未保存的工作流
   debugModalOpen.value = true;
+}
+
+function handleCheckedKeysChange(keys: string[]) {
+  treeCheckedKeys.value = keys;
 }
 
 function handleDebugComplete() {
@@ -382,10 +384,12 @@ function handleDebugComplete() {
               :definition="workflowDefinition"
               :expanded-keys="treeExpandedKeys"
               :selected-keys="treeSelectedKeys"
+              :checked-keys="treeCheckedKeys"
               @update="handleDefinitionUpdate"
               @select="handleNodeSelect"
               @update:expanded-keys="handleExpandedKeysChange"
               @update:selected-keys="handleSelectedKeysChange"
+              @update:checked-keys="handleCheckedKeysChange"
             />
           </template>
           <template #right>
@@ -401,10 +405,12 @@ function handleDebugComplete() {
           :definition="workflowDefinition"
           :expanded-keys="treeExpandedKeys"
           :selected-keys="treeSelectedKeys"
+          :checked-keys="treeCheckedKeys"
           @update="handleDefinitionUpdate"
           @select="handleNodeSelect"
           @update:expanded-keys="handleExpandedKeysChange"
           @update:selected-keys="handleSelectedKeysChange"
+          @update:checked-keys="handleCheckedKeysChange"
         />
       </Spin>
     </div>
@@ -420,6 +426,8 @@ function handleDebugComplete() {
     <DebugModal
       v-model:open="debugModalOpen"
       :workflow="workflow"
+      :definition="workflowDefinition"
+      :selected-steps="treeCheckedKeys"
       @complete="handleDebugComplete"
     />
   </div>
