@@ -354,6 +354,20 @@ function handleCheckedKeysChange(keys: string[]) {
 function handleDebugComplete() {
   // 调试完成后的处理
 }
+
+// 处理重命名
+async function handleRename(newName: string) {
+  if (!workflow.value) return;
+  try {
+    await updateWorkflowApi(workflow.value.id, { name: newName });
+    workflow.value.name = newName;
+    workflowDefinition.value.name = newName;
+    emit('titleChange', newName);
+    message.success('重命名成功');
+  } catch {
+    message.error('重命名失败');
+  }
+}
 </script>
 
 <template>
@@ -369,6 +383,7 @@ function handleDebugComplete() {
       @redo="redo"
       @execute="handleExecute"
       @debug="handleDebug"
+      @rename="handleRename"
     />
     <div class="editor-main">
       <Spin :spinning="loading" class="editor-spin">

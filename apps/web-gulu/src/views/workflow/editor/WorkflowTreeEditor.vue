@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, h, ref, watch } from 'vue';
 
-import { createIconifyIcon } from '@vben/icons';
 import {
   ChevronDown,
   ChevronRight,
@@ -10,10 +9,6 @@ import {
   X,
 } from '@vben/icons';
 
-// 创建全选相关图标
-const CheckSquare = createIconifyIcon('lucide:check-square');
-const MinusSquare = createIconifyIcon('lucide:minus-square');
-const Square = createIconifyIcon('lucide:square');
 import {
   Button,
   Checkbox,
@@ -138,14 +133,80 @@ function toggleExpand(nodeId: string, event: Event) {
   emit('update:expandedKeys', localExpandedKeys.value);
 }
 
-// 切换勾选
+// 切换勾选（支持父子联动）
 function toggleCheck(nodeId: string, checked: boolean) {
+  const node = findNodeById(props.definition.steps, nodeId);
+  let newCheckedKeys = [...localCheckedKeys.value];
+
   if (checked) {
-    localCheckedKeys.value = [...localCheckedKeys.value, nodeId];
+    // 勾选：同时勾选所有子节点
+    newCheckedKeys.push(nodeId);
+    if (node?.children) {
+      const childKeys = getAllStepKeys(node.children);
+      for (const key of childKeys) {
+        if (!newCheckedKeys.includes(key)) {
+          newCheckedKeys.push(key);
+        }
+      }
+    }
   } else {
-    localCheckedKeys.value = localCheckedKeys.value.filter((k) => k !== nodeId);
+    // 取消勾选：同时取消所有子节点
+    newCheckedKeys = newCheckedKeys.filter((k) => k !== nodeId);
+    if (node?.children) {
+      const childKeys = getAllStepKeys(node.children);
+      newCheckedKeys = newCheckedKeys.filter((k) => !childKeys.includes(k));
+    }
   }
+
+  // 更新父节点状态：如果所有子节点都勾选，则父节点也勾选
+  updateParentCheckState(props.definition.steps, newCheckedKeys);
+
+  localCheckedKeys.value = newCheckedKeys;
   emit('update:checkedKeys', localCheckedKeys.value);
+}
+
+// 根据 ID 查找节点
+function findNodeById(steps: StepNode[], id: string): StepNode | null {
+  for (const step of steps) {
+    if (step.id === id) return step;
+    if (step.children) {
+      const found = findNodeById(step.children, id);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+// 更新父节点勾选状态
+function updateParentCheckState(steps: StepNode[], checkedKeys: string[]) {
+  for (const step of steps) {
+    if (step.children?.length) {
+      // 先递归处理子节点
+      updateParentCheckState(step.children, checkedKeys);
+
+      // 检查所有子节点是否都被勾选
+      const childKeys = getAllStepKeys(step.children);
+      const allChildrenChecked = childKeys.every((k) => checkedKeys.includes(k));
+      const someChildrenChecked = childKeys.some((k) => checkedKeys.includes(k));
+
+      const index = checkedKeys.indexOf(step.id);
+      if (allChildrenChecked && index === -1) {
+        // 所有子节点都勾选，父节点也勾选
+        checkedKeys.push(step.id);
+      } else if (!someChildrenChecked && index > -1) {
+        // 没有子节点勾选，父节点取消勾选
+        checkedKeys.splice(index, 1);
+      }
+    }
+  }
+}
+
+// 判断节点是否部分选中（用于显示 indeterminate 状态）
+function isIndeterminate(step: StepNode): boolean {
+  if (!step.children?.length) return false;
+  const childKeys = getAllStepKeys(step.children);
+  const checkedCount = childKeys.filter((k) => localCheckedKeys.value.includes(k)).length;
+  return checkedCount > 0 && checkedCount < childKeys.length;
 }
 
 // 判断节点是否可展开
@@ -399,22 +460,16 @@ function renderAddMenu(parentId?: string) {
   <div class="workflow-tree-editor">
     <!-- 工具栏 -->
     <div class="tree-toolbar">
-      <!-- 全选按钮 -->
-      <Tooltip :title="selectionState === 'all' ? '取消全选' : '全选'">
-        <Button
-          size="small"
+      <!-- 全选复选框 -->
+      <div class="select-all-wrapper">
+        <Checkbox
+          :checked="selectionState === 'all'"
+          :indeterminate="selectionState === 'partial'"
           :disabled="readonly || !treeData?.length"
-          @click="toggleSelectAll"
-          class="select-all-btn"
-        >
-          <template #icon>
-            <CheckSquare v-if="selectionState === 'all'" class="size-4" />
-            <MinusSquare v-else-if="selectionState === 'partial'" class="size-4" />
-            <Square v-else class="size-4" />
-          </template>
-          {{ selectionState === 'all' ? '取消全选' : '全选' }}
-        </Button>
-      </Tooltip>
+          @change="toggleSelectAll"
+        />
+        <span class="select-all-label" @click="toggleSelectAll">全选</span>
+      </div>
       <Dropdown :trigger="['click']" :disabled="readonly">
         <Button type="primary" size="small">
           <template #icon><Plus class="size-4" /></template>
@@ -455,6 +510,7 @@ function renderAddMenu(parentId?: string) {
             <!-- 勾选框 -->
             <Checkbox
               :checked="localCheckedKeys.includes(nodeProps.stepData.id)"
+              :indeterminate="isIndeterminate(nodeProps.stepData)"
               @click.stop
               @change="(e: any) => toggleCheck(nodeProps.stepData.id, e.target.checked)"
             />
@@ -536,16 +592,25 @@ function renderAddMenu(parentId?: string) {
 
 .tree-toolbar {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 12px;
   padding: 12px;
   border-bottom: 1px solid hsl(var(--border));
   flex-shrink: 0;
 }
 
-.select-all-btn {
+.select-all-wrapper {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  padding-left: 11px;
+}
+
+.select-all-label {
+  font-size: 14px;
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  user-select: none;
 }
 
 .tree-content {
