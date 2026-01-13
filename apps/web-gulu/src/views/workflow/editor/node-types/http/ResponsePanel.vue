@@ -1,14 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 
-import { createIconifyIcon } from '@vben/icons';
-import { Tabs, Tag, Tooltip } from 'ant-design-vue';
+import { Tabs, Tag } from 'ant-design-vue';
 
 import type { ResponseData } from '../../types';
-import CodeEditor from '../../components/CodeEditor.vue';
-
-// 图标
-const CopyIcon = createIconifyIcon('lucide:copy');
+import { ResponseBodyEditor } from '#/components/code-editor';
 
 interface Props {
   response: ResponseData;
@@ -38,40 +34,6 @@ function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
   return `${(ms / 1000).toFixed(2)}s`;
 }
-
-async function copyToClipboard(text: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-  } catch (e) {
-    console.error('复制失败', e);
-  }
-}
-
-// 响应体编辑器语言
-const bodyLanguage = computed(() => {
-  switch (props.response.bodyType) {
-    case 'json':
-      return 'json';
-    case 'xml':
-      return 'xml';
-    case 'html':
-      return 'html';
-    default:
-      return 'plaintext';
-  }
-});
-
-// 格式化后的响应体
-const formattedBody = computed(() => {
-  if (props.response.bodyType === 'json') {
-    try {
-      return JSON.stringify(JSON.parse(props.response.body), null, 2);
-    } catch {
-      return props.response.body;
-    }
-  }
-  return props.response.body;
-});
 
 // Headers 数量
 const headersCount = computed(() => Object.keys(props.response.headers || {}).length);
@@ -108,11 +70,6 @@ const cookiesCount = computed(() => Object.keys(props.response.cookies || {}).le
         </Tag>
         <span class="meta-item">{{ formatDuration(response.duration) }}</span>
         <span class="meta-item">{{ formatSize(response.size) }}</span>
-        <Tooltip title="复制">
-          <button class="copy-btn" @click="copyToClipboard(response.body)">
-            <CopyIcon class="size-3.5" />
-          </button>
-        </Tooltip>
       </div>
     </div>
 
@@ -120,10 +77,9 @@ const cookiesCount = computed(() => Object.keys(props.response.cookies || {}).le
     <div class="response-content">
       <!-- Body -->
       <div v-if="activeTab === 'body'" class="tab-content">
-        <CodeEditor
-          :model-value="formattedBody"
-          :language="bodyLanguage"
-          :readonly="true"
+        <ResponseBodyEditor
+          :body="response.body"
+          :body-type="response.bodyType"
           height="100%"
         />
       </div>
@@ -219,8 +175,12 @@ const cookiesCount = computed(() => Object.keys(props.response.cookies || {}).le
 }
 
 .response-tabs :deep(.ant-tabs-tab) {
-  padding: 8px 12px;
-  font-size: 12px;
+  padding: 6px 0;
+  font-size: 13px;
+}
+
+.response-tabs :deep(.ant-tabs-tab + .ant-tabs-tab) {
+  margin-left: 20px;
 }
 
 .tab-count {
@@ -256,25 +216,6 @@ const cookiesCount = computed(() => Object.keys(props.response.cookies || {}).le
 .meta-item {
   font-size: 12px;
   color: hsl(var(--foreground) / 55%);
-}
-
-.copy-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  color: hsl(var(--foreground) / 45%);
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.copy-btn:hover {
-  background: hsl(var(--accent));
-  color: hsl(var(--foreground));
 }
 
 /* 内容区域 */

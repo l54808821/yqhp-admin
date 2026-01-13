@@ -604,9 +604,13 @@ const postProcessorsCount = computed(() => {
 }
 
 .config-tabs :deep(.ant-tabs-tab) {
-  padding: 10px 4px;
+  padding: 8px 4px;
   font-size: 13px;
   color: hsl(var(--foreground) / 60%);
+}
+
+.config-tabs :deep(.ant-tabs-tab + .ant-tabs-tab) {
+  margin-left: 20px;
 }
 
 .config-tabs :deep(.ant-tabs-tab:hover) {

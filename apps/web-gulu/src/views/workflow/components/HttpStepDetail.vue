@@ -5,14 +5,36 @@ import {
   Alert,
   Badge,
   Button,
-  Card,
-  Descriptions,
   Space,
   Tabs,
   Tag,
 } from 'ant-design-vue';
 
 import type { StepResult } from '#/api/debug';
+import { ResponseBodyEditor } from '#/components/code-editor';
+
+// HTTP 输出类型定义
+interface HttpOutput {
+  status_code?: number;
+  statusCode?: number;
+  status?: string;
+  body_raw?: string;
+  body?: unknown;
+  headers?: Record<string, string | string[]>;
+  cookies?: Record<string, string>;
+  request?: {
+    method: string;
+    url: string;
+    headers?: Record<string, string>;
+    body?: string;
+  };
+  assertions?: Array<{
+    name: string;
+    passed: boolean;
+    message?: string;
+  }>;
+  console_logs?: string[];
+}
 
 interface Props {
   stepResult: StepResult;
@@ -26,31 +48,35 @@ const emit = defineEmits<{
 
 // HTTP 响应数据
 const httpResponse = computed(() => {
-  const output = props.stepResult.output;
+  const output = props.stepResult.output as HttpOutput | undefined;
   if (!output) return null;
+
+  const bodyRaw = output.body_raw;
+  const body = output.body;
+  const bodyStr = bodyRaw || (typeof body === 'string' ? body : JSON.stringify(body, null, 2)) || '';
 
   return {
     statusCode: output.status_code || output.statusCode || 0,
     statusText: output.status || '',
     duration: props.stepResult.duration_ms || 0,
-    size: output.body_raw?.length || output.body?.length || 0,
+    size: typeof bodyStr === 'string' ? bodyStr.length : 0,
     headers: output.headers || {},
-    body: output.body_raw || (typeof output.body === 'string' ? output.body : JSON.stringify(output.body, null, 2)),
-    bodyType: detectBodyType(output.body_raw || output.body),
+    body: bodyStr,
+    bodyType: detectBodyType(bodyStr) as 'json' | 'xml' | 'html' | 'text',
     request: output.request || null,
   };
 });
 
 // 断言结果
 const assertionResults = computed(() => {
-  const output = props.stepResult.output;
+  const output = props.stepResult.output as HttpOutput | undefined;
   if (!output?.assertions) return [];
   return output.assertions;
 });
 
 // 控制台日志
 const consoleLogs = computed(() => {
-  const output = props.stepResult.output;
+  const output = props.stepResult.output as HttpOutput | undefined;
   if (!output?.console_logs) return props.stepResult.logs || [];
   return output.console_logs;
 });
@@ -65,11 +91,14 @@ const statusCodeColor = computed(() => {
 });
 
 // 检测响应体类型
-function detectBodyType(body: any): string {
+function detectBodyType(body: unknown): string {
   if (!body) return 'text';
   const str = typeof body === 'string' ? body : JSON.stringify(body);
   if (str.startsWith('{') || str.startsWith('[')) return 'json';
-  if (str.startsWith('<')) return 'xml';
+  if (str.startsWith('<?xml') || str.startsWith('<')) {
+    if (str.includes('<!DOCTYPE html') || str.includes('<html')) return 'html';
+    return 'xml';
+  }
   return 'text';
 }
 
@@ -84,18 +113,6 @@ function formatSize(bytes: number): string {
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms} ms`;
   return `${(ms / 1000).toFixed(2)} s`;
-}
-
-// 格式化 JSON
-function formatJson(data: any): string {
-  if (typeof data === 'string') {
-    try {
-      return JSON.stringify(JSON.parse(data), null, 2);
-    } catch {
-      return data;
-    }
-  }
-  return JSON.stringify(data, null, 2);
 }
 
 // 调试此步骤
@@ -152,24 +169,30 @@ function handleDebugStep() {
       <!-- Body Tab -->
       <Tabs.TabPane key="body" tab="Body">
         <div class="body-content">
-          <pre v-if="httpResponse?.bodyType === 'json'" class="json-body">{{ formatJson(httpResponse.body) }}</pre>
-          <pre v-else class="text-body">{{ httpResponse?.body || '(空)' }}</pre>
+          <ResponseBodyEditor
+            v-if="httpResponse"
+            :body="httpResponse.body"
+            :body-type="httpResponse.bodyType"
+            height="300px"
+          />
+          <div v-else class="empty-tip">无响应体</div>
         </div>
       </Tabs.TabPane>
 
       <!-- Headers Tab -->
       <Tabs.TabPane key="headers" tab="Headers">
-        <Descriptions :column="1" size="small" bordered>
-          <Descriptions.Item
+        <div class="kv-list">
+          <div
             v-for="(value, key) in httpResponse?.headers"
             :key="key"
-            :label="key"
+            class="kv-item"
           >
-            {{ Array.isArray(value) ? value.join(', ') : value }}
-          </Descriptions.Item>
-        </Descriptions>
-        <div v-if="!httpResponse?.headers || Object.keys(httpResponse.headers).length === 0" class="empty-tip">
-          无响应头
+            <span class="kv-key">{{ key }}</span>
+            <span class="kv-value">{{ Array.isArray(value) ? value.join(', ') : value }}</span>
+          </div>
+          <div v-if="!httpResponse?.headers || Object.keys(httpResponse.headers).length === 0" class="empty-tip">
+            无响应头
+          </div>
         </div>
       </Tabs.TabPane>
 
@@ -201,24 +224,27 @@ function handleDebugStep() {
       <!-- 实际请求 Tab -->
       <Tabs.TabPane key="request" tab="实际请求">
         <div v-if="httpResponse?.request" class="actual-request">
-          <Descriptions :column="1" size="small" bordered>
-            <Descriptions.Item label="URL">{{ httpResponse.request.url }}</Descriptions.Item>
-            <Descriptions.Item label="Method">{{ httpResponse.request.method }}</Descriptions.Item>
-          </Descriptions>
-          <Card size="small" title="请求头" class="request-section">
-            <Descriptions :column="1" size="small">
-              <Descriptions.Item
+          <div class="request-line">
+            <span class="request-method">{{ httpResponse.request.method }}</span>
+            <span class="request-url">{{ httpResponse.request.url }}</span>
+          </div>
+          <div v-if="httpResponse.request.headers && Object.keys(httpResponse.request.headers).length > 0" class="request-section">
+            <div class="section-title">请求头</div>
+            <div class="kv-list">
+              <div
                 v-for="(value, key) in httpResponse.request.headers"
                 :key="key"
-                :label="key"
+                class="kv-item"
               >
-                {{ value }}
-              </Descriptions.Item>
-            </Descriptions>
-          </Card>
-          <Card v-if="httpResponse.request.body" size="small" title="请求体" class="request-section">
+                <span class="kv-key">{{ key }}</span>
+                <span class="kv-value">{{ value }}</span>
+              </div>
+            </div>
+          </div>
+          <div v-if="httpResponse.request.body" class="request-section">
+            <div class="section-title">请求体</div>
             <pre class="request-body">{{ httpResponse.request.body }}</pre>
-          </Card>
+          </div>
         </div>
         <div v-else class="empty-tip">无请求信息</div>
       </Tabs.TabPane>
@@ -230,7 +256,7 @@ function handleDebugStep() {
 .http-step-detail {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .status-bar {
@@ -238,7 +264,7 @@ function handleDebugStep() {
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background: #fafafa;
+  background: hsl(var(--accent) / 50%);
   border-radius: 4px;
 }
 
@@ -248,21 +274,21 @@ function handleDebugStep() {
 }
 
 .status-text {
-  color: #666;
+  color: hsl(var(--foreground) / 65%);
 }
 
 .divider {
-  color: #d9d9d9;
+  color: hsl(var(--border));
 }
 
 .metric {
   font-size: 12px;
-  color: #666;
+  color: hsl(var(--foreground) / 65%);
 }
 
 .assertion-summary {
   padding: 8px 12px;
-  background: #f5f5f5;
+  background: hsl(var(--accent) / 30%);
   border-radius: 4px;
 }
 
@@ -274,25 +300,53 @@ function handleDebugStep() {
   flex: 1;
 }
 
+/* 减少 Tab 间距 */
+.response-tabs :deep(.ant-tabs-nav) {
+  margin-bottom: 8px;
+}
+
+.response-tabs :deep(.ant-tabs-tab) {
+  padding: 6px 0;
+  font-size: 13px;
+}
+
+.response-tabs :deep(.ant-tabs-tab + .ant-tabs-tab) {
+  margin-left: 20px;
+}
+
 .body-content {
-  max-height: 300px;
-  overflow: auto;
+  height: 300px;
 }
 
-.json-body,
-.text-body {
-  margin: 0;
-  padding: 12px;
-  background: #f5f5f5;
-  border-radius: 4px;
-  font-size: 12px;
-  white-space: pre-wrap;
+/* KV 列表样式 */
+.kv-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.kv-item {
+  display: flex;
+  gap: 12px;
+  padding: 8px 12px;
+  font-size: 13px;
+  border-bottom: 1px solid hsl(var(--border) / 30%);
+}
+
+.kv-item:hover {
+  background: hsl(var(--accent) / 30%);
+}
+
+.kv-key {
+  min-width: 140px;
+  font-weight: 500;
+  color: hsl(var(--foreground) / 75%);
+}
+
+.kv-value {
+  flex: 1;
+  color: hsl(var(--foreground) / 65%);
   word-break: break-all;
-}
-
-.json-body {
-  background: #1e1e1e;
-  color: #d4d4d4;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
 }
 
 .assertion-list {
@@ -310,13 +364,13 @@ function handleDebugStep() {
 }
 
 .assertion-item.passed {
-  background: #f6ffed;
-  border: 1px solid #b7eb8f;
+  background: hsl(142 76% 36% / 10%);
+  border: 1px solid hsl(142 76% 36% / 30%);
 }
 
 .assertion-item.failed {
-  background: #fff2f0;
-  border: 1px solid #ffccc7;
+  background: hsl(0 84% 60% / 10%);
+  border: 1px solid hsl(0 84% 60% / 30%);
 }
 
 .assertion-icon {
@@ -336,16 +390,16 @@ function handleDebugStep() {
 }
 
 .assertion-message {
-  color: #666;
+  color: hsl(var(--foreground) / 55%);
   font-size: 12px;
 }
 
 .console-logs {
-  background: #1e1e1e;
-  color: #d4d4d4;
+  background: hsl(var(--accent) / 50%);
+  color: hsl(var(--foreground) / 75%);
   padding: 12px;
   border-radius: 4px;
-  font-family: monospace;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
   font-size: 12px;
   max-height: 200px;
   overflow: auto;
@@ -359,26 +413,59 @@ function handleDebugStep() {
 .actual-request {
   display: flex;
   flex-direction: column;
+  gap: 16px;
+}
+
+.request-line {
+  display: flex;
+  align-items: center;
   gap: 12px;
+  padding: 10px 12px;
+  background: hsl(var(--accent) / 50%);
+  border-radius: 6px;
+}
+
+.request-method {
+  font-weight: 600;
+  font-size: 13px;
+  color: #61affe;
+}
+
+.request-url {
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  font-size: 13px;
+  color: hsl(var(--foreground) / 75%);
+  word-break: break-all;
 }
 
 .request-section {
-  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.section-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: hsl(var(--foreground) / 70%);
+  padding-left: 4px;
 }
 
 .request-body {
   margin: 0;
-  padding: 8px;
-  background: #f5f5f5;
-  border-radius: 4px;
+  padding: 12px;
+  background: hsl(var(--accent) / 50%);
+  border-radius: 6px;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
   font-size: 12px;
   white-space: pre-wrap;
   word-break: break-all;
+  color: hsl(var(--foreground) / 75%);
 }
 
 .empty-tip {
   text-align: center;
-  color: #999;
+  color: hsl(var(--foreground) / 45%);
   padding: 20px;
 }
 </style>

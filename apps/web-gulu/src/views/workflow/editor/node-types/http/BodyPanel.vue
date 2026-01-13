@@ -6,7 +6,7 @@ import { createIconifyIcon } from '@vben/icons';
 import type { BodyConfig, ParamItem } from '../../types';
 import { createBodyConfig } from '../../types';
 import ParamTable from '../../components/ParamTable.vue';
-import CodeEditor from '../../components/CodeEditor.vue';
+import { CodeEditor } from '#/components/code-editor';
 
 // 图标
 const FormatIcon = createIconifyIcon('lucide:align-left');
