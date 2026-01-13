@@ -25,6 +25,7 @@ const CloseCircleOutlined = createIconifyIcon('lucide:x-circle');
 const LoadingOutlined = createIconifyIcon('lucide:loader-2');
 const ClockCircleOutlined = createIconifyIcon('lucide:clock');
 const StopOutlined = createIconifyIcon('lucide:square');
+const FileTextOutlined = createIconifyIcon('lucide:file-text');
 
 import type {
   DebugSummary,
@@ -96,6 +97,7 @@ const currentProgress = ref<ProgressData | null>(null);
 const debugSummary = ref<DebugSummary | null>(null);
 const logs = ref<string[]>([]);
 const errorMessage = ref<string | null>(null);
+const logsModalOpen = ref(false);
 const selectedStepKey = ref<string | null>(null);
 const expandedKeys = ref<string[]>([]);
 
@@ -713,6 +715,10 @@ defineExpose({
         <Button v-if="isCompleted" @click="handleRestart">
           重新执行
         </Button>
+        <Button @click="logsModalOpen = true">
+          <template #icon><FileTextOutlined /></template>
+          执行日志
+        </Button>
         <Button @click="handleClose">关闭</Button>
       </Space>
     </div>
@@ -776,28 +782,30 @@ defineExpose({
     <div class="debug-content">
       <!-- 左侧：步骤树 -->
       <Card class="tree-panel" size="small" title="执行步骤">
-        <Spin v-if="loading" />
-        <Tree
-          v-else-if="treeData.length > 0"
-          v-model:expandedKeys="expandedKeys"
-          :tree-data="treeData"
-          :selectable="true"
-          :selected-keys="selectedStepKey ? [selectedStepKey] : []"
-          @select="handleTreeSelect"
-        >
-          <template #title="{ title, status, duration, type }">
-            <div class="tree-node">
-              <component
-                :is="getStepIcon(status)"
-                :style="{ color: getStepColor(status), marginRight: '6px' }"
-                :class="{ 'spin-icon': status === 'running' }"
-              />
-              <span class="node-title">{{ title }}</span>
-              <Tag v-if="type === 'loop'" color="purple" size="small">循环</Tag>
-              <Tag v-if="type === 'ai'" color="blue" size="small">AI</Tag>
-              <Tag v-if="type === 'iteration'" color="cyan" size="small">迭代</Tag>
-              <Tag v-if="status === 'running'" color="processing" size="small">执行中</Tag>
-              <Tag v-else-if="status === 'success' || status === 'completed'" color="success" size="small">成功</Tag>
+        <template #default>
+          <div class="tree-panel-body">
+            <Spin v-if="loading" />
+            <Tree
+              v-else-if="treeData.length > 0"
+              v-model:expandedKeys="expandedKeys"
+              :tree-data="treeData"
+              :selectable="true"
+              :selected-keys="selectedStepKey ? [selectedStepKey] : []"
+              @select="handleTreeSelect"
+            >
+              <template #title="{ title, status, duration, type }">
+                <div class="tree-node">
+                  <component
+                    :is="getStepIcon(status)"
+                    :style="{ color: getStepColor(status), marginRight: '6px' }"
+                    :class="{ 'spin-icon': status === 'running' }"
+                  />
+                  <span class="node-title">{{ title }}</span>
+                  <Tag v-if="type === 'loop'" color="purple" size="small">循环</Tag>
+                  <Tag v-if="type === 'ai'" color="blue" size="small">AI</Tag>
+                  <Tag v-if="type === 'iteration'" color="cyan" size="small">迭代</Tag>
+                  <Tag v-if="status === 'running'" color="processing" size="small">执行中</Tag>
+                  <Tag v-else-if="status === 'success' || status === 'completed'" color="success" size="small">成功</Tag>
               <Tag v-else-if="status === 'failed'" color="error" size="small">失败</Tag>
               <span v-if="duration" class="node-duration">{{ formatDuration(duration) }}</span>
             </div>
@@ -806,34 +814,38 @@ defineExpose({
         <div v-else class="empty-tip">
           {{ isRunning ? '等待执行...' : '暂无步骤' }}
         </div>
+          </div>
+        </template>
       </Card>
 
       <!-- 右侧：步骤详情 -->
       <Card class="detail-panel" size="small" title="步骤详情">
-        <template v-if="selectedStep">
-          <!-- HTTP 步骤使用专用组件 -->
-          <HttpStepDetail
-            v-if="selectedStep.step_type === 'http'"
-            :step-result="selectedStep"
-            @debug-step="handleDebugHttpStep"
-          />
+        <template #default>
+          <div class="detail-panel-body">
+            <template v-if="selectedStep">
+              <!-- HTTP 步骤使用专用组件 -->
+              <HttpStepDetail
+                v-if="selectedStep.step_type === 'http'"
+                :step-result="selectedStep"
+                @debug-step="handleDebugHttpStep"
+              />
 
-          <!-- 其他步骤类型使用通用展示 -->
-          <template v-else>
-            <Descriptions :column="1" size="small" bordered>
-              <Descriptions.Item label="步骤名称">{{ selectedStep.step_name }}</Descriptions.Item>
-              <Descriptions.Item label="步骤ID">{{ selectedStep.step_id }}</Descriptions.Item>
-              <Descriptions.Item label="步骤类型">{{ selectedStep.step_type || '-' }}</Descriptions.Item>
-              <Descriptions.Item v-if="selectedStep.parent_id" label="父步骤">{{ selectedStep.parent_id }}</Descriptions.Item>
-              <Descriptions.Item v-if="selectedStep.iteration" label="迭代次数">第 {{ selectedStep.iteration }} 次</Descriptions.Item>
-              <Descriptions.Item label="状态">
-                <Tag v-if="selectedStep.status === 'running'" color="processing">执行中</Tag>
-                <Tag v-else-if="selectedStep.status === 'success'" color="success">成功</Tag>
-                <Tag v-else-if="selectedStep.status === 'failed'" color="error">失败</Tag>
-                <Tag v-else color="default">等待</Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="耗时">{{ formatDuration(selectedStep.duration_ms) }}</Descriptions.Item>
-            </Descriptions>
+              <!-- 其他步骤类型使用通用展示 -->
+              <template v-else>
+                <Descriptions :column="1" size="small" bordered>
+                  <Descriptions.Item label="步骤名称">{{ selectedStep.step_name }}</Descriptions.Item>
+                  <Descriptions.Item label="步骤ID">{{ selectedStep.step_id }}</Descriptions.Item>
+                  <Descriptions.Item label="步骤类型">{{ selectedStep.step_type || '-' }}</Descriptions.Item>
+                  <Descriptions.Item v-if="selectedStep.parent_id" label="父步骤">{{ selectedStep.parent_id }}</Descriptions.Item>
+                  <Descriptions.Item v-if="selectedStep.iteration" label="迭代次数">第 {{ selectedStep.iteration }} 次</Descriptions.Item>
+                  <Descriptions.Item label="状态">
+                    <Tag v-if="selectedStep.status === 'running'" color="processing">执行中</Tag>
+                    <Tag v-else-if="selectedStep.status === 'success'" color="success">成功</Tag>
+                    <Tag v-else-if="selectedStep.status === 'failed'" color="error">失败</Tag>
+                    <Tag v-else color="default">等待</Tag>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="耗时">{{ formatDuration(selectedStep.duration_ms) }}</Descriptions.Item>
+                </Descriptions>
 
 
             <!-- 错误信息 -->
@@ -869,16 +881,23 @@ defineExpose({
         <div v-else class="empty-tip">
           请选择左侧步骤查看详情
         </div>
+          </div>
+        </template>
       </Card>
     </div>
 
-    <!-- 底部：执行日志 -->
-    <Card class="logs-card" size="small" title="执行日志">
+    <!-- 执行日志 Modal -->
+    <Modal
+      v-model:open="logsModalOpen"
+      title="执行日志"
+      :width="700"
+      :footer="null"
+    >
       <div class="logs-container">
         <div v-for="(log, idx) in logs" :key="idx" class="log-line">{{ log }}</div>
         <div v-if="logs.length === 0" class="empty-logs">暂无日志</div>
       </div>
-    </Card>
+    </Modal>
 
 
     <!-- AI 交互对话框 -->
@@ -1013,12 +1032,41 @@ defineExpose({
 .tree-panel {
   width: 360px;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tree-panel :deep(.ant-card-body) {
+  flex: 1;
+  padding: 0;
+  overflow: hidden;
+}
+
+.tree-panel-body {
+  height: 100%;
   overflow: auto;
+  padding: 12px;
 }
 
 .detail-panel {
   flex: 1;
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.detail-panel :deep(.ant-card-body) {
+  flex: 1;
+  padding: 0;
+  overflow: hidden;
+}
+
+.detail-panel-body {
+  height: 100%;
+  overflow: hidden;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
 }
 
 .tree-node {
@@ -1104,19 +1152,14 @@ defineExpose({
   overflow: auto;
 }
 
-.logs-card {
-  flex-shrink: 0;
-  max-height: 180px;
-}
-
 .logs-container {
-  max-height: 120px;
+  max-height: 400px;
   overflow: auto;
   font-family: monospace;
   font-size: 12px;
   background: #1e1e1e;
   color: #d4d4d4;
-  padding: 8px;
+  padding: 12px;
   border-radius: 4px;
 }
 

@@ -173,7 +173,6 @@ function handleDebugStep() {
             v-if="httpResponse"
             :body="httpResponse.body"
             :body-type="httpResponse.bodyType"
-            height="300px"
           />
           <div v-else class="empty-tip">无响应体</div>
         </div>
@@ -257,6 +256,8 @@ function handleDebugStep() {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  height: 100%;
+  min-height: 0;
 }
 
 .status-bar {
@@ -298,11 +299,30 @@ function handleDebugStep() {
 
 .response-tabs {
   flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* 减少 Tab 间距 */
 .response-tabs :deep(.ant-tabs-nav) {
   margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.response-tabs :deep(.ant-tabs-content-holder) {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.response-tabs :deep(.ant-tabs-content) {
+  height: 100%;
+}
+
+.response-tabs :deep(.ant-tabs-tabpane) {
+  height: 100%;
+  overflow: auto;
 }
 
 .response-tabs :deep(.ant-tabs-tab) {
@@ -315,7 +335,7 @@ function handleDebugStep() {
 }
 
 .body-content {
-  height: 300px;
+  height: 100%;
 }
 
 /* KV 列表样式 */

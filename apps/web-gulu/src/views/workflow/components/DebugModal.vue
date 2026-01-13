@@ -64,8 +64,9 @@ function handleDebugComplete(summary: DebugSummary) {
     :open="open"
     title="调试工作流"
     placement="right"
-    :width="900"
+    :width="1100"
     :mask-closable="false"
+    :body-style="{ padding: 0 }"
     @close="handleClose"
   >
     <DebugPanelSSE
