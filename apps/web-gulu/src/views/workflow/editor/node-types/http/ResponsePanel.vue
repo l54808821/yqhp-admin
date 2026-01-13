@@ -5,6 +5,7 @@ import { createIconifyIcon } from '@vben/icons';
 import { Badge, Tabs, Tag, Tooltip } from 'ant-design-vue';
 
 import type { ResponseData } from '../../types';
+import CodeEditor from '../../components/CodeEditor.vue';
 
 // 图标
 const CheckCircleIcon = createIconifyIcon('lucide:check-circle');
@@ -40,14 +41,6 @@ function formatDuration(ms: number): string {
   return `${(ms / 1000).toFixed(2)} s`;
 }
 
-function formatJson(str: string): string {
-  try {
-    return JSON.stringify(JSON.parse(str), null, 2);
-  } catch {
-    return str;
-  }
-}
-
 async function copyToClipboard(text: string) {
   try {
     await navigator.clipboard.writeText(text);
@@ -61,6 +54,32 @@ const assertionStats = computed(() => {
   const passed = assertions.filter(a => a.passed).length;
   const failed = assertions.length - passed;
   return { total: assertions.length, passed, failed };
+});
+
+// 响应体编辑器语言
+const bodyLanguage = computed(() => {
+  switch (props.response.bodyType) {
+    case 'json':
+      return 'json';
+    case 'xml':
+      return 'xml';
+    case 'html':
+      return 'html';
+    default:
+      return 'plaintext';
+  }
+});
+
+// 格式化后的响应体
+const formattedBody = computed(() => {
+  if (props.response.bodyType === 'json') {
+    try {
+      return JSON.stringify(JSON.parse(props.response.body), null, 2);
+    } catch {
+      return props.response.body;
+    }
+  }
+  return props.response.body;
 });
 </script>
 
@@ -110,10 +129,12 @@ const assertionStats = computed(() => {
     <Tabs v-model:activeKey="activeTab" size="small" class="response-tabs">
       <Tabs.TabPane key="body" tab="Body">
         <div class="response-body">
-          <pre v-if="response.bodyType === 'json'" class="body-content json">{{
-            formatJson(response.body)
-          }}</pre>
-          <pre v-else class="body-content">{{ response.body }}</pre>
+          <CodeEditor
+            :model-value="formattedBody"
+            :language="bodyLanguage"
+            :readonly="true"
+            height="100%"
+          />
         </div>
       </Tabs.TabPane>
 
@@ -367,7 +388,7 @@ const assertionStats = computed(() => {
 
 .response-body {
   height: 100%;
-  overflow: auto;
+  min-height: 200px;
 }
 
 .body-content {

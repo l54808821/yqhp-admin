@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 
-import { Input, Radio, RadioGroup } from 'ant-design-vue';
+import { createIconifyIcon } from '@vben/icons';
 
 import type { BodyConfig, ParamItem } from '../../types';
 import { createBodyConfig } from '../../types';
 import ParamTable from '../../components/ParamTable.vue';
+import CodeEditor from '../../components/CodeEditor.vue';
+
+// 图标
+const FormatIcon = createIconifyIcon('lucide:align-left');
 
 interface Props {
   body?: BodyConfig;
@@ -20,7 +24,7 @@ const emit = defineEmits<{
 // 本地数据
 const localBody = ref<BodyConfig>(createBodyConfig());
 
-// 请求体类型选项
+// 请求体类型选项 - 参考 Apifox 样式
 const bodyTypeOptions = [
   { label: 'none', value: 'none' },
   { label: 'form-data', value: 'form-data' },
@@ -32,6 +36,24 @@ const bodyTypeOptions = [
   { label: 'GraphQL', value: 'graphql' },
   { label: 'msgpack', value: 'msgpack' },
 ];
+
+// 编辑器语言映射
+const editorLanguage = computed(() => {
+  switch (localBody.value.type) {
+    case 'json':
+    case 'msgpack':
+      return 'json';
+    case 'xml':
+      return 'xml';
+    case 'graphql':
+      return 'graphql';
+    default:
+      return 'plaintext';
+  }
+});
+
+// CodeEditor ref
+const codeEditorRef = ref<InstanceType<typeof CodeEditor>>();
 
 // 同步外部数据
 watch(
@@ -92,26 +114,49 @@ function updateGraphqlVariables(value: string) {
   localBody.value.graphql.variables = value;
   emitUpdate();
 }
+
+// 格式化代码
+function handleFormat() {
+  codeEditorRef.value?.formatCode();
+}
+
+function getPlaceholder(type: string): string {
+  switch (type) {
+    case 'json':
+      return '{\n  "key": "value"\n}';
+    case 'xml':
+      return '<?xml version="1.0"?>\n<root></root>';
+    case 'text':
+      return '输入文本内容';
+    default:
+      return '';
+  }
+}
 </script>
 
 <template>
   <div class="body-panel">
-    <!-- 类型选择器 -->
-    <div class="body-type-selector">
-      <RadioGroup
-        :value="localBody.type"
-        size="small"
-        @change="(e: any) => updateType(e.target.value)"
-      >
-        <Radio
+    <!-- 类型选择器 - Apifox 风格单行布局 -->
+    <div class="body-type-bar">
+      <div class="body-type-selector">
+        <button
           v-for="opt in bodyTypeOptions"
           :key="opt.value"
-          :value="opt.value"
-          class="body-type-radio"
+          class="type-btn"
+          :class="{ active: localBody.type === opt.value }"
+          @click="updateType(opt.value)"
         >
           {{ opt.label }}
-        </Radio>
-      </RadioGroup>
+        </button>
+      </div>
+
+      <!-- 格式化按钮 -->
+      <div v-if="['json', 'xml', 'graphql'].includes(localBody.type)" class="body-actions">
+        <button class="action-btn" title="格式化" @click="handleFormat">
+          <FormatIcon class="size-4" />
+          <span>格式化</span>
+        </button>
+      </div>
     </div>
 
     <!-- 内容区域 -->
@@ -141,13 +186,14 @@ function updateGraphqlVariables(value: string) {
       </div>
 
       <!-- JSON / XML / Text -->
-      <div v-else-if="['json', 'xml', 'text'].includes(localBody.type)">
-        <Input.TextArea
-          :value="localBody.raw"
+      <div v-else-if="['json', 'xml', 'text'].includes(localBody.type)" class="raw-editor-wrapper">
+        <CodeEditor
+          ref="codeEditorRef"
+          :model-value="localBody.raw || ''"
+          :language="editorLanguage"
           :placeholder="getPlaceholder(localBody.type)"
-          :rows="10"
-          class="raw-editor"
-          @change="(e: any) => updateRaw(e.target.value)"
+          height="100%"
+          @update:model-value="updateRaw"
         />
       </div>
 
@@ -156,87 +202,132 @@ function updateGraphqlVariables(value: string) {
         <span class="binary-text">二进制文件上传功能开发中...</span>
       </div>
 
-      <!-- GraphQL -->
+      <!-- GraphQL - 左右并排布局 -->
       <div v-else-if="localBody.type === 'graphql'" class="graphql-editor">
         <div class="graphql-section">
-          <div class="section-label">Query</div>
-          <Input.TextArea
-            :value="localBody.graphql?.query"
-            placeholder="输入 GraphQL 查询"
-            :rows="6"
-            @change="(e: any) => updateGraphqlQuery(e.target.value)"
-          />
+          <div class="section-header">
+            <span class="section-label">Query</span>
+          </div>
+          <div class="section-content">
+            <CodeEditor
+              :model-value="localBody.graphql?.query || ''"
+              language="graphql"
+              placeholder="输入 GraphQL 查询"
+              height="100%"
+              @update:model-value="updateGraphqlQuery"
+            />
+          </div>
         </div>
+        <div class="graphql-divider" />
         <div class="graphql-section">
-          <div class="section-label">Variables (JSON)</div>
-          <Input.TextArea
-            :value="localBody.graphql?.variables"
-            placeholder='{"key": "value"}'
-            :rows="4"
-            @change="(e: any) => updateGraphqlVariables(e.target.value)"
-          />
+          <div class="section-header">
+            <span class="section-label">Variables</span>
+          </div>
+          <div class="section-content">
+            <CodeEditor
+              :model-value="localBody.graphql?.variables || ''"
+              language="json"
+              placeholder='{"key": "value"}'
+              height="100%"
+              @update:model-value="updateGraphqlVariables"
+            />
+          </div>
         </div>
       </div>
 
       <!-- msgpack -->
-      <div v-else-if="localBody.type === 'msgpack'" class="body-msgpack">
-        <Input.TextArea
-          :value="localBody.raw"
-          placeholder="输入 JSON 格式数据，将自动转换为 msgpack"
-          :rows="10"
-          class="raw-editor"
-          @change="(e: any) => updateRaw(e.target.value)"
+      <div v-else-if="localBody.type === 'msgpack'" class="raw-editor-wrapper">
+        <CodeEditor
+          :model-value="localBody.raw || ''"
+          language="json"
+          placeholder="输入 JSON 格式数据"
+          height="100%"
+          @update:model-value="updateRaw"
         />
       </div>
     </div>
   </div>
 </template>
 
-<script lang="ts">
-function getPlaceholder(type: string): string {
-  switch (type) {
-    case 'json':
-      return '{\n  "key": "value"\n}';
-    case 'xml':
-      return '<?xml version="1.0" encoding="UTF-8"?>\n<root>\n  <element>value</element>\n</root>';
-    case 'text':
-      return '输入文本内容';
-    default:
-      return '';
-  }
-}
-</script>
-
 <style scoped>
 .body-panel {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  height: 100%;
+  gap: 8px;
+}
+
+/* Apifox 风格的类型选择器 */
+.body-type-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px solid hsl(var(--border) / 50%);
+  flex-shrink: 0;
 }
 
 .body-type-selector {
-  padding: 8px 0;
-  border-bottom: 1px solid hsl(var(--border) / 50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: wrap;
 }
 
-.body-type-radio {
-  margin-right: 0;
-  padding: 4px 12px;
-  border-radius: 4px;
+.type-btn {
+  padding: 2px 8px;
+  font-size: 12px;
+  color: hsl(var(--foreground) / 65%);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  line-height: 1.4;
 }
 
-.body-type-radio:hover {
-  background: hsl(var(--accent) / 30%);
+.type-btn:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--accent) / 50%);
 }
 
-:deep(.ant-radio-wrapper-checked) {
-  background: hsl(var(--primary) / 10%);
+.type-btn.active {
   color: hsl(var(--primary));
+  background: hsl(var(--primary) / 10%);
+  border-color: hsl(var(--primary) / 30%);
+  font-weight: 500;
+}
+
+.body-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: hsl(var(--foreground) / 60%);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.action-btn:hover {
+  color: hsl(var(--primary));
+  background: hsl(var(--accent) / 50%);
 }
 
 .body-content {
   flex: 1;
-  min-height: 200px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .body-empty,
@@ -244,29 +335,48 @@ function getPlaceholder(type: string): string {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 200px;
-  color: hsl(var(--foreground) / 50%);
-}
-
-.raw-editor {
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  height: 120px;
+  color: hsl(var(--foreground) / 40%);
   font-size: 13px;
 }
 
-.raw-editor :deep(.ant-input) {
-  border-radius: 6px;
+.raw-editor-wrapper {
+  height: 100%;
 }
 
+/* GraphQL 左右并排布局 */
 .graphql-editor {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
+  flex-direction: row;
+  height: 100%;
+  gap: 0;
 }
 
 .graphql-section {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  min-width: 0;
+}
+
+.graphql-divider {
+  width: 1px;
+  background: hsl(var(--border));
+  flex-shrink: 0;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid hsl(var(--border) / 50%);
+  flex-shrink: 0;
+}
+
+.section-content {
+  flex: 1;
+  min-height: 0;
 }
 
 .section-label {
