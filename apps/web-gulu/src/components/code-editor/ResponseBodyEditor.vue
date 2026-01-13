@@ -99,6 +99,11 @@ function handleFormat() {
   codeEditorRef.value?.formatCode();
 }
 
+// 搜索
+function handleSearch() {
+  codeEditorRef.value?.openSearch();
+}
+
 // 复制
 async function handleCopy() {
   try {
@@ -207,7 +212,7 @@ function updateEncoding(info: { key: string | number }) {
         </Tooltip>
         <!-- 搜索 -->
         <Tooltip title="搜索">
-          <button class="icon-btn">
+          <button class="icon-btn" @click="handleSearch">
             <SearchIcon class="size-4" />
           </button>
         </Tooltip>

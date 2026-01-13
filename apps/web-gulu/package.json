@@ -43,7 +43,7 @@
     "@vueuse/core": "catalog:",
     "ant-design-vue": "catalog:",
     "dayjs": "catalog:",
-    "monaco-editor": "^0.55.1",
+    "monaco-editor": "^0.50.0",
     "pinia": "catalog:",
     "vue": "catalog:",
     "vue-router": "catalog:"

@@ -140,9 +140,21 @@ function formatCode() {
   editor?.getAction('editor.action.formatDocument')?.run();
 }
 
+// 打开搜索框
+function openSearch() {
+  editor?.getAction('actions.find')?.run();
+}
+
+// 关闭搜索框
+function closeSearch() {
+  editor?.getAction('closeFindWidget')?.run();
+}
+
 // 暴露方法
 defineExpose({
   formatCode,
+  openSearch,
+  closeSearch,
   getEditor: () => editor,
 });
 </script>
@@ -161,7 +173,6 @@ defineExpose({
   position: relative;
   border: 1px solid hsl(var(--border));
   border-radius: 4px;
-  overflow: hidden;
   background: hsl(var(--background));
 }
 
