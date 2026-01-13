@@ -282,6 +282,7 @@ export interface DebugStepParams {
   };
   envId?: number;
   variables?: Record<string, unknown>;
+  sessionId?: string;  // 调试会话 ID，用于获取会话变量
 }
 
 // 单步调试响应

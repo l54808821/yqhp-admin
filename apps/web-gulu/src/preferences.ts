@@ -11,7 +11,8 @@ export const overridesPreferences = defineOverridesPreferences({
     // 使用混合权限模式（前后端路由都展示）
     accessMode: 'mixed',
     name: import.meta.env.VITE_APP_TITLE,
-    "authPageLayout": "panel-center"
+    "authPageLayout": "panel-center",
+    "layout": "sidebar-mixed-nav"
   },
   breadcrumb: {
     enable: false,

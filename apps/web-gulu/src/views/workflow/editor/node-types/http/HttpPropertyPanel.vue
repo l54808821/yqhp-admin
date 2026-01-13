@@ -490,7 +490,7 @@ const postProcessorsCount = computed(() => {
     <div
       v-if="debugResponse"
       class="response-section"
-      :style="{ height: `calc(${100 - requestPanelHeight}% - 8px)` }"
+      :style="{ height: `calc(${100 - requestPanelHeight}% - 4px)` }"
     >
       <ResponsePanel :response="debugResponse" />
     </div>
@@ -662,7 +662,7 @@ const postProcessorsCount = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 8px;
+  height: 4px;
   background: hsl(var(--border));
   cursor: row-resize;
   transition: background 0.2s;
@@ -671,13 +671,13 @@ const postProcessorsCount = computed(() => {
 
 .resize-bar:hover,
 .resize-bar.dragging {
-  background: hsl(var(--primary) / 30%);
+  background: hsl(var(--primary) / 40%);
 }
 
 .resize-icon {
-  width: 24px;
-  height: 12px;
-  color: hsl(var(--foreground) / 30%);
+  width: 20px;
+  height: 8px;
+  color: hsl(var(--foreground) / 25%);
 }
 
 .resize-bar:hover .resize-icon,

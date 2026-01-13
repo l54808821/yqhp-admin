@@ -374,7 +374,7 @@ function handleDebugComplete() {
       <Spin :spinning="loading" class="editor-spin">
         <SplitPane
           v-if="showPropertyPanel"
-          :default-width="500"
+          :default-width="450"
           :min-width="300"
           :max-width="800"
           storage-key="workflow-editor-split"
