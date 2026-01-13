@@ -2,14 +2,12 @@
 import { ref, computed } from 'vue';
 
 import { createIconifyIcon } from '@vben/icons';
-import { Badge, Tabs, Tag, Tooltip } from 'ant-design-vue';
+import { Tabs, Tag, Tooltip } from 'ant-design-vue';
 
 import type { ResponseData } from '../../types';
 import CodeEditor from '../../components/CodeEditor.vue';
 
 // 图标
-const CheckCircleIcon = createIconifyIcon('lucide:check-circle');
-const XCircleIcon = createIconifyIcon('lucide:x-circle');
 const CopyIcon = createIconifyIcon('lucide:copy');
 
 interface Props {
@@ -37,8 +35,8 @@ function formatSize(bytes: number): string {
 }
 
 function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms} ms`;
-  return `${(ms / 1000).toFixed(2)} s`;
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(2)}s`;
 }
 
 async function copyToClipboard(text: string) {
@@ -48,13 +46,6 @@ async function copyToClipboard(text: string) {
     console.error('复制失败', e);
   }
 }
-
-const assertionStats = computed(() => {
-  const assertions = props.response.assertions || [];
-  const passed = assertions.filter(a => a.passed).length;
-  const failed = assertions.length - passed;
-  return { total: assertions.length, passed, failed };
-});
 
 // 响应体编辑器语言
 const bodyLanguage = computed(() => {
@@ -81,68 +72,64 @@ const formattedBody = computed(() => {
   }
   return props.response.body;
 });
+
+// Headers 数量
+const headersCount = computed(() => Object.keys(props.response.headers || {}).length);
+
+// Cookies 数量
+const cookiesCount = computed(() => Object.keys(props.response.cookies || {}).length);
 </script>
 
 <template>
   <div class="response-panel">
-    <!-- 响应头部 -->
+    <!-- Apifox 风格：Tab + 状态信息在同一行 -->
     <div class="response-header">
-      <div class="response-title">返回响应</div>
+      <Tabs v-model:activeKey="activeTab" size="small" class="response-tabs">
+        <Tabs.TabPane key="body" tab="Body" />
+        <Tabs.TabPane key="headers">
+          <template #tab>
+            <span>Headers</span>
+            <span class="tab-count">{{ headersCount }}</span>
+          </template>
+        </Tabs.TabPane>
+        <Tabs.TabPane key="cookies">
+          <template #tab>
+            <span>Cookies</span>
+            <span class="tab-count">{{ cookiesCount }}</span>
+          </template>
+        </Tabs.TabPane>
+        <Tabs.TabPane key="request" v-if="response.actualRequest" tab="实际请求" />
+      </Tabs>
 
+      <!-- 右侧状态信息 -->
       <div class="response-meta">
         <Tag :color="statusColor" class="status-tag">
-          {{ response.statusCode }} {{ response.statusText }}
+          {{ response.statusCode }}
         </Tag>
         <span class="meta-item">{{ formatDuration(response.duration) }}</span>
-        <span class="meta-divider">|</span>
         <span class="meta-item">{{ formatSize(response.size) }}</span>
-      </div>
-
-      <!-- 断言统计 -->
-      <div v-if="assertionStats.total > 0" class="assertion-stats">
-        <Badge
-          :count="assertionStats.passed"
-          :number-style="{ backgroundColor: '#52c41a' }"
-          :show-zero="true"
-        >
-          <span class="stats-label">通过</span>
-        </Badge>
-        <Badge
-          :count="assertionStats.failed"
-          :number-style="{ backgroundColor: '#ff4d4f' }"
-          :show-zero="true"
-        >
-          <span class="stats-label">失败</span>
-        </Badge>
-      </div>
-
-      <div class="response-actions">
-        <Tooltip title="复制响应体">
-          <button class="action-btn" @click="copyToClipboard(response.body)">
-            <CopyIcon class="size-4" />
+        <Tooltip title="复制">
+          <button class="copy-btn" @click="copyToClipboard(response.body)">
+            <CopyIcon class="size-3.5" />
           </button>
         </Tooltip>
       </div>
     </div>
 
-    <!-- 响应内容 -->
-    <Tabs v-model:activeKey="activeTab" size="small" class="response-tabs">
-      <Tabs.TabPane key="body" tab="Body">
-        <div class="response-body">
-          <CodeEditor
-            :model-value="formattedBody"
-            :language="bodyLanguage"
-            :readonly="true"
-            height="100%"
-          />
-        </div>
-      </Tabs.TabPane>
+    <!-- 内容区域 -->
+    <div class="response-content">
+      <!-- Body -->
+      <div v-if="activeTab === 'body'" class="tab-content">
+        <CodeEditor
+          :model-value="formattedBody"
+          :language="bodyLanguage"
+          :readonly="true"
+          height="100%"
+        />
+      </div>
 
-      <Tabs.TabPane key="headers">
-        <template #tab>
-          <span>Headers</span>
-          <span class="tab-badge">{{ Object.keys(response.headers).length }}</span>
-        </template>
+      <!-- Headers -->
+      <div v-else-if="activeTab === 'headers'" class="tab-content">
         <div class="kv-list">
           <div
             v-for="(value, key) in response.headers"
@@ -152,14 +139,12 @@ const formattedBody = computed(() => {
             <span class="kv-key">{{ key }}</span>
             <span class="kv-value">{{ value }}</span>
           </div>
+          <div v-if="headersCount === 0" class="empty-hint">无 Headers</div>
         </div>
-      </Tabs.TabPane>
+      </div>
 
-      <Tabs.TabPane key="cookies">
-        <template #tab>
-          <span>Cookies</span>
-          <span class="tab-badge">{{ Object.keys(response.cookies).length }}</span>
-        </template>
+      <!-- Cookies -->
+      <div v-else-if="activeTab === 'cookies'" class="tab-content">
         <div class="kv-list">
           <div
             v-for="(value, key) in response.cookies"
@@ -169,57 +154,12 @@ const formattedBody = computed(() => {
             <span class="kv-key">{{ key }}</span>
             <span class="kv-value">{{ value }}</span>
           </div>
-          <div v-if="Object.keys(response.cookies).length === 0" class="empty-hint">
-            无 Cookie
-          </div>
+          <div v-if="cookiesCount === 0" class="empty-hint">无 Cookies</div>
         </div>
-      </Tabs.TabPane>
+      </div>
 
-      <Tabs.TabPane key="assertions" v-if="response.assertions?.length">
-        <template #tab>
-          <span>断言</span>
-          <span
-            class="tab-badge"
-            :class="{ failed: assertionStats.failed > 0 }"
-          >
-            {{ assertionStats.passed }}/{{ assertionStats.total }}
-          </span>
-        </template>
-        <div class="assertion-list">
-          <div
-            v-for="assertion in response.assertions"
-            :key="assertion.id"
-            class="assertion-item"
-            :class="{ passed: assertion.passed, failed: !assertion.passed }"
-          >
-            <component
-              :is="assertion.passed ? CheckCircleIcon : XCircleIcon"
-              class="assertion-icon size-4"
-            />
-            <div class="assertion-info">
-              <span class="assertion-name">{{ assertion.name }}</span>
-              <span v-if="assertion.message" class="assertion-message">
-                {{ assertion.message }}
-              </span>
-            </div>
-          </div>
-        </div>
-      </Tabs.TabPane>
-
-      <Tabs.TabPane key="console" v-if="response.console?.length">
-        <template #tab>
-          <span>控制台</span>
-          <span class="tab-badge">{{ response.console.length }}</span>
-        </template>
-        <div class="console-output">
-          <div v-for="(log, index) in response.console" :key="index" class="console-line">
-            {{ log }}
-          </div>
-        </div>
-      </Tabs.TabPane>
-
-      <Tabs.TabPane key="request" v-if="response.actualRequest">
-        <template #tab>实际请求</template>
+      <!-- 实际请求 -->
+      <div v-else-if="activeTab === 'request' && response.actualRequest" class="tab-content">
         <div class="actual-request">
           <div class="request-line">
             <span class="request-method">{{ response.actualRequest.method }}</span>
@@ -240,11 +180,11 @@ const formattedBody = computed(() => {
           </div>
           <div v-if="response.actualRequest.body" class="request-section">
             <div class="section-title">Body</div>
-            <pre class="body-content">{{ response.actualRequest.body }}</pre>
+            <pre class="body-pre">{{ response.actualRequest.body }}</pre>
           </div>
         </div>
-      </Tabs.TabPane>
-    </Tabs>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -256,90 +196,22 @@ const formattedBody = computed(() => {
   overflow: hidden;
 }
 
+/* Apifox 风格头部：Tab + 状态在同一行 */
 .response-header {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding-bottom: 12px;
+  justify-content: space-between;
   border-bottom: 1px solid hsl(var(--border));
   flex-shrink: 0;
-}
-
-.response-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: hsl(var(--foreground));
-}
-
-.response-meta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.status-tag {
-  font-weight: 600;
-  border-radius: 4px;
-  margin: 0;
-}
-
-.meta-item {
-  font-size: 12px;
-  color: hsl(var(--foreground) / 60%);
-}
-
-.meta-divider {
-  color: hsl(var(--foreground) / 20%);
-}
-
-.assertion-stats {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-left: auto;
-}
-
-.stats-label {
-  padding: 2px 8px;
-  font-size: 12px;
-  color: hsl(var(--foreground) / 60%);
-}
-
-.response-actions {
-  display: flex;
-  gap: 4px;
-}
-
-.action-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  color: hsl(var(--foreground) / 50%);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.action-btn:hover {
-  background: hsl(var(--accent));
-  color: hsl(var(--foreground));
+  padding-right: 8px;
 }
 
 .response-tabs {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
 }
 
 .response-tabs :deep(.ant-tabs-nav) {
   margin: 0;
-  margin-top: 8px;
 }
 
 .response-tabs :deep(.ant-tabs-nav::before) {
@@ -347,83 +219,96 @@ const formattedBody = computed(() => {
 }
 
 .response-tabs :deep(.ant-tabs-tab) {
-  padding: 8px 4px;
+  padding: 8px 12px;
   font-size: 12px;
 }
 
-.response-tabs :deep(.ant-tabs-content-holder) {
-  flex: 1;
-  overflow: hidden;
-}
-
-.response-tabs :deep(.ant-tabs-content) {
-  height: 100%;
-}
-
-.response-tabs :deep(.ant-tabs-tabpane) {
-  height: 100%;
-  padding-top: 8px;
-  overflow-y: auto;
-}
-
-.tab-badge {
+.tab-count {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-width: 16px;
   height: 16px;
-  padding: 0 5px;
+  padding: 0 4px;
   margin-left: 4px;
   font-size: 10px;
-  font-weight: 500;
-  color: hsl(var(--primary));
-  background: hsl(var(--primary) / 12%);
+  color: hsl(var(--foreground) / 50%);
+  background: hsl(var(--accent));
   border-radius: 8px;
 }
 
-.tab-badge.failed {
-  color: #ff4d4f;
-  background: rgba(255, 77, 79, 0.12);
+.response-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
-.response-body {
-  height: 100%;
-  min-height: 200px;
-}
-
-.body-content {
-  margin: 0;
-  padding: 12px;
-  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+.status-tag {
   font-size: 12px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  word-break: break-all;
-  background: hsl(var(--accent) / 50%);
-  border-radius: 6px;
-  color: hsl(var(--foreground) / 85%);
+  font-weight: 600;
+  padding: 0 6px;
+  line-height: 20px;
+  border-radius: 3px;
+  margin: 0;
 }
 
+.meta-item {
+  font-size: 12px;
+  color: hsl(var(--foreground) / 55%);
+}
+
+.copy-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: hsl(var(--foreground) / 45%);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.copy-btn:hover {
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
+}
+
+/* 内容区域 */
+.response-content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.tab-content {
+  height: 100%;
+  overflow: auto;
+}
+
+/* KV 列表 */
 .kv-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 
 .kv-item {
   display: flex;
   gap: 12px;
-  padding: 6px 8px;
+  padding: 6px 12px;
   font-size: 12px;
-  border-radius: 4px;
+  border-bottom: 1px solid hsl(var(--border) / 30%);
 }
 
 .kv-item:hover {
-  background: hsl(var(--accent) / 50%);
+  background: hsl(var(--accent) / 30%);
 }
 
 .kv-key {
-  min-width: 140px;
+  min-width: 160px;
   font-weight: 500;
   color: hsl(var(--foreground) / 75%);
 }
@@ -439,65 +324,15 @@ const formattedBody = computed(() => {
   padding: 24px;
   text-align: center;
   color: hsl(var(--foreground) / 35%);
-  font-size: 13px;
-}
-
-.assertion-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.assertion-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  background: hsl(var(--accent) / 30%);
-}
-
-.assertion-item.passed .assertion-icon {
-  color: #52c41a;
-}
-
-.assertion-item.failed .assertion-icon {
-  color: #ff4d4f;
-}
-
-.assertion-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.assertion-name {
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.assertion-message {
   font-size: 12px;
-  color: hsl(var(--foreground) / 55%);
 }
 
-.console-output {
-  padding: 12px;
-  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
-  font-size: 12px;
-  background: hsl(var(--accent) / 50%);
-  border-radius: 6px;
-}
-
-.console-line {
-  line-height: 1.6;
-  color: hsl(var(--foreground) / 75%);
-}
-
+/* 实际请求 */
 .actual-request {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  padding: 12px;
 }
 
 .request-line {
@@ -506,11 +341,12 @@ const formattedBody = computed(() => {
   gap: 8px;
   padding: 8px 12px;
   background: hsl(var(--accent) / 50%);
-  border-radius: 6px;
+  border-radius: 4px;
 }
 
 .request-method {
   font-weight: 600;
+  font-size: 12px;
   color: #61affe;
 }
 
@@ -524,12 +360,24 @@ const formattedBody = computed(() => {
 .request-section {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .section-title {
   font-size: 12px;
   font-weight: 500;
   color: hsl(var(--foreground) / 60%);
+  padding-left: 4px;
+}
+
+.body-pre {
+  margin: 0;
+  padding: 8px 12px;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  font-size: 12px;
+  background: hsl(var(--accent) / 50%);
+  border-radius: 4px;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 </style>
