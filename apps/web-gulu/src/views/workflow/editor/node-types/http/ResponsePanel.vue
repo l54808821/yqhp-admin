@@ -168,6 +168,7 @@ const cookiesCount = computed(() => Object.keys(props.response.cookies || {}).le
 
 .response-tabs :deep(.ant-tabs-nav) {
   margin: 0;
+  padding-left: 16px;
 }
 
 .response-tabs :deep(.ant-tabs-nav::before) {
@@ -223,6 +224,7 @@ const cookiesCount = computed(() => Object.keys(props.response.cookies || {}).le
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  padding: 0 16px 12px 16px;
 }
 
 .tab-content {

@@ -694,7 +694,6 @@ const postProcessorsCount = computed(() => {
   display: flex;
   flex-direction: column;
   min-height: 150px;
-  padding: 12px 16px;
   overflow: hidden;
   background: hsl(var(--card));
 }
