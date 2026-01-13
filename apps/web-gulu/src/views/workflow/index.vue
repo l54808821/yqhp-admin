@@ -92,8 +92,9 @@ function handleEditorModified(tabId: string | number, modified: boolean) {
 }
 
 // 处理标题变化
-function handleTitleChange(_tabId: string | number, _title: string) {
-  // 可以在这里更新 tab 标题
+function handleTitleChange(tabId: string | number, title: string) {
+  // 更新 tab 标题
+  (ideLayoutRef.value as any)?.updateTabTitle(tabId, title);
 }
 
 // 注册编辑器引用

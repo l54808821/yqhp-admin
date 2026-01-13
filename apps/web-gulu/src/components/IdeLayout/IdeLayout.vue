@@ -35,6 +35,7 @@ defineExpose({
   closeTab: tabManager.closeTab,
   pinTab: tabManager.pinTab,
   setModified: tabManager.setModified,
+  updateTabTitle: tabManager.updateTabTitle,
   activateTab: tabManager.activateTab,
   closeAllTabs: tabManager.closeAllTabs,
   closeOtherTabs: tabManager.closeOtherTabs,

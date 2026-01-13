@@ -7,6 +7,7 @@ import { message, Spin } from 'ant-design-vue';
 import type { Workflow } from '#/api/workflow';
 import { getWorkflowApi, updateWorkflowApi, validateWorkflowDefinitionApi } from '#/api/workflow';
 import SplitPane from '#/components/SplitPane.vue';
+import { useCategoryStore } from '#/store/category';
 
 import PropertyPanel from '../editor/PropertyPanel.vue';
 import WorkflowTreeEditor from '../editor/WorkflowTreeEditor.vue';
@@ -28,6 +29,7 @@ const emit = defineEmits<{
 }>();
 
 const router = useRouter();
+const categoryStore = useCategoryStore();
 
 const loading = ref(false);
 const saving = ref(false);
@@ -362,6 +364,8 @@ async function handleRename(newName: string) {
     await updateWorkflowApi(workflow.value.id, { name: newName });
     workflow.value.name = newName;
     workflowDefinition.value.name = newName;
+    // 刷新分类树（后端已同步更新分类名称）
+    await categoryStore.loadCategories(workflow.value.project_id);
     emit('titleChange', newName);
     message.success('重命名成功');
   } catch {

@@ -53,6 +53,7 @@ function startEditName() {
 
 // 确认修改名称
 function confirmEditName() {
+  if (!isEditingName.value) return; // 防止重复触发
   const newName = editingName.value.trim();
   if (newName && newName !== props.workflow?.name) {
     emit('rename', newName);

@@ -109,6 +109,14 @@ export function useTabManager(storageKey?: string) {
     }
   }
 
+  // 更新 tab 标题
+  function updateTabTitle(id: string | number, title: string) {
+    const tab = tabs.value.find((t) => t.id === id);
+    if (tab) {
+      tab.title = title;
+    }
+  }
+
   // 激活 tab
   function activateTab(id: string | number) {
     activeTabId.value = id;
@@ -134,6 +142,7 @@ export function useTabManager(storageKey?: string) {
     closeTab,
     pinTab,
     setModified,
+    updateTabTitle,
     activateTab,
     closeAllTabs,
     closeOtherTabs,
