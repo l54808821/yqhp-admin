@@ -36,6 +36,7 @@ import type {
 } from '#/api/debug';
 
 import HttpStepDetail from './HttpStepDetail.vue';
+import ScriptStepDetail from './ScriptStepDetail.vue';
 
 import {
   buildSSEUrl,
@@ -660,6 +661,13 @@ function handleDebugHttpStep() {
   console.log('Debug HTTP step:', selectedStep.value);
 }
 
+// 调试脚本步骤
+function handleDebugScriptStep() {
+  // TODO: 实现单步调试功能
+  // 需要获取选中步骤的配置，调用 /api/v1/debug/step 接口
+  console.log('Debug Script step:', selectedStep.value);
+}
+
 // 树节点选择
 function handleTreeSelect(selectedKeys: (string | number)[]) {
   const key = selectedKeys[0];
@@ -856,6 +864,13 @@ defineExpose({
                 v-if="selectedStep.step_type === 'http'"
                 :step-result="selectedStep"
                 @debug-step="handleDebugHttpStep"
+              />
+
+              <!-- 脚本步骤使用专用组件 -->
+              <ScriptStepDetail
+                v-else-if="selectedStep.step_type === 'script'"
+                :step-result="selectedStep"
+                @debug-step="handleDebugScriptStep"
               />
 
               <!-- 其他步骤类型使用通用展示 -->

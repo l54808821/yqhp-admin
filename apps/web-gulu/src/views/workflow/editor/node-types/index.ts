@@ -16,7 +16,7 @@ import DatabaseProperty from './DatabaseProperty.vue';
 import HttpPropertyPanel from './http/HttpPropertyPanel.vue';
 import LoopProperty from './LoopProperty.vue';
 import MqProperty from './MqProperty.vue';
-import ScriptProperty from './ScriptProperty.vue';
+import ScriptPropertyPanel from './ScriptPropertyPanel.vue';
 import WaitProperty from './WaitProperty.vue';
 
 // AI 图标（使用 sparkles 表示 AI）
@@ -76,11 +76,11 @@ export const nodeTypeRegistry: Record<string, NodeTypeConfig> = {
     label: '脚本',
     icon: Code,
     color: '#722ed1',
-    propertyComponent: ScriptProperty,
+    propertyComponent: ScriptPropertyPanel,
     defaultConfig: () => ({
       config: { language: 'javascript', script: '' },
     }),
-    getDescription: (node) => node.config?.language || '',
+    getDescription: (node) => node.config?.language || 'javascript',
   },
   ai: {
     key: 'ai',

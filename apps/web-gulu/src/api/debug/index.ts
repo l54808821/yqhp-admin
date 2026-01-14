@@ -7,7 +7,7 @@ export type DebugSessionStatus = 'running' | 'completed' | 'success' | 'failed' 
 export type ExecutionMode = 'streaming' | 'blocking';
 
 // 步骤状态
-export type StepStatus = 'pending' | 'running' | 'success' | 'completed' | 'failed' | 'skipped';
+export type StepStatus = 'pending' | 'running' | 'success' | 'completed' | 'failed' | 'skipped' | 'timeout';
 
 // 调试会话
 export interface DebugSession {
@@ -249,40 +249,24 @@ export interface DebugStepParams {
     id: string;
     type: string;
     name: string;
-    config: {
-      method: string;
-      url: string;
-      domainCode?: string;
-      params?: Array<{ id: string; enabled: boolean; key: string; value: string; type?: string; description?: string }>;
-      headers?: Array<{ id: string; enabled: boolean; key: string; value: string; type?: string; description?: string }>;
-      cookies?: Array<{ id: string; enabled: boolean; key: string; value: string; type?: string; description?: string }>;
-      body?: {
-        type: string;
-        formData?: Array<{ id: string; enabled: boolean; key: string; value: string; type?: string }>;
-        urlencoded?: Array<{ id: string; enabled: boolean; key: string; value: string }>;
-        raw?: string;
-      };
-      auth?: {
-        type: string;
-        basic?: { username: string; password: string };
-        bearer?: { token: string };
-        apikey?: { key: string; value: string; addTo: string };
-      };
-      settings?: {
-        connectTimeout?: number;
-        readTimeout?: number;
-        followRedirects?: boolean;
-        maxRedirects?: number;
-        verifySsl?: boolean;
-        saveCookies?: boolean;
-      };
-    };
+    config: Record<string, unknown>; // 通用配置，根据 type 不同内容不同
     preProcessors?: Array<{ id: string; type: string; enabled: boolean; name?: string; config: Record<string, unknown> }>;
     postProcessors?: Array<{ id: string; type: string; enabled: boolean; name?: string; config: Record<string, unknown> }>;
   };
   envId?: number;
   variables?: Record<string, unknown>;
   sessionId?: string;  // 调试会话 ID，用于获取会话变量
+}
+
+// 脚本执行结果
+export interface ScriptResult {
+  script: string;
+  language: string;
+  result?: unknown;
+  console_logs: string[];
+  error?: string;
+  variables: Record<string, unknown>;
+  duration_ms: number;
 }
 
 // 单步调试响应
@@ -298,6 +282,7 @@ export interface DebugStepResponse {
     body: string;
     bodyType: string;
   };
+  scriptResult?: ScriptResult;
   preProcessorResults?: Array<{
     keywordId: string;
     type: string;

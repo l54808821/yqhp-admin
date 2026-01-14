@@ -59,6 +59,12 @@ const propertyComponent = computed(() => {
 // 是否是 HTTP 节点（使用特殊布局）
 const isHttpNode = computed(() => localNode.value?.type === 'http');
 
+// 是否是脚本节点（使用特殊布局）
+const isScriptNode = computed(() => localNode.value?.type === 'script');
+
+// 是否使用特殊布局（无 padding）
+const useSpecialLayout = computed(() => isHttpNode.value || isScriptNode.value);
+
 function handleUpdate(updatedNode?: any) {
   if (updatedNode) {
     // 如果子组件传递了更新后的节点数据，直接使用
@@ -76,7 +82,7 @@ function handleClose() {
 
 <template>
   <div class="property-panel">
-    <div v-if="localNode" class="panel-content" :class="{ 'no-padding': isHttpNode }">
+    <div v-if="localNode" class="panel-content" :class="{ 'no-padding': useSpecialLayout }">
       <!-- HTTP 节点使用特殊布局 -->
       <template v-if="isHttpNode">
         <div class="panel-header http-header">
@@ -95,6 +101,28 @@ function handleClose() {
           :node="localNode"
           :env-id="envId"
           class="http-panel-wrapper"
+          @update="handleUpdate"
+        />
+      </template>
+
+      <!-- 脚本节点使用特殊布局 -->
+      <template v-else-if="isScriptNode">
+        <div class="panel-header script-header">
+          <Input
+            v-model:value="localNode.name"
+            class="node-name-input"
+            placeholder="节点名称"
+            @blur="handleUpdate()"
+          />
+          <Button type="text" size="small" @click="handleClose">
+            <template #icon><X class="size-4" /></template>
+          </Button>
+        </div>
+        <component
+          :is="propertyComponent"
+          :node="localNode"
+          :env-id="envId"
+          class="script-panel-wrapper"
           @update="handleUpdate"
         />
       </template>
@@ -159,7 +187,8 @@ function handleClose() {
   flex-shrink: 0;
 }
 
-.panel-header.http-header {
+.panel-header.http-header,
+.panel-header.script-header {
   padding: 12px 16px;
   margin-bottom: 0;
   border-bottom: 1px solid hsl(var(--border));
@@ -191,7 +220,8 @@ function handleClose() {
   border-bottom: 1px solid hsl(var(--primary));
 }
 
-.http-panel-wrapper {
+.http-panel-wrapper,
+.script-panel-wrapper {
   flex: 1;
   min-height: 0;
   overflow: hidden;
