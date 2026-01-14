@@ -240,14 +240,7 @@ const variablesCount = computed(() => {
         <CodeEditor
           :model-value="localNode.config?.script || ''"
           language="javascript"
-          :options="{
-            minimap: { enabled: false },
-            lineNumbers: 'on',
-            fontSize: 13,
-            tabSize: 2,
-            wordWrap: 'on',
-            scrollBeyondLastLine: false,
-          }"
+          height="100%"
           @update:model-value="updateScript"
         />
       </div>
@@ -378,6 +371,7 @@ const variablesCount = computed(() => {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  padding: 12px 12px;
 }
 
 /* 分割条 */
