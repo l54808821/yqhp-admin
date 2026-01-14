@@ -7,7 +7,12 @@ import {
   Copy,
   Plus,
   X,
+  createIconifyIcon,
 } from '@vben/icons';
+
+// 禁用/启用图标
+const Ban = createIconifyIcon('lucide:ban');
+const CircleCheck = createIconifyIcon('lucide:circle-check');
 
 import {
   Button,
@@ -26,6 +31,7 @@ export interface StepNode {
   id: string;
   type: string;
   name: string;
+  disabled?: boolean; // 是否禁用
   config?: Record<string, any>;
   condition?: {
     expression: string;
@@ -426,6 +432,21 @@ function handleDeleteNode(nodeId: string) {
   }
 }
 
+// 切换节点禁用状态
+function handleToggleDisabled(nodeId: string) {
+  if (props.readonly) return;
+  const newSteps = JSON.parse(JSON.stringify(props.definition.steps));
+  const node = findNodeById(newSteps, nodeId);
+  if (node) {
+    node.disabled = !node.disabled;
+    emit('update', { ...props.definition, steps: newSteps });
+    // 如果当前选中的是这个节点，更新选中状态
+    if (localSelectedKeys.value.includes(nodeId)) {
+      emit('select', node);
+    }
+  }
+}
+
 // 创建新节点
 function createNode(type: string): StepNode {
   const id = `step_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -503,8 +524,11 @@ function renderAddMenu(parentId?: string) {
           <div
             class="tree-node-row"
             v-if="nodeProps.stepData"
+            :class="{ 'node-disabled': nodeProps.stepData.disabled }"
             :style="{
-              backgroundColor: getNodeType(nodeProps.stepData.type)?.color + '08',
+              backgroundColor: nodeProps.stepData.disabled
+                ? 'hsl(var(--muted) / 30%)'
+                : getNodeType(nodeProps.stepData.type)?.color + '08',
             }"
           >
             <!-- 勾选框 -->
@@ -529,15 +553,23 @@ function renderAddMenu(parentId?: string) {
             <span
               class="node-type-tag"
               :style="{
-                backgroundColor: getNodeType(nodeProps.stepData.type)?.color + '20',
-                color: getNodeType(nodeProps.stepData.type)?.color,
+                backgroundColor: nodeProps.stepData.disabled
+                  ? 'hsl(var(--muted) / 50%)'
+                  : getNodeType(nodeProps.stepData.type)?.color + '20',
+                color: nodeProps.stepData.disabled
+                  ? 'hsl(var(--muted-foreground))'
+                  : getNodeType(nodeProps.stepData.type)?.color,
               }"
             >
               <component :is="getNodeType(nodeProps.stepData.type)?.icon" class="size-3" />
               {{ getNodeType(nodeProps.stepData.type)?.label }}
             </span>
-            <span class="node-name">{{ nodeProps.stepData.name }}</span>
-            <span v-if="getStepDescription(nodeProps.stepData)" class="node-desc">
+            <span class="node-name" :class="{ 'text-muted': nodeProps.stepData.disabled }">
+              {{ nodeProps.stepData.name }}
+            </span>
+            <!-- 禁用标签 -->
+            <span v-if="nodeProps.stepData.disabled" class="disabled-tag">已禁用</span>
+            <span v-if="getStepDescription(nodeProps.stepData) && !nodeProps.stepData.disabled" class="node-desc">
               {{ getStepDescription(nodeProps.stepData) }}
             </span>
             <div class="node-actions" v-if="!readonly" @click.stop>
@@ -554,6 +586,16 @@ function renderAddMenu(parentId?: string) {
                   <component :is="renderAddMenu(nodeProps.stepData.id)" />
                 </template>
               </Dropdown>
+              <Tooltip :title="nodeProps.stepData.disabled ? '启用' : '禁用'">
+                <Button
+                  type="text"
+                  size="small"
+                  @click="handleToggleDisabled(nodeProps.stepData.id)"
+                >
+                  <CircleCheck v-if="nodeProps.stepData.disabled" class="size-4 text-green-500" />
+                  <Ban v-else class="size-4 text-orange-500" />
+                </Button>
+              </Tooltip>
               <Tooltip title="复制">
                 <Button type="text" size="small" @click="handleCopyNode(nodeProps.stepData)">
                   <Copy class="size-4" />
@@ -670,6 +712,30 @@ function renderAddMenu(parentId?: string) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.disabled-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted) / 50%);
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.node-disabled {
+  opacity: 0.7;
+}
+
+.node-disabled .node-name {
+  text-decoration: line-through;
+  color: hsl(var(--muted-foreground));
+}
+
+.text-muted {
+  color: hsl(var(--muted-foreground)) !important;
 }
 
 .node-actions {

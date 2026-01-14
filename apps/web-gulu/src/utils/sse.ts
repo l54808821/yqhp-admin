@@ -12,6 +12,7 @@ export type SSEEventType =
   | 'step_started'
   | 'step_completed'
   | 'step_failed'
+  | 'step_skipped'
   | 'progress'
   | 'workflow_completed'
   | 'ai_chunk'
@@ -61,6 +62,16 @@ export interface StepFailedData {
   error: string;
   details?: string;
   duration_ms: number;
+}
+
+// 步骤跳过数据
+export interface StepSkippedData {
+  step_id: string;
+  step_name: string;
+  step_type?: string;
+  parent_id?: string;
+  iteration?: number;
+  reason: string;
 }
 
 // 进度数据
@@ -244,6 +255,7 @@ export class SSEService {
       'step_started',
       'step_completed',
       'step_failed',
+      'step_skipped',
       'progress',
       'workflow_completed',
       'ai_chunk',

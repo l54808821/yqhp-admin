@@ -26,6 +26,7 @@ const LoadingOutlined = createIconifyIcon('lucide:loader-2');
 const ClockCircleOutlined = createIconifyIcon('lucide:clock');
 const StopOutlined = createIconifyIcon('lucide:square');
 const FileTextOutlined = createIconifyIcon('lucide:file-text');
+const BanOutlined = createIconifyIcon('lucide:ban');
 
 import type {
   DebugSummary,
@@ -454,6 +455,9 @@ function handleSSEMessage(event: SSEEvent) {
     case 'step_failed':
       handleStepResult(event.data as StepResult);
       break;
+    case 'step_skipped':
+      handleStepSkipped(event.data as { step_id: string; step_name: string; step_type?: string; parent_id?: string; iteration?: number; reason: string });
+      break;
     case 'progress':
       handleProgress(event.data as ProgressData);
       break;
@@ -488,6 +492,20 @@ function handleStepStarted(data: StepStartedData) {
   };
   stepResults.value = [...stepResults.value, result];
   selectedStepKey.value = generateNodeKey(result);
+}
+
+function handleStepSkipped(data: { step_id: string; step_name: string; step_type?: string; parent_id?: string; iteration?: number; reason: string }) {
+  const result: StepResult = {
+    step_id: data.step_id,
+    step_name: data.step_name,
+    step_type: data.step_type,
+    parent_id: data.parent_id,
+    iteration: data.iteration,
+    status: 'skipped',
+    duration_ms: 0,
+    error: data.reason,
+  };
+  stepResults.value = [...stepResults.value, result];
 }
 
 function handleStepResult(result: StepResult) {
@@ -657,6 +675,8 @@ function getStepIcon(status?: string) {
       return CloseCircleOutlined;
     case 'running':
       return LoadingOutlined;
+    case 'skipped':
+      return BanOutlined;
     default:
       return ClockCircleOutlined;
   }
@@ -671,6 +691,8 @@ function getStepColor(status?: string) {
       return '#ff4d4f';
     case 'running':
       return '#1890ff';
+    case 'skipped':
+      return '#faad14';
     default:
       return '#d9d9d9';
   }
@@ -812,6 +834,7 @@ defineExpose({
                   <Tag v-if="status === 'running'" color="processing" size="small">执行中</Tag>
                   <Tag v-else-if="status === 'success' || status === 'completed'" color="success" size="small">成功</Tag>
               <Tag v-else-if="status === 'failed'" color="error" size="small">失败</Tag>
+              <Tag v-else-if="status === 'skipped'" color="warning" size="small">已跳过</Tag>
               <span v-if="duration" class="node-duration">{{ formatDuration(duration) }}</span>
             </div>
           </template>
