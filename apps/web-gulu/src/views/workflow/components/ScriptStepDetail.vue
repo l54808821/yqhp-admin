@@ -118,17 +118,12 @@ function handleDebugStep() {
         <div class="tab-content script-content">
           <CodeEditor
             v-if="scriptOutput?.script"
-            :value="scriptOutput.script"
+            :model-value="scriptOutput.script"
             language="javascript"
-            :options="{
-              readOnly: true,
-              minimap: { enabled: false },
-              lineNumbers: 'on',
-              fontSize: 13,
-              tabSize: 2,
-              wordWrap: 'on',
-              scrollBeyondLastLine: false,
-            }"
+            :readonly="true"
+            :minimap="false"
+            :line-numbers="true"
+            height="100%"
           />
           <div v-else class="empty-tip">无脚本代码</div>
         </div>
