@@ -1087,6 +1087,19 @@ defineExpose({
   padding: 12px;
 }
 
+/* 减少树的缩进 */
+.tree-panel-body :deep(.ant-tree) {
+  font-size: 13px;
+}
+
+.tree-panel-body :deep(.ant-tree-indent-unit) {
+  width: 16px;
+}
+
+.tree-panel-body :deep(.ant-tree-switcher) {
+  width: 20px;
+}
+
 .detail-panel {
   flex: 1;
   display: flex;
