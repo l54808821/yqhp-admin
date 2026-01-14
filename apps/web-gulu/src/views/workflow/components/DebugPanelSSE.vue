@@ -124,7 +124,14 @@ let sseService: SSEService | null = null;
 // 计算属性
 const isRunning = computed(() => sseState.value === 'connected' && !debugSummary.value);
 const isCompleted = computed(() => !!debugSummary.value);
-const progressPercent = computed(() => currentProgress.value?.percentage || 0);
+const progressPercent = computed(() => {
+  const percent = currentProgress.value?.percentage || 0;
+  // 如果还在运行中，进度最多显示 99%
+  if (isRunning.value && percent >= 100) {
+    return 99;
+  }
+  return percent;
+});
 
 
 // 生成唯一的树节点key
@@ -688,11 +695,18 @@ defineExpose({
   <div class="debug-panel">
     <!-- 头部状态 -->
     <div class="debug-header">
-      <Space>
+      <Space align="center">
         <Tag :color="statusColor">{{ statusText }}</Tag>
-        <span v-if="currentProgress" class="progress-text">
+        <Tag v-if="currentProgress" class="progress-tag">
           {{ currentProgress.current_step }}/{{ currentProgress.total_steps }}
-        </span>
+        </Tag>
+        <Progress
+          v-if="isRunning || isCompleted"
+          :percent="progressPercent"
+          :status="debugSummary?.status === 'failed' ? 'exception' : undefined"
+          :stroke-color="(debugSummary?.status === 'completed' || debugSummary?.status === 'success') ? '#52c41a' : undefined"
+          class="header-progress"
+        />
       </Space>
       <Space>
         <Button
@@ -722,15 +736,6 @@ defineExpose({
         <Button @click="handleClose">关闭</Button>
       </Space>
     </div>
-
-    <!-- 进度条 -->
-    <Progress
-      v-if="isRunning || isCompleted"
-      :percent="progressPercent"
-      :status="debugSummary?.status === 'failed' ? 'exception' : undefined"
-      :stroke-color="(debugSummary?.status === 'completed' || debugSummary?.status === 'success') ? '#52c41a' : undefined"
-      size="small"
-    />
 
     <!-- 错误提示 -->
     <Alert
@@ -985,9 +990,20 @@ defineExpose({
   align-items: center;
 }
 
-.progress-text {
+.progress-tag {
   font-size: 12px;
-  color: #666;
+  margin: 0;
+}
+
+.header-progress {
+  width: 300px;
+  margin-bottom: 4px !important;
+  line-height: 1;
+  margin-left: 5px;
+}
+
+.header-progress :deep(.ant-progress-line) {
+  margin-bottom: 0;
 }
 
 .error-alert {
