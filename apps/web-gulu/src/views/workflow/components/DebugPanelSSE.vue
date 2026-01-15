@@ -37,6 +37,7 @@ import type {
 
 import HttpStepDetail from './HttpStepDetail.vue';
 import ScriptStepDetail from './ScriptStepDetail.vue';
+import ConditionStepDetail from './ConditionStepDetail.vue';
 
 import {
   stopExecutionApi,
@@ -182,6 +183,7 @@ const treeData = computed<TreeNode[]>(() => {
   }
 
   for (const result of stepResults.value) {
+    // 处理循环节点的子步骤
     if (result.step_type === 'loop' && parentChildMap.has(result.step_id)) {
       const nodeKey = generateNodeKey(result);
       const parentNode = nodeMap.get(nodeKey);
@@ -204,6 +206,18 @@ const treeData = computed<TreeNode[]>(() => {
           } else {
             parentNode.children!.push(...children);
           }
+        }
+      }
+    }
+    // 处理条件节点的子步骤
+    if (result.step_type === 'condition' && parentChildMap.has(result.step_id)) {
+      const nodeKey = generateNodeKey(result);
+      const parentNode = nodeMap.get(nodeKey);
+      if (parentNode) {
+        const iterMap = parentChildMap.get(result.step_id)!;
+        // 条件节点不按迭代分组，直接把所有子步骤挂上去
+        for (const children of iterMap.values()) {
+          parentNode.children!.push(...children);
         }
       }
     }
@@ -883,6 +897,12 @@ defineExpose({
                 v-else-if="selectedStep.step_type === 'script'"
                 :step-result="selectedStep"
                 @debug-step="handleDebugScriptStep"
+              />
+
+              <!-- 条件判断步骤使用专用组件 -->
+              <ConditionStepDetail
+                v-else-if="selectedStep.step_type === 'condition'"
+                :step-result="selectedStep"
               />
 
               <!-- 其他步骤类型使用通用展示 -->
