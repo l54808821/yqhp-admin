@@ -59,6 +59,7 @@ function backendToFrontend(steps: any[]): StepNode[] {
       id: step.id,
       type: step.type,
       name: step.name,
+      disabled: step.disabled,
       config: step.config,
       condition: step.condition,
       loop: step.loop,
@@ -84,6 +85,11 @@ function frontendToBackend(steps: StepNode[]): any[] {
       type: step.type,
       name: step.name,
     };
+
+    // 复制 disabled 状态
+    if (step.disabled !== undefined) {
+      node.disabled = step.disabled;
+    }
 
     // 复制 config（非条件/循环节点）
     if (step.config) {
