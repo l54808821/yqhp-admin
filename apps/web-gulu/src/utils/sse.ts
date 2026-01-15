@@ -1,6 +1,7 @@
 /**
  * SSE (Server-Sent Events) 服务
  * 用于替代 WebSocket 实现工作流调试的实时事件推送
+ * 支持 GET (EventSource) 和 POST (fetch + ReadableStream) 两种方式
  */
 
 // SSE 连接状态
@@ -145,17 +146,22 @@ export interface ErrorData {
 // SSE 配置
 export interface SSEConfig {
   url: string;
+  method?: 'GET' | 'POST';  // 请求方法，默认 GET
+  body?: Record<string, unknown>;  // POST 请求体
+  headers?: Record<string, string>;  // 自定义请求头
   onMessage?: (event: SSEEvent) => void;
   onStateChange?: (state: SSEState) => void;
-  onError?: (error: Event) => void;
+  onError?: (error: Event | Error) => void;
   withCredentials?: boolean;
 }
 
 /**
  * SSE 服务类
+ * 支持 GET (EventSource) 和 POST (fetch + ReadableStream) 两种方式
  */
 export class SSEService {
   private eventSource: EventSource | null = null;
+  private abortController: AbortController | null = null;
   private config: SSEConfig;
   private state: SSEState = 'disconnected';
   private sessionId: string | null = null;
@@ -168,22 +174,140 @@ export class SSEService {
    * 连接 SSE
    */
   connect(): void {
-    if (this.eventSource) {
+    if (this.eventSource || this.abortController) {
       console.warn('SSE is already connected');
       return;
     }
 
     this.setState('connecting');
 
+    // 根据方法选择连接方式
+    if (this.config.method === 'POST') {
+      this.connectWithFetch();
+    } else {
+      this.connectWithEventSource();
+    }
+  }
+
+  /**
+   * 使用 EventSource 连接 (GET 方式)
+   */
+  private connectWithEventSource(): void {
     try {
       this.eventSource = new EventSource(this.config.url, {
         withCredentials: this.config.withCredentials ?? true,
       });
 
-      this.setupEventHandlers();
+      this.setupEventSourceHandlers();
     } catch (error) {
       console.error('Failed to create EventSource:', error);
       this.setState('error');
+    }
+  }
+
+  /**
+   * 使用 fetch + ReadableStream 连接 (POST 方式)
+   */
+  private async connectWithFetch(): Promise<void> {
+    this.abortController = new AbortController();
+
+    try {
+      const response = await fetch(this.config.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+          ...this.config.headers,
+        },
+        body: JSON.stringify(this.config.body || {}),
+        signal: this.abortController.signal,
+        credentials: this.config.withCredentials ? 'include' : 'same-origin',
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      if (!response.body) {
+        throw new Error('Response body is null');
+      }
+
+      this.setState('connected');
+
+      // 读取流
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          this.setState('disconnected');
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // 解析 SSE 格式的数据
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // 保留最后一个不完整的行
+
+        let currentEvent = '';
+        let currentData = '';
+
+        for (const line of lines) {
+          if (line.startsWith('event:')) {
+            currentEvent = line.slice(6).trim();
+          } else if (line.startsWith('data:')) {
+            currentData = line.slice(5).trim();
+          } else if (line === '' && currentData) {
+            // 空行表示事件结束
+            this.handleFetchMessage(currentEvent, currentData);
+            currentEvent = '';
+            currentData = '';
+          }
+        }
+      }
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log('SSE fetch aborted');
+        this.setState('disconnected');
+      } else {
+        console.error('SSE fetch error:', error);
+        this.config.onError?.(error);
+        this.setState('error');
+      }
+    }
+  }
+
+  /**
+   * 处理 fetch 方式的消息
+   */
+  private handleFetchMessage(eventType: string, data: string): void {
+    try {
+      const parsed = JSON.parse(data);
+
+      const sseEvent: SSEEvent = {
+        type: (eventType || parsed.type) as SSEEventType,
+        session_id: parsed.session_id,
+        timestamp: parsed.timestamp,
+        data: parsed.data,
+      };
+
+      // 保存会话ID
+      if (sseEvent.session_id && !this.sessionId) {
+        this.sessionId = sseEvent.session_id;
+      }
+
+      // 忽略心跳事件
+      if (sseEvent.type === 'heartbeat') {
+        return;
+      }
+
+      this.config.onMessage?.(sseEvent);
+    } catch (error) {
+      console.error('Failed to parse SSE message:', error, data);
     }
   }
 
@@ -194,6 +318,10 @@ export class SSEService {
     if (this.eventSource) {
       this.eventSource.close();
       this.eventSource = null;
+    }
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
     }
     this.sessionId = null;
     this.setState('disconnected');
@@ -217,13 +345,16 @@ export class SSEService {
    * 是否已连接
    */
   isConnected(): boolean {
-    return this.state === 'connected' && this.eventSource?.readyState === EventSource.OPEN;
+    if (this.eventSource) {
+      return this.state === 'connected' && this.eventSource.readyState === EventSource.OPEN;
+    }
+    return this.state === 'connected';
   }
 
   /**
-   * 设置事件处理器
+   * 设置 EventSource 事件处理器
    */
-  private setupEventHandlers(): void {
+  private setupEventSourceHandlers(): void {
     if (!this.eventSource) return;
 
     // 连接打开
@@ -234,7 +365,7 @@ export class SSEService {
 
     // 通用消息处理（用于没有指定事件类型的消息）
     this.eventSource.onmessage = (event) => {
-      this.handleMessage(event);
+      this.handleEventSourceMessage(event);
     };
 
     // 错误处理
@@ -268,15 +399,15 @@ export class SSEService {
 
     for (const eventType of eventTypes) {
       this.eventSource.addEventListener(eventType, (event) => {
-        this.handleMessage(event as MessageEvent, eventType);
+        this.handleEventSourceMessage(event as MessageEvent, eventType);
       });
     }
   }
 
   /**
-   * 处理消息
+   * 处理 EventSource 消息
    */
-  private handleMessage(event: MessageEvent, eventType?: SSEEventType): void {
+  private handleEventSourceMessage(event: MessageEvent, eventType?: SSEEventType): void {
     try {
       const data = JSON.parse(event.data);
 

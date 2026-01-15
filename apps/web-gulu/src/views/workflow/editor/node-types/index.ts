@@ -122,10 +122,17 @@ export const nodeTypeRegistry: Record<string, NodeTypeConfig> = {
     color: '#fa8c16',
     propertyComponent: ConditionProperty,
     defaultConfig: () => ({
-      condition: { expression: '', then: [], else: [] },
+      config: { type: 'if', expression: '' },
       children: [],
     }),
-    getDescription: (node) => node.condition?.expression || '',
+    getDescription: (node) => {
+      const config = node.config;
+      if (!config) return '';
+      const type = config.type || 'if';
+      const expr = config.expression || '';
+      if (type === 'else') return 'else';
+      return expr ? `${type} ${expr}` : type;
+    },
     canHaveChildren: true,
   },
   loop: {

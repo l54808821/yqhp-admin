@@ -39,7 +39,6 @@ import HttpStepDetail from './HttpStepDetail.vue';
 import ScriptStepDetail from './ScriptStepDetail.vue';
 
 import {
-  buildSSEUrl,
   stopExecutionApi,
   submitInteractionApi,
 } from '#/api/debug';
@@ -329,7 +328,7 @@ async function startDebug() {
 
     // 如果有工作流定义，添加到参数中（用于调试未保存的工作流）
     if (props.definition) {
-      params.definition = JSON.stringify(props.definition);
+      params.definition = props.definition;  // 直接传对象，不再 stringify
     }
 
     // 如果有选中的步骤，添加到参数中（用于选择性调试）
@@ -337,11 +336,13 @@ async function startDebug() {
       params.selected_steps = props.selectedSteps;
     }
 
-    // 构建 SSE URL（包含认证 token）
-    const url = buildSSEUrl(props.workflowId, params, token);
+    // 构建 SSE URL
+    const apiUrl = import.meta.env.VITE_GLOB_API_URL || '';
+    const baseUrl = apiUrl.startsWith('http') ? apiUrl : `${window.location.origin}${apiUrl}`;
+    const url = `${baseUrl}/workflows/${props.workflowId}/run/stream`;
 
-    // 连接 SSE
-    connectSSE(url);
+    // 连接 SSE（使用 POST 方式）
+    connectSSE(url, params, token);
   } catch (error: any) {
     errorMessage.value = error?.message || '启动执行失败';
     loading.value = false;
@@ -362,13 +363,24 @@ async function stopDebug() {
   }
 }
 
+// SSE 连接参数缓存（用于重连）
+let lastSSEParams: any = null;
+let lastSSEToken = '';
+
 // 连接 SSE
-function connectSSE(url: string) {
+function connectSSE(url: string, params?: any, token?: string) {
   lastSSEUrl = url;
+  if (params) lastSSEParams = params;
+  if (token) lastSSEToken = token;
   disconnected.value = false;
 
   sseService = createSSEService({
     url,
+    method: 'POST',  // 使用 POST 方式
+    body: lastSSEParams,
+    headers: {
+      'satoken': lastSSEToken,  // 认证 token
+    },
     onMessage: handleSSEMessage,
     onStateChange: (state) => {
       sseState.value = state;

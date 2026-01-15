@@ -33,11 +33,6 @@ export interface StepNode {
   name: string;
   disabled?: boolean; // 是否禁用
   config?: Record<string, any>;
-  condition?: {
-    expression: string;
-    then?: StepNode[];
-    else?: StepNode[];
-  };
   loop?: {
     mode?: string;           // 循环模式: for, foreach, while
     count?: number;          // for 模式的迭代次数

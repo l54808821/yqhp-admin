@@ -51,7 +51,7 @@ const treeCheckedKeys = ref<string[]>([]);  // 勾选的步骤 ID
 // 初始快照，用于判断是否修改
 const initialSnapshot = ref('');
 
-// 后端格式转前端格式（将 condition.then/loop 转为 children）
+// 后端格式转前端格式
 function backendToFrontend(steps: any[]): StepNode[] {
   if (!steps) return [];
   return steps.map((step: any) => {
@@ -61,22 +61,17 @@ function backendToFrontend(steps: any[]): StepNode[] {
       name: step.name,
       disabled: step.disabled,
       config: step.config,
-      condition: step.condition,
       loop: step.loop,
     };
-    // 条件节点：将 then 分支作为 children 显示
-    if (step.type === 'condition' && step.condition) {
-      node.children = backendToFrontend(step.condition.then || []);
-    }
-    // 循环节点：需要从某个地方获取子步骤（后端可能用 steps 字段）
-    if (step.type === 'loop') {
-      node.children = backendToFrontend(step.children || []);
+    // 条件节点和循环节点：children 直接使用
+    if (step.children?.length) {
+      node.children = backendToFrontend(step.children);
     }
     return node;
   });
 }
 
-// 前端格式转后端格式（将 children 转为 condition.then）
+// 前端格式转后端格式
 function frontendToBackend(steps: StepNode[]): any[] {
   if (!steps) return [];
   return steps.map((step) => {
@@ -91,18 +86,17 @@ function frontendToBackend(steps: StepNode[]): any[] {
       node.disabled = step.disabled;
     }
 
-    // 复制 config（非条件/循环节点）
+    // 复制 config
     if (step.config) {
       node.config = step.config;
     }
 
-    // 条件节点
+    // 条件节点：使用新格式 config.type/expression + children
     if (step.type === 'condition') {
-      node.condition = {
-        expression: step.condition?.expression || '',
-        then: frontendToBackend(step.children || []),
-        else: frontendToBackend(step.condition?.else || []),
-      };
+      // config 已经包含 type 和 expression
+      if (step.children?.length) {
+        node.children = frontendToBackend(step.children);
+      }
     }
 
     // 循环节点：直接使用与后端一致的字段结构
