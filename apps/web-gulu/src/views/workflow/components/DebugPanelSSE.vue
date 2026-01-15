@@ -38,6 +38,7 @@ import type {
 import HttpStepDetail from './HttpStepDetail.vue';
 import ScriptStepDetail from './ScriptStepDetail.vue';
 import ConditionStepDetail from './ConditionStepDetail.vue';
+import LoopStepDetail from './LoopStepDetail.vue';
 
 import {
   stopExecutionApi,
@@ -902,6 +903,12 @@ defineExpose({
               <!-- 条件判断步骤使用专用组件 -->
               <ConditionStepDetail
                 v-else-if="selectedStep.step_type === 'condition'"
+                :step-result="selectedStep"
+              />
+
+              <!-- 循环步骤使用专用组件 -->
+              <LoopStepDetail
+                v-else-if="selectedStep.step_type === 'loop'"
                 :step-result="selectedStep"
               />
 
