@@ -232,11 +232,21 @@ function redo() {
   }
 }
 
-// 根据 ID 查找节点
+// 根据 ID 查找节点（支持 condition.branches[].steps）
 function findNodeById(steps: StepNode[], id: string): StepNode | null {
   for (const step of steps) {
     if (step.id === id) return step;
-    if (step.children) {
+
+    // condition：递归到分支 steps
+    if (step.type === 'condition' && step.branches?.length) {
+      for (const br of step.branches) {
+        const found = findNodeById(br.steps || [], id);
+        if (found) return found;
+      }
+    }
+
+    // loop/其它：递归 children
+    if (step.children?.length) {
       const found = findNodeById(step.children, id);
       if (found) return found;
     }
@@ -316,9 +326,22 @@ function handleDefinitionUpdate(def: { name: string; steps: StepNode[] }) {
   pushHistory();
 }
 
-function handleNodeUpdate(node: StepNode) {
-  // 更新节点
-  updateNodeInSteps(workflowDefinition.value.steps, node);
+function handleNodeUpdate(node: any) {
+  // condition_branch 是虚拟节点，需要把内部的 branch 写回所属的 condition.branches 中
+  if (node?.type === 'condition_branch' && node.parentConditionId && node.branch?.id) {
+    const updated = updateConditionBranch(
+      workflowDefinition.value.steps,
+      node.parentConditionId,
+      node.branch,
+    );
+    if (updated) {
+      pushHistory();
+    }
+    return;
+  }
+
+  // 普通步骤：按 ID 直接更新
+  updateNodeInSteps(workflowDefinition.value.steps, node as StepNode);
   pushHistory();
 }
 
@@ -328,10 +351,63 @@ function updateNodeInSteps(steps: StepNode[], updatedNode: StepNode): boolean {
       steps[i] = updatedNode;
       return true;
     }
-    if (steps[i]!.children) {
-      if (updateNodeInSteps(steps[i]!.children!, updatedNode)) {
+
+    const step = steps[i]!;
+
+    // condition：递归到分支 steps
+    if (step.type === 'condition' && step.branches?.length) {
+      for (const br of step.branches) {
+        if (br.steps?.length) {
+          if (updateNodeInSteps(br.steps, updatedNode)) {
+            return true;
+          }
+        }
+      }
+    }
+
+    // loop/其它：递归 children
+    if (step.children?.length) {
+      if (updateNodeInSteps(step.children, updatedNode)) {
         return true;
       }
+    }
+  }
+  return false;
+}
+
+// 在 steps 树中查找指定 condition 节点，并更新其 branches 中的某个分支
+function updateConditionBranch(
+  steps: StepNode[],
+  conditionId: string,
+  updatedBranch: any,
+): boolean {
+  for (const step of steps) {
+    if (step.id === conditionId && step.type === 'condition' && step.branches?.length) {
+      const index = step.branches.findIndex((br: any) => br.id === updatedBranch.id);
+      if (index !== -1) {
+        // 只替换分支的核心字段，保留 steps 等结构
+        const old = step.branches[index];
+        step.branches[index] = {
+          ...old,
+          ...updatedBranch,
+          id: old.id, // 保持分支 ID 不变
+        };
+        return true;
+      }
+    }
+
+    // 递归 condition.branches[].steps
+    if (step.type === 'condition' && step.branches?.length) {
+      for (const br of step.branches) {
+        if (br.steps?.length && updateConditionBranch(br.steps, conditionId, updatedBranch)) {
+          return true;
+        }
+      }
+    }
+
+    // 递归 children（loop 等）
+    if (step.children?.length && updateConditionBranch(step.children, conditionId, updatedBranch)) {
+      return true;
     }
   }
   return false;

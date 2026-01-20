@@ -154,6 +154,42 @@ const treeData = computed<TreeNode[]>(() => {
   const nodeMap = new Map<string, TreeNode>();
   const parentChildMap = new Map<string, Map<number, TreeNode[]>>();
 
+  // 从当前 workflow 定义中构建 stepId -> 分支信息 映射，用于调试树中还原“条件判断 → 分支 → 步骤”的结构
+  const stepToBranch = new Map<
+    string,
+    { conditionId: string; branchId: string; branchName: string; kind: string }
+  >();
+
+  function buildStepBranchMap(steps: any[]) {
+    for (const step of steps || []) {
+      if (step.type === 'condition' && step.branches?.length) {
+        for (const br of step.branches) {
+          const branchName = br.name || (br.kind === 'else' ? '默认' : '条件分支');
+          for (const child of br.steps || []) {
+            stepToBranch.set(child.id, {
+              conditionId: step.id,
+              branchId: br.id,
+              branchName,
+              kind: br.kind,
+            });
+            // 分支内还可以继续嵌套循环/条件，递归下去
+            if (child.children?.length) {
+              buildStepBranchMap(child.children);
+            }
+          }
+        }
+      }
+      if (step.children?.length) {
+        buildStepBranchMap(step.children);
+      }
+    }
+  }
+
+  if (props.definition?.steps?.length) {
+    buildStepBranchMap(props.definition.steps);
+  }
+
+  // 先为每个 StepResult 创建基础节点，并按 parent_id/iteration 建立直接父子关系
   for (const result of stepResults.value) {
     const nodeKey = generateNodeKey(result);
     const node: TreeNode = {
@@ -183,8 +219,9 @@ const treeData = computed<TreeNode[]>(() => {
     }
   }
 
+  // 第二遍：根据步骤类型组织子节点结构
   for (const result of stepResults.value) {
-    // 处理循环节点的子步骤
+    // 循环节点：按迭代分组
     if (result.step_type === 'loop' && parentChildMap.has(result.step_id)) {
       const nodeKey = generateNodeKey(result);
       const parentNode = nodeMap.get(nodeKey);
@@ -198,9 +235,13 @@ const treeData = computed<TreeNode[]>(() => {
               key: `${result.step_id}_iteration_${iter}`,
               title: `第 ${iter} 次迭代`,
               type: 'iteration',
-              status: children.every(c => c.status === 'success') ? 'success' :
-                      children.some(c => c.status === 'failed') ? 'failed' :
-                      children.some(c => c.status === 'running') ? 'running' : 'pending',
+              status: children.every(c => c.status === 'success')
+                ? 'success'
+                : children.some(c => c.status === 'failed')
+                ? 'failed'
+                : children.some(c => c.status === 'running')
+                ? 'running'
+                : 'pending',
               children: children,
             };
             parentNode.children!.push(iterNode);
@@ -210,16 +251,67 @@ const treeData = computed<TreeNode[]>(() => {
         }
       }
     }
-    // 处理条件节点的子步骤
+
+    // 条件节点：还原为「条件判断 → 条件分支 → 步骤」
     if (result.step_type === 'condition' && parentChildMap.has(result.step_id)) {
       const nodeKey = generateNodeKey(result);
       const parentNode = nodeMap.get(nodeKey);
-      if (parentNode) {
-        const iterMap = parentChildMap.get(result.step_id)!;
-        // 条件节点不按迭代分组，直接把所有子步骤挂上去
-        for (const children of iterMap.values()) {
-          parentNode.children!.push(...children);
+      if (!parentNode) continue;
+
+      const iterMap = parentChildMap.get(result.step_id)!;
+      const allChildren: TreeNode[] = [];
+      for (const children of iterMap.values()) {
+        allChildren.push(...children);
+      }
+
+      // 如果没有 workflow 定义映射，退回旧行为：直接挂子步骤
+      if (!stepToBranch.size || !props.definition?.steps?.length) {
+        parentNode.children!.push(...allChildren);
+        continue;
+      }
+
+      // 为当前 condition 构建分支节点
+      const branchNodeMap = new Map<string, TreeNode>();
+      function ensureBranchNode(info: {
+        branchId: string;
+        branchName: string;
+        kind: string;
+      }) {
+        if (branchNodeMap.has(info.branchId)) {
+          return branchNodeMap.get(info.branchId)!;
         }
+        const branchNode: TreeNode = {
+          key: `${result.step_id}_branch_${info.branchId}`,
+          title: info.branchName,
+          type: 'condition_branch',
+          status: 'pending',
+          children: [],
+        };
+        branchNodeMap.set(info.branchId, branchNode);
+        parentNode.children!.push(branchNode);
+        return branchNode;
+      }
+
+      // 将子步骤按所属分支挂载
+      for (const child of allChildren) {
+        const stepId = child.stepResult?.step_id;
+        if (stepId && stepToBranch.has(stepId)) {
+          const info = stepToBranch.get(stepId)!;
+          if (info.conditionId === result.step_id) {
+            const branchNode = ensureBranchNode(info);
+            branchNode.children = branchNode.children || [];
+            branchNode.children.push(child);
+            // 更新分支状态：有失败则失败，否则有 running 则 running，否则有 success 则 success
+            const statuses = (branchNode.children || []).map(c => c.status);
+            if (statuses.includes('failed')) branchNode.status = 'failed';
+            else if (statuses.includes('running')) branchNode.status = 'running';
+            else if (statuses.includes('success')) branchNode.status = 'success';
+            else branchNode.status = 'pending';
+            continue;
+          }
+        }
+        // 没有找到对应分支映射，直接挂到条件节点下，避免丢失
+        parentNode.children!.push(child);
       }
     }
   }
