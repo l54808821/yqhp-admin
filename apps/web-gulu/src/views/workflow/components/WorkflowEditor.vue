@@ -63,9 +63,19 @@ function backendToFrontend(steps: any[]): StepNode[] {
       config: step.config,
       loop: step.loop,
     };
-    // 条件节点和循环节点：children 直接使用
-    if (step.children?.length) {
+    // loop：children 直接使用
+    if (step.type === 'loop' && step.children?.length) {
       node.children = backendToFrontend(step.children);
+    }
+    // condition：使用 branches（不兼容旧 children/config.type）
+    if (step.type === 'condition' && step.branches?.length) {
+      node.branches = step.branches.map((br: any) => ({
+        id: br.id,
+        name: br.name,
+        kind: br.kind,
+        expression: br.expression,
+        steps: backendToFrontend(br.steps || []),
+      }));
     }
     return node;
   });
@@ -91,12 +101,15 @@ function frontendToBackend(steps: StepNode[]): any[] {
       node.config = step.config;
     }
 
-    // 条件节点：使用新格式 config.type/expression + children
+    // 条件节点：只使用 branches 新结构
     if (step.type === 'condition') {
-      // config 已经包含 type 和 expression
-      if (step.children?.length) {
-        node.children = frontendToBackend(step.children);
-      }
+      node.branches = (step.branches || []).map((br: any) => ({
+        id: br.id,
+        name: br.name,
+        kind: br.kind,
+        expression: br.expression,
+        steps: frontendToBackend(br.steps || []),
+      }));
     }
 
     // 循环节点：直接使用与后端一致的字段结构

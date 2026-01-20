@@ -12,6 +12,7 @@ import {
 
 import AIProperty from './AIProperty.vue';
 import ConditionProperty from './ConditionProperty.vue';
+import ConditionBranchProperty from './ConditionBranchProperty.vue';
 import DatabaseProperty from './DatabaseProperty.vue';
 import HttpPropertyPanel from './http/HttpPropertyPanel.vue';
 import LoopProperty from './LoopProperty.vue';
@@ -122,16 +123,34 @@ export const nodeTypeRegistry: Record<string, NodeTypeConfig> = {
     color: '#fa8c16',
     propertyComponent: ConditionProperty,
     defaultConfig: () => ({
-      config: { type: 'if', expression: '' },
-      children: [],
+      branches: [
+        { id: `br_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, name: '条件1', kind: 'if', expression: '', steps: [] },
+        { id: `br_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, name: '默认', kind: 'else', steps: [] },
+      ],
     }),
     getDescription: (node) => {
-      const config = node.config;
-      if (!config) return '';
-      const type = config.type || 'if';
-      const expr = config.expression || '';
-      if (type === 'else') return 'else';
-      return expr ? `${type} ${expr}` : type;
+      const branches = node.branches || [];
+      const parts: string[] = [];
+      for (const br of branches) {
+        if (br.kind === 'else') parts.push('else');
+        else parts.push(`${br.kind} ${br.expression || ''}`.trim());
+      }
+      return parts.join(' | ');
+    },
+    canHaveChildren: true,
+  },
+  condition_branch: {
+    key: 'condition_branch',
+    label: '条件分支',
+    icon: GitBranch,
+    color: '#fa8c16',
+    propertyComponent: ConditionBranchProperty,
+    defaultConfig: () => ({}),
+    getDescription: (node) => {
+      const br = node.branch;
+      if (!br) return '';
+      if (br.kind === 'else') return 'else';
+      return br.expression ? `${br.kind} ${br.expression}` : br.kind;
     },
     canHaveChildren: true,
   },

@@ -44,6 +44,13 @@ export interface StepNode {
     continue_condition?: string; // 跳过条件
   };
   children?: StepNode[]; // 前端用于显示，保存时会转换
+  branches?: Array<{
+    id: string;
+    name?: string;
+    kind: 'if' | 'else_if' | 'else';
+    expression?: string;
+    steps?: StepNode[];
+  }>;
 }
 
 interface Props {
@@ -88,7 +95,8 @@ watch(() => props.checkedKeys, (newKeys) => {
 }, { immediate: true });
 
 // 获取所有节点类型
-const nodeTypes = getNodeTypes();
+// condition_branch 是 condition 内部的“虚拟节点”，不允许作为普通步骤被用户手动添加
+const nodeTypes = getNodeTypes().filter((t) => t.key !== 'condition_branch');
 
 // 获取所有步骤的 ID（递归）
 function getAllStepKeys(steps: StepNode[]): string[] {
@@ -97,6 +105,11 @@ function getAllStepKeys(steps: StepNode[]): string[] {
     keys.push(step.id);
     if (step.children) {
       keys.push(...getAllStepKeys(step.children));
+    }
+    if (step.type === 'condition' && step.branches?.length) {
+      for (const br of step.branches) {
+        keys.push(...getAllStepKeys(br.steps || []));
+      }
     }
   }
   return keys;
@@ -142,8 +155,19 @@ function toggleCheck(nodeId: string, checked: boolean) {
   if (checked) {
     // 勾选：同时勾选所有子节点
     newCheckedKeys.push(nodeId);
-    if (node?.children) {
-      const childKeys = getAllStepKeys(node.children);
+    const allChildren: StepNode[] = [];
+    if (node?.children?.length) {
+      allChildren.push(...node.children);
+    }
+    if (node?.type === 'condition' && (node as any).branches?.length) {
+      for (const br of (node as any).branches as Array<{ steps?: StepNode[] }>) {
+        if (br.steps?.length) {
+          allChildren.push(...br.steps);
+        }
+      }
+    }
+    if (allChildren.length) {
+      const childKeys = getAllStepKeys(allChildren);
       for (const key of childKeys) {
         if (!newCheckedKeys.includes(key)) {
           newCheckedKeys.push(key);
@@ -153,8 +177,19 @@ function toggleCheck(nodeId: string, checked: boolean) {
   } else {
     // 取消勾选：同时取消所有子节点
     newCheckedKeys = newCheckedKeys.filter((k) => k !== nodeId);
-    if (node?.children) {
-      const childKeys = getAllStepKeys(node.children);
+    const allChildren: StepNode[] = [];
+    if (node?.children?.length) {
+      allChildren.push(...node.children);
+    }
+    if (node?.type === 'condition' && (node as any).branches?.length) {
+      for (const br of (node as any).branches as Array<{ steps?: StepNode[] }>) {
+        if (br.steps?.length) {
+          allChildren.push(...br.steps);
+        }
+      }
+    }
+    if (allChildren.length) {
+      const childKeys = getAllStepKeys(allChildren);
       newCheckedKeys = newCheckedKeys.filter((k) => !childKeys.includes(k));
     }
   }
@@ -166,13 +201,19 @@ function toggleCheck(nodeId: string, checked: boolean) {
   emit('update:checkedKeys', localCheckedKeys.value);
 }
 
-// 根据 ID 查找节点
+// 根据 ID 查找节点（支持 condition.branches[].steps）
 function findNodeById(steps: StepNode[], id: string): StepNode | null {
   for (const step of steps) {
     if (step.id === id) return step;
     if (step.children) {
       const found = findNodeById(step.children, id);
       if (found) return found;
+    }
+    if (step.type === 'condition' && step.branches?.length) {
+      for (const br of step.branches) {
+        const found = findNodeById(br.steps || [], id);
+        if (found) return found;
+      }
     }
   }
   return null;
@@ -181,12 +222,22 @@ function findNodeById(steps: StepNode[], id: string): StepNode | null {
 // 更新父节点勾选状态
 function updateParentCheckState(steps: StepNode[], checkedKeys: string[]) {
   for (const step of steps) {
+    const allChildren: StepNode[] = [];
     if (step.children?.length) {
-      // 先递归处理子节点
+      allChildren.push(...step.children);
       updateParentCheckState(step.children, checkedKeys);
+    }
+    if (step.type === 'condition' && step.branches?.length) {
+      for (const br of step.branches) {
+        if (br.steps?.length) {
+          allChildren.push(...br.steps);
+          updateParentCheckState(br.steps, checkedKeys);
+        }
+      }
+    }
 
-      // 检查所有子节点是否都被勾选
-      const childKeys = getAllStepKeys(step.children);
+    if (allChildren.length) {
+      const childKeys = getAllStepKeys(allChildren);
       const allChildrenChecked = childKeys.every((k) => checkedKeys.includes(k));
       const someChildrenChecked = childKeys.some((k) => checkedKeys.includes(k));
 
@@ -204,14 +255,28 @@ function updateParentCheckState(steps: StepNode[], checkedKeys: string[]) {
 
 // 判断节点是否部分选中（用于显示 indeterminate 状态）
 function isIndeterminate(step: StepNode): boolean {
-  if (!step.children?.length) return false;
-  const childKeys = getAllStepKeys(step.children);
+  const allChildren: StepNode[] = [];
+  if (step.children?.length) {
+    allChildren.push(...step.children);
+  }
+  if (step.type === 'condition' && (step as any).branches?.length) {
+    for (const br of (step as any).branches as Array<{ steps?: StepNode[] }>) {
+      if (br.steps?.length) {
+        allChildren.push(...br.steps);
+      }
+    }
+  }
+  if (!allChildren.length) return false;
+
+  const childKeys = getAllStepKeys(allChildren);
   const checkedCount = childKeys.filter((k) => localCheckedKeys.value.includes(k)).length;
   return checkedCount > 0 && checkedCount < childKeys.length;
 }
 
 // 判断节点是否可展开
 function isExpandable(step: StepNode): boolean {
+  if (step.type === 'condition') return true;
+  if ((step as any).type === 'condition_branch') return true;
   const config = getNodeTypeConfig(step.type);
   return config?.canHaveChildren ?? false;
 }
@@ -234,9 +299,20 @@ function getNodeIndex(nodeId: string): string {
     for (let i = 0; i < steps.length; i++) {
       const step = steps[i]!;
       const currentIndex = prefix ? `${prefix}.${i + 1}` : `${i + 1}`;
-      if (step.id === nodeId) {
-        return currentIndex;
+      if (step.id === nodeId) return currentIndex;
+
+      // condition: branches 虚拟为子层级（用于编号）
+      if (step.type === 'condition' && step.branches?.length) {
+        for (let bi = 0; bi < step.branches.length; bi++) {
+          const br = step.branches[bi]!;
+          const brKey = `${step.id}__br__${br.id}`;
+          const brIndex = `${currentIndex}.${bi + 1}`;
+          if (brKey === nodeId) return brIndex;
+          const found = findIndex(br.steps || [], brIndex);
+          if (found) return found;
+        }
       }
+
       if (step.children) {
         const found = findIndex(step.children, currentIndex);
         if (found) return found;
@@ -255,6 +331,34 @@ const treeData = computed<TreeProps['treeData']>(() => {
 function buildTreeData(steps: StepNode[]): TreeProps['treeData'] {
   return steps.map((step) => {
     const config = getNodeTypeConfig(step.type);
+    // condition：展示分支为子节点
+    if (step.type === 'condition' && step.branches?.length) {
+      const branchChildren = step.branches.map((br) => {
+        const branchKey = `${step.id}__br__${br.id}`;
+        const title = br.name || (br.kind === 'else' ? 'else' : br.kind);
+        const branchStepData: any = {
+          id: branchKey,
+          type: 'condition_branch',
+          name: title,
+          branch: br,
+          parentConditionId: step.id,
+        };
+        return {
+          key: branchKey,
+          title,
+          children: buildTreeData(br.steps || []),
+          isLeaf: !(br.steps || []).length,
+          stepData: branchStepData,
+        };
+      });
+      return {
+        key: step.id,
+        title: step.name,
+        children: branchChildren,
+        isLeaf: false,
+        stepData: step,
+      };
+    }
     return {
       key: step.id,
       title: step.name,
@@ -307,6 +411,7 @@ function allowDrop(options: { dropNode: any; dropPosition: number }): boolean {
   // dropPosition: -1 表示放在节点前面，0 表示放入节点内部，1 表示放在节点后面
   // 如果是放入节点内部（dropPosition === 0），只允许可以有子节点的节点
   if (dropPosition === 0) {
+    if (targetStep?.type === 'condition_branch') return true;
     const config = getNodeTypeConfig(targetStep?.type || '');
     return config?.canHaveChildren ?? false;
   }
@@ -320,8 +425,29 @@ function findAndRemoveNode(steps: StepNode[], id: string): StepNode | null {
     if (steps[i]!.id === id) {
       return steps.splice(i, 1)[0]!;
     }
-    if (steps[i]!.children) {
-      const found = findAndRemoveNode(steps[i]!.children!, id);
+    const step = steps[i]!;
+    if (step.type === 'condition' && step.branches?.length) {
+      for (let bi = 0; bi < step.branches.length; bi++) {
+        const br = step.branches[bi]!;
+        const brKey = `${step.id}__br__${br.id}`;
+        // 删除整个分支
+        if (brKey === id) {
+          step.branches.splice(bi, 1);
+          return null;
+        }
+        if (br.steps?.length) {
+          for (let si = 0; si < br.steps.length; si++) {
+            if (br.steps[si]!.id === id) {
+              return br.steps.splice(si, 1)[0]!;
+            }
+          }
+          const found = findAndRemoveNode(br.steps, id);
+          if (found) return found;
+        }
+      }
+    }
+    if (step.children) {
+      const found = findAndRemoveNode(step.children, id);
       if (found) return found;
     }
   }
@@ -330,13 +456,28 @@ function findAndRemoveNode(steps: StepNode[], id: string): StepNode | null {
 
 function insertNodeAtPosition(steps: StepNode[], node: StepNode, targetId: string, position: number) {
   for (let i = 0; i < steps.length; i++) {
-    if (steps[i]!.id === targetId) {
+    const step = steps[i]!;
+    if (step.id === targetId) {
       const insertIndex = position > i ? i + 1 : i;
       steps.splice(insertIndex, 0, node);
       return true;
     }
-    if (steps[i]!.children) {
-      if (insertNodeAtPosition(steps[i]!.children!, node, targetId, position)) return true;
+    if (step.type === 'condition' && step.branches?.length) {
+      for (const br of step.branches) {
+        if (br.steps?.length) {
+          for (let si = 0; si < br.steps.length; si++) {
+            if (br.steps[si]!.id === targetId) {
+              const insertIndex = position > si ? si + 1 : si;
+              br.steps.splice(insertIndex, 0, node);
+              return true;
+            }
+          }
+          if (insertNodeAtPosition(br.steps, node, targetId, position)) return true;
+        }
+      }
+    }
+    if (step.children) {
+      if (insertNodeAtPosition(step.children, node, targetId, position)) return true;
     }
   }
   return false;
@@ -344,10 +485,26 @@ function insertNodeAtPosition(steps: StepNode[], node: StepNode, targetId: strin
 
 function insertNodeIntoParent(steps: StepNode[], node: StepNode, parentId: string) {
   for (const step of steps) {
+    // 插入到 condition_branch：写入其对应的 branch.steps
+    if ((step as any).type === 'condition_branch' && (step as any).id === parentId) {
+      return false;
+    }
+
     if (step.id === parentId) {
       if (!step.children) step.children = [];
       step.children.push(node);
       return true;
+    }
+    if (step.type === 'condition' && step.branches?.length) {
+      for (const br of step.branches) {
+        const brKey = `${step.id}__br__${br.id}`;
+        if (brKey === parentId) {
+          if (!br.steps) br.steps = [];
+          br.steps.push(node);
+          return true;
+        }
+        if (br.steps && insertNodeIntoParent(br.steps, node, parentId)) return true;
+      }
     }
     if (step.children) {
       if (insertNodeIntoParent(step.children, node, parentId)) return true;
@@ -381,6 +538,17 @@ function addNodeToParent(steps: StepNode[], node: StepNode, parentId: string) {
       step.children.push(node);
       return true;
     }
+    if (step.type === 'condition' && step.branches?.length) {
+      for (const br of step.branches) {
+        const brKey = `${step.id}__br__${br.id}`;
+        if (brKey === parentId) {
+          if (!br.steps) br.steps = [];
+          br.steps.push(node);
+          return true;
+        }
+        if (br.steps && addNodeToParent(br.steps, node, parentId)) return true;
+      }
+    }
     if (step.children) {
       if (addNodeToParent(step.children, node, parentId)) return true;
     }
@@ -403,12 +571,26 @@ function handleCopyNode(step: StepNode) {
 
 function insertCopiedNode(steps: StepNode[], afterId: string, newNode: StepNode): boolean {
   for (let i = 0; i < steps.length; i++) {
-    if (steps[i]!.id === afterId) {
+    const step = steps[i]!;
+    if (step.id === afterId) {
       steps.splice(i + 1, 0, newNode);
       return true;
     }
-    if (steps[i]!.children) {
-      if (insertCopiedNode(steps[i]!.children!, afterId, newNode)) return true;
+    if (step.type === 'condition' && step.branches?.length) {
+      for (const br of step.branches) {
+        if (br.steps?.length) {
+          for (let si = 0; si < br.steps.length; si++) {
+            if (br.steps[si]!.id === afterId) {
+              br.steps.splice(si + 1, 0, newNode);
+              return true;
+            }
+          }
+          if (insertCopiedNode(br.steps, afterId, newNode)) return true;
+        }
+      }
+    }
+    if (step.children) {
+      if (insertCopiedNode(step.children, afterId, newNode)) return true;
     }
   }
   return false;
