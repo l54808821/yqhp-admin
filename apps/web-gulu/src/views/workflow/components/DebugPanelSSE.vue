@@ -67,6 +67,7 @@ interface TreeNode {
   children?: TreeNode[];
   stepResult?: StepResult;
   iteration?: number;
+  branchName?: string; // 条件节点命中的分支名称
 }
 
 interface Props {
@@ -252,7 +253,7 @@ const treeData = computed<TreeNode[]>(() => {
       }
     }
 
-    // 条件节点：还原为「条件判断 → 条件分支 → 步骤」
+    // 条件节点：直接将子步骤挂到条件节点下，并记录命中的分支名称
     if (result.step_type === 'condition' && parentChildMap.has(result.step_id)) {
       const nodeKey = generateNodeKey(result);
       const parentNode = nodeMap.get(nodeKey);
@@ -264,54 +265,18 @@ const treeData = computed<TreeNode[]>(() => {
         allChildren.push(...children);
       }
 
-      // 如果没有 workflow 定义映射，退回旧行为：直接挂子步骤
-      if (!stepToBranch.size || !props.definition?.steps?.length) {
-        parentNode.children!.push(...allChildren);
-        continue;
-      }
+      // 直接将子步骤挂到条件节点下
+      parentNode.children!.push(...allChildren);
 
-      // 为当前 condition 构建分支节点
-      const branchNodeMap = new Map<string, TreeNode>();
-      function ensureBranchNode(info: {
-        branchId: string;
-        branchName: string;
-        kind: string;
-      }) {
-        if (branchNodeMap.has(info.branchId)) {
-          return branchNodeMap.get(info.branchId)!;
-        }
-        const branchNode: TreeNode = {
-          key: `${result.step_id}_branch_${info.branchId}`,
-          title: info.branchName,
-          type: 'condition_branch',
-          status: 'pending',
-          children: [],
-        };
-        branchNodeMap.set(info.branchId, branchNode);
-        parentNode.children!.push(branchNode);
-        return branchNode;
-      }
-
-      // 将子步骤按所属分支挂载
-      for (const child of allChildren) {
-        const stepId = child.stepResult?.step_id;
-        if (stepId && stepToBranch.has(stepId)) {
-          const info = stepToBranch.get(stepId)!;
-          if (info.conditionId === result.step_id) {
-            const branchNode = ensureBranchNode(info);
-            branchNode.children = branchNode.children || [];
-            branchNode.children.push(child);
-            // 更新分支状态：有失败则失败，否则有 running 则 running，否则有 success 则 success
-            const statuses = (branchNode.children || []).map(c => c.status);
-            if (statuses.includes('failed')) branchNode.status = 'failed';
-            else if (statuses.includes('running')) branchNode.status = 'running';
-            else if (statuses.includes('success')) branchNode.status = 'success';
-            else branchNode.status = 'pending';
-            continue;
+      // 从第一个子步骤推断命中的分支名称
+      if (allChildren.length > 0 && stepToBranch.size > 0) {
+        const firstChildStepId = allChildren[0]?.stepResult?.step_id;
+        if (firstChildStepId && stepToBranch.has(firstChildStepId)) {
+          const branchInfo = stepToBranch.get(firstChildStepId)!;
+          if (branchInfo.conditionId === result.step_id) {
+            parentNode.branchName = branchInfo.branchName;
           }
         }
-        // 没有找到对应分支映射，直接挂到条件节点下，避免丢失
-        parentNode.children!.push(child);
       }
     }
   }
@@ -319,6 +284,24 @@ const treeData = computed<TreeNode[]>(() => {
   return rootNodes;
 });
 
+
+// 选中的树节点
+const selectedTreeNode = computed<TreeNode | null>(() => {
+  if (!selectedStepKey.value) return null;
+  
+  function findNode(nodes: TreeNode[], key: string): TreeNode | null {
+    for (const node of nodes) {
+      if (node.key === key) return node;
+      if (node.children?.length) {
+        const found = findNode(node.children, key);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+  
+  return findNode(treeData.value, selectedStepKey.value);
+});
 
 // 选中的步骤详情
 const selectedStep = computed<StepResult | null>(() => {
@@ -330,6 +313,11 @@ const selectedStep = computed<StepResult | null>(() => {
     }
   }
   return null;
+});
+
+// 判断是否选中了迭代节点
+const isIterationSelected = computed(() => {
+  return selectedTreeNode.value?.type === 'iteration';
 });
 
 // 选中步骤的 AI 内容
@@ -947,7 +935,7 @@ defineExpose({
               :selected-keys="selectedStepKey ? [selectedStepKey] : []"
               @select="handleTreeSelect"
             >
-              <template #title="{ title, status, duration, type }">
+              <template #title="{ title, status, duration, type, branchName }">
                 <div class="tree-node">
                   <component
                     :is="getStepIcon(status)"
@@ -955,16 +943,17 @@ defineExpose({
                     :class="{ 'spin-icon': status === 'running' }"
                   />
                   <span class="node-title">{{ title }}</span>
-                  <Tag v-if="type === 'loop'" color="purple" size="small">循环</Tag>
+                  <Tag v-if="type === 'condition' && branchName" color="geekblue" size="small">{{ branchName }}</Tag>
+                  <Tag v-else-if="type === 'loop'" color="purple" size="small">循环</Tag>
                   <Tag v-if="type === 'ai'" color="blue" size="small">AI</Tag>
                   <Tag v-if="type === 'iteration'" color="cyan" size="small">迭代</Tag>
                   <Tag v-if="status === 'running'" color="processing" size="small">执行中</Tag>
                   <Tag v-else-if="status === 'success' || status === 'completed'" color="success" size="small">成功</Tag>
-              <Tag v-else-if="status === 'failed'" color="error" size="small">失败</Tag>
-              <Tag v-else-if="status === 'skipped'" color="warning" size="small">已跳过</Tag>
-              <span v-if="duration" class="node-duration">{{ formatDuration(duration) }}</span>
-            </div>
-          </template>
+                  <Tag v-else-if="status === 'failed'" color="error" size="small">失败</Tag>
+                  <Tag v-else-if="status === 'skipped'" color="warning" size="small">已跳过</Tag>
+                  <span v-if="duration" class="node-duration">{{ formatDuration(duration) }}</span>
+                </div>
+              </template>
         </Tree>
         <div v-else class="empty-tip">
           {{ isRunning ? '等待执行...' : '暂无步骤' }}
@@ -1052,6 +1041,44 @@ defineExpose({
             </div>
           </template>
         </template>
+
+            <!-- 迭代节点详情 -->
+            <template v-else-if="isIterationSelected && selectedTreeNode">
+              <Descriptions :column="1" size="small" bordered>
+                <Descriptions.Item label="迭代名称">{{ selectedTreeNode.title }}</Descriptions.Item>
+                <Descriptions.Item label="节点类型">循环迭代</Descriptions.Item>
+                <Descriptions.Item label="状态">
+                  <Tag v-if="selectedTreeNode.status === 'running'" color="processing">执行中</Tag>
+                  <Tag v-else-if="selectedTreeNode.status === 'success'" color="success">成功</Tag>
+                  <Tag v-else-if="selectedTreeNode.status === 'failed'" color="error">失败</Tag>
+                  <Tag v-else color="default">等待</Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="子步骤数量">{{ selectedTreeNode.children?.length || 0 }}</Descriptions.Item>
+              </Descriptions>
+
+              <!-- 子步骤列表 -->
+              <div v-if="selectedTreeNode.children?.length" class="detail-section">
+                <div class="section-title">迭代内步骤</div>
+                <div class="branch-steps-list">
+                  <div 
+                    v-for="child in selectedTreeNode.children" 
+                    :key="child.key" 
+                    class="branch-step-item"
+                  >
+                    <component
+                      :is="getStepIcon(child.status)"
+                      :style="{ color: getStepColor(child.status), marginRight: '6px' }"
+                    />
+                    <span class="step-name">{{ child.title }}</span>
+                    <Tag v-if="child.status === 'success'" color="success" size="small">成功</Tag>
+                    <Tag v-else-if="child.status === 'failed'" color="error" size="small">失败</Tag>
+                    <Tag v-else-if="child.status === 'running'" color="processing" size="small">执行中</Tag>
+                    <span v-if="child.duration" class="step-duration">{{ formatDuration(child.duration) }}</span>
+                  </div>
+                </div>
+              </div>
+            </template>
+
         <div v-else class="empty-tip">
           请选择左侧步骤查看详情
         </div>
@@ -1396,5 +1423,37 @@ defineExpose({
   text-align: center;
   color: #ff4d4f;
   font-size: 13px;
+}
+
+.branch-steps-list {
+  background: #fafafa;
+  border-radius: 4px;
+  padding: 8px;
+}
+
+.branch-step-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.branch-step-item:hover {
+  background: #f0f0f0;
+}
+
+.branch-step-item .step-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.branch-step-item .step-duration {
+  font-size: 11px;
+  color: #999;
+  margin-left: 8px;
 }
 </style>
