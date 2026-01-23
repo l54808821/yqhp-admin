@@ -7,7 +7,7 @@ interface Props {
   reconnecting: boolean;
   reconnectAttempts: number;
   maxReconnectAttempts: number;
-  hasDebugSummary: boolean;
+  hasExecutionSummary: boolean;
 }
 
 defineProps<Props>();
@@ -30,7 +30,7 @@ const emit = defineEmits<{
   />
 
   <!-- 连接断开提示 -->
-  <Alert v-if="disconnected && !hasDebugSummary" type="warning" class="disconnect-alert">
+  <Alert v-if="disconnected && !hasExecutionSummary" type="warning" class="disconnect-alert">
     <template #message>
       <div class="disconnect-message">
         <span v-if="reconnecting">

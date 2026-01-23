@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { createIconifyIcon } from '@vben/icons';
 import { Button, Progress, Space, Tag } from 'ant-design-vue';
-import type { ProgressData, DebugSummary } from './types';
+import type { ProgressData, ExecutionSummary } from './types';
 
 const StopOutlined = createIconifyIcon('lucide:square');
 const FileTextOutlined = createIconifyIcon('lucide:file-text');
@@ -15,7 +15,7 @@ interface Props {
   statusColor: string;
   progressPercent: number;
   currentProgress: ProgressData | null;
-  debugSummary: DebugSummary | null;
+  executionSummary: ExecutionSummary | null;
 }
 
 defineProps<Props>();
@@ -30,7 +30,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="debug-header">
+  <div class="execution-header">
     <Space align="center">
       <Tag :color="statusColor">{{ statusText }}</Tag>
       <Tag v-if="currentProgress" class="progress-tag">
@@ -39,9 +39,9 @@ const emit = defineEmits<{
       <Progress
         v-if="isRunning || isCompleted"
         :percent="progressPercent"
-        :status="debugSummary?.status === 'failed' ? 'exception' : undefined"
+        :status="executionSummary?.status === 'failed' ? 'exception' : undefined"
         :stroke-color="
-          debugSummary?.status === 'completed' || debugSummary?.status === 'success'
+          executionSummary?.status === 'completed' || executionSummary?.status === 'success'
             ? '#52c41a'
             : undefined
         "
@@ -72,7 +72,7 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
-.debug-header {
+.execution-header {
   display: flex;
   justify-content: space-between;
   align-items: center;

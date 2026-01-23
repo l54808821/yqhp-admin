@@ -27,8 +27,8 @@ export interface WorkflowDefinition {
   steps: any[];
 }
 
-// 调试面板 Props
-export interface DebugPanelProps {
+// 执行面板 Props
+export interface ExecutionPanelProps {
   workflowId: number;
   envId: number;
   visible?: boolean;
@@ -36,17 +36,18 @@ export interface DebugPanelProps {
   slaveId?: string;
   definition?: WorkflowDefinition;
   selectedSteps?: string[];
+  persist?: boolean; // 是否持久化执行记录
 }
 
-// 调试状态
-export interface DebugState {
+// 执行状态
+export interface ExecutionState {
   loading: boolean;
   stopping: boolean;
   sessionId: string | null;
   sseState: SSEState;
   stepResults: StepResult[];
   currentProgress: ProgressData | null;
-  debugSummary: DebugSummary | null;
+  executionSummary: ExecutionSummary | null;
   logs: string[];
   errorMessage: string | null;
   selectedStepKey: string | null;
@@ -73,6 +74,9 @@ export interface AIContentState {
   content: Map<string, string>;
   currentStepId: string | null;
 }
+
+// 执行汇总类型（重命名）
+export type ExecutionSummary = DebugSummary;
 
 // 重导出常用类型
 export type { DebugSummary, ProgressData, StepResult } from '#/api/debug';

@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, toRef, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue';
 
-import type { DebugSummary, WorkflowDefinition } from './types';
-import { useDebugSSE } from './composables/useDebugSSE';
+import type { ExecutionSummary, WorkflowDefinition } from './types';
+import { useExecution } from './composables/useExecution';
 import { useStepTree } from './composables/useStepTree';
 
-import DebugHeader from './DebugHeader.vue';
-import DebugAlerts from './DebugAlerts.vue';
-import DebugSummaryBar from './DebugSummaryBar.vue';
+import ExecutionHeader from './ExecutionHeader.vue';
+import ExecutionAlerts from './ExecutionAlerts.vue';
+import ExecutionSummaryBar from './ExecutionSummaryBar.vue';
 import StepTreePanel from './StepTreePanel.vue';
 import StepDetailPanel from './StepDetailPanel.vue';
 import LogsModal from './LogsModal.vue';
@@ -21,27 +21,30 @@ interface Props {
   slaveId?: string;
   definition?: WorkflowDefinition;
   selectedSteps?: string[];
+  persist?: boolean; // 是否持久化执行记录，默认 true
 }
 
 const props = withDefaults(defineProps<Props>(), {
   visible: false,
   executorType: 'local',
   selectedSteps: () => [],
+  persist: true,
 });
 
 const emit = defineEmits<{
   (e: 'close'): void;
-  (e: 'complete', summary: DebugSummary): void;
+  (e: 'complete', summary: ExecutionSummary): void;
 }>();
 
 // 使用 composables
-const debugSSE = useDebugSSE({
+const execution = useExecution({
   workflowId: toRef(props, 'workflowId'),
   envId: toRef(props, 'envId'),
   executorType: toRef(props, 'executorType'),
   slaveId: toRef(props, 'slaveId'),
   definition: toRef(props, 'definition'),
   selectedSteps: toRef(props, 'selectedSteps'),
+  persist: toRef(props, 'persist'),
   onStepStarted: (result) => {
     stepTree.setSelectedStep(result);
   },
@@ -51,25 +54,18 @@ const debugSSE = useDebugSSE({
 });
 
 const stepTree = useStepTree({
-  stepResults: debugSSE.stepResults,
+  stepResults: execution.stepResults,
   definition: toRef(props, 'definition'),
-  generateNodeKey: debugSSE.generateNodeKey,
+  generateNodeKey: execution.generateNodeKey,
 });
 
 // 日志弹窗状态
-const logsModalOpen = computed({
-  get: () => false, // 使用本地状态
-  set: () => {},
-});
-
-// 实际使用本地状态来控制日志弹窗
-import { ref } from 'vue';
 const showLogsModal = ref(false);
 
 // 选中步骤的 AI 内容
 const selectedStepAIContent = computed(() => {
   if (!stepTree.selectedStep.value) return null;
-  return debugSSE.aiContent.value.get(stepTree.selectedStep.value.step_id) || null;
+  return execution.aiContent.value.get(stepTree.selectedStep.value.step_id) || null;
 });
 
 // 监听 visible 变化
@@ -77,7 +73,7 @@ watch(
   () => props.visible,
   (visible) => {
     if (!visible) {
-      debugSSE.cleanup();
+      execution.cleanup();
       stepTree.resetSelection();
     }
   }
@@ -85,12 +81,12 @@ watch(
 
 // 组件卸载时清理
 onBeforeUnmount(() => {
-  debugSSE.cleanup();
+  execution.cleanup();
 });
 
 // 关闭面板
 function handleClose() {
-  debugSSE.cleanup();
+  execution.cleanup();
   emit('close');
 }
 
@@ -106,52 +102,58 @@ function handleDebugScriptStep() {
 
 // 暴露方法
 defineExpose({
-  startDebug: debugSSE.startDebug,
-  stopDebug: debugSSE.stopDebug,
+  startExecution: execution.start,
+  stopExecution: execution.stop,
+  // 兼容旧接口
+  startDebug: execution.start,
+  stopDebug: execution.stop,
 });
 </script>
 
 <template>
-  <div class="debug-panel">
+  <div class="execution-panel">
     <!-- 头部状态 -->
-    <DebugHeader
-      :loading="debugSSE.loading.value"
-      :stopping="debugSSE.stopping.value"
-      :is-running="debugSSE.isRunning.value"
-      :is-completed="debugSSE.isCompleted.value"
-      :status-text="debugSSE.statusText.value"
-      :status-color="debugSSE.statusColor.value"
-      :progress-percent="debugSSE.progressPercent.value"
-      :current-progress="debugSSE.currentProgress.value"
-      :debug-summary="debugSSE.debugSummary.value"
-      @start="debugSSE.startDebug"
-      @stop="debugSSE.stopDebug"
-      @restart="debugSSE.restart"
+    <ExecutionHeader
+      :loading="execution.loading.value"
+      :stopping="execution.stopping.value"
+      :is-running="execution.isRunning.value"
+      :is-completed="execution.isCompleted.value"
+      :status-text="execution.statusText.value"
+      :status-color="execution.statusColor.value"
+      :progress-percent="execution.progressPercent.value"
+      :current-progress="execution.currentProgress.value"
+      :execution-summary="execution.executionSummary.value"
+      @start="execution.start"
+      @stop="execution.stop"
+      @restart="execution.restart"
       @show-logs="showLogsModal = true"
       @close="handleClose"
     />
 
     <!-- 错误/断开连接提示 -->
-    <DebugAlerts
-      :error-message="debugSSE.errorMessage.value"
-      :disconnected="debugSSE.disconnected.value"
-      :reconnecting="debugSSE.reconnecting.value"
-      :reconnect-attempts="debugSSE.reconnectAttempts.value"
-      :max-reconnect-attempts="debugSSE.maxReconnectAttempts"
-      :has-debug-summary="!!debugSSE.debugSummary.value"
-      @clear-error="debugSSE.errorMessage.value = null"
-      @reconnect="debugSSE.handleReconnect"
+    <ExecutionAlerts
+      :error-message="execution.errorMessage.value"
+      :disconnected="execution.disconnected.value"
+      :reconnecting="execution.reconnecting.value"
+      :reconnect-attempts="execution.reconnectAttempts.value"
+      :max-reconnect-attempts="execution.maxReconnectAttempts"
+      :has-execution-summary="!!execution.executionSummary.value"
+      @clear-error="execution.errorMessage.value = null"
+      @reconnect="execution.handleReconnect"
     />
 
     <!-- 执行汇总 -->
-    <DebugSummaryBar v-if="debugSSE.debugSummary.value" :summary="debugSSE.debugSummary.value" />
+    <ExecutionSummaryBar
+      v-if="execution.executionSummary.value"
+      :summary="execution.executionSummary.value"
+    />
 
     <!-- 主体内容：左右结构 -->
-    <div class="debug-content">
+    <div class="execution-content">
       <!-- 左侧：步骤树 -->
       <StepTreePanel
-        :loading="debugSSE.loading.value"
-        :is-running="debugSSE.isRunning.value"
+        :loading="execution.loading.value"
+        :is-running="execution.isRunning.value"
         :tree-data="stepTree.treeData.value"
         :expanded-keys="stepTree.expandedKeys.value"
         :selected-step-key="stepTree.selectedStepKey.value"
@@ -165,30 +167,30 @@ defineExpose({
         :selected-tree-node="stepTree.selectedTreeNode.value"
         :is-iteration-selected="stepTree.isIterationSelected.value"
         :ai-content="selectedStepAIContent"
-        :current-a-i-step-id="debugSSE.currentAIStepId.value"
+        :current-a-i-step-id="execution.currentAIStepId.value"
         @debug-http-step="handleDebugHttpStep"
         @debug-script-step="handleDebugScriptStep"
       />
     </div>
 
     <!-- 执行日志 Modal -->
-    <LogsModal v-model:open="showLogsModal" :logs="debugSSE.logs.value" />
+    <LogsModal v-model:open="showLogsModal" :logs="execution.logs.value" />
 
     <!-- AI 交互对话框 -->
     <AIInteractionModal
-      :open="debugSSE.interactionOpen.value"
-      :data="debugSSE.interactionData.value"
-      :value="debugSSE.interactionValue.value"
-      :countdown="debugSSE.interactionCountdown.value"
-      @update:value="debugSSE.interactionValue.value = $event"
-      @confirm="debugSSE.handleInteractionConfirm"
-      @skip="debugSSE.handleInteractionSkip"
+      :open="execution.interactionOpen.value"
+      :data="execution.interactionData.value"
+      :value="execution.interactionValue.value"
+      :countdown="execution.interactionCountdown.value"
+      @update:value="execution.interactionValue.value = $event"
+      @confirm="execution.handleInteractionConfirm"
+      @skip="execution.handleInteractionSkip"
     />
   </div>
 </template>
 
 <style scoped>
-.debug-panel {
+.execution-panel {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -196,7 +198,7 @@ defineExpose({
   padding: 16px;
 }
 
-.debug-content {
+.execution-content {
   display: flex;
   gap: 12px;
   flex: 1;

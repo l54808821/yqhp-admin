@@ -13,7 +13,7 @@ import PropertyPanel from '../editor/PropertyPanel.vue';
 import WorkflowTreeEditor from '../editor/WorkflowTreeEditor.vue';
 import type { StepNode } from '../editor/WorkflowTreeEditor.vue';
 
-import DebugModal from './DebugModal.vue';
+import ExecutionModal from './ExecutionModal.vue';
 import EditorToolbar from './EditorToolbar.vue';
 import ExecuteModal from './ExecuteModal.vue';
 
@@ -530,12 +530,13 @@ async function handleRename(newName: string) {
       @success="handleExecuteSuccess"
     />
 
-    <!-- 调试对话框 -->
-    <DebugModal
+    <!-- 执行对话框（调试模式：不入库） -->
+    <ExecutionModal
       v-model:open="debugModalOpen"
       :workflow="workflow"
       :definition="workflowDefinition"
       :selected-steps="treeCheckedKeys"
+      :persist="false"
       @complete="handleDebugComplete"
     />
   </div>

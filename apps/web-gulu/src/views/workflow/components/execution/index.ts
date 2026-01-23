@@ -1,10 +1,10 @@
 // 主组件
-export { default as DebugPanelSSE } from './DebugPanelSSE.vue';
+export { default as ExecutionPanel } from './ExecutionPanel.vue';
 
 // 子组件
-export { default as DebugHeader } from './DebugHeader.vue';
-export { default as DebugAlerts } from './DebugAlerts.vue';
-export { default as DebugSummaryBar } from './DebugSummaryBar.vue';
+export { default as ExecutionHeader } from './ExecutionHeader.vue';
+export { default as ExecutionAlerts } from './ExecutionAlerts.vue';
+export { default as ExecutionSummaryBar } from './ExecutionSummaryBar.vue';
 export { default as StepTreePanel } from './StepTreePanel.vue';
 export { default as StepDetailPanel } from './StepDetailPanel.vue';
 export { default as LogsModal } from './LogsModal.vue';

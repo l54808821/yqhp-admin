@@ -1,11 +1,11 @@
 <!--
-  此文件已重构，实际实现位于 ./debug/DebugPanelSSE.vue
+  此文件已重构为 execution/ExecutionPanel.vue
   保留此文件以兼容现有导入
 -->
 <script setup lang="ts">
 import { ref } from 'vue';
-import DebugPanelSSEImpl from './debug/DebugPanelSSE.vue';
-import type { DebugSummary, WorkflowDefinition } from './debug/types';
+import ExecutionPanel from './execution/ExecutionPanel.vue';
+import type { ExecutionSummary, WorkflowDefinition } from './execution/types';
 
 interface Props {
   workflowId: number;
@@ -15,26 +15,28 @@ interface Props {
   slaveId?: string;
   definition?: WorkflowDefinition;
   selectedSteps?: string[];
+  persist?: boolean;
 }
 
 defineProps<Props>();
 
 const emit = defineEmits<{
   (e: 'close'): void;
-  (e: 'complete', summary: DebugSummary): void;
+  (e: 'complete', summary: ExecutionSummary): void;
 }>();
 
-// 暴露子组件的方法
-const implRef = ref<InstanceType<typeof DebugPanelSSEImpl> | null>(null);
+const implRef = ref<InstanceType<typeof ExecutionPanel> | null>(null);
 
 defineExpose({
-  startDebug: () => implRef.value?.startDebug(),
-  stopDebug: () => implRef.value?.stopDebug(),
+  startDebug: () => implRef.value?.startExecution(),
+  stopDebug: () => implRef.value?.stopExecution(),
+  startExecution: () => implRef.value?.startExecution(),
+  stopExecution: () => implRef.value?.stopExecution(),
 });
 </script>
 
 <template>
-  <DebugPanelSSEImpl
+  <ExecutionPanel
     ref="implRef"
     :workflow-id="workflowId"
     :env-id="envId"
@@ -43,6 +45,7 @@ defineExpose({
     :slave-id="slaveId"
     :definition="definition"
     :selected-steps="selectedSteps"
+    :persist="persist"
     @close="emit('close')"
     @complete="(summary) => emit('complete', summary)"
   />

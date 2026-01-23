@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { DebugSummary } from './types';
+import type { ExecutionSummary } from './types';
 
 interface Props {
-  summary: DebugSummary;
+  summary: ExecutionSummary;
 }
 
 defineProps<Props>();

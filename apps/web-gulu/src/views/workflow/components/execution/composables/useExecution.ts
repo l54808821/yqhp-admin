@@ -23,20 +23,21 @@ import type {
 } from '#/api/debug';
 import { useAccessStore } from '@vben/stores';
 
-export interface UseDebugSSEOptions {
+export interface UseExecutionOptions {
   workflowId: Ref<number>;
   envId: Ref<number>;
   executorType?: Ref<'local' | 'remote'>;
   slaveId?: Ref<string | undefined>;
   definition?: Ref<{ name: string; steps: any[] } | undefined>;
   selectedSteps?: Ref<string[]>;
+  persist?: Ref<boolean>; // 是否持久化执行记录，默认 true
   onStepStarted?: (result: StepResult) => void;
   onStepResult?: (result: StepResult) => void;
   onStepSkipped?: (result: StepResult) => void;
   onComplete?: (summary: DebugSummary) => void;
 }
 
-export function useDebugSSE(options: UseDebugSSEOptions) {
+export function useExecution(options: UseExecutionOptions) {
   const {
     workflowId,
     envId,
@@ -44,6 +45,7 @@ export function useDebugSSE(options: UseDebugSSEOptions) {
     slaveId,
     definition,
     selectedSteps,
+    persist,
     onStepStarted,
     onStepResult,
     onStepSkipped,
@@ -57,7 +59,7 @@ export function useDebugSSE(options: UseDebugSSEOptions) {
   const sseState = ref<SSEState>('disconnected');
   const stepResults = ref<StepResult[]>([]);
   const currentProgress = ref<ProgressData | null>(null);
-  const debugSummary = ref<DebugSummary | null>(null);
+  const executionSummary = ref<DebugSummary | null>(null);
   const logs = ref<string[]>([]);
   const errorMessage = ref<string | null>(null);
 
@@ -83,8 +85,8 @@ export function useDebugSSE(options: UseDebugSSEOptions) {
   let sseService: SSEService | null = null;
 
   // 计算属性
-  const isRunning = computed(() => sseState.value === 'connected' && !debugSummary.value);
-  const isCompleted = computed(() => !!debugSummary.value);
+  const isRunning = computed(() => sseState.value === 'connected' && !executionSummary.value);
+  const isCompleted = computed(() => !!executionSummary.value);
   const progressPercent = computed(() => {
     const percent = currentProgress.value?.percentage || 0;
     if (isRunning.value && percent >= 100) {
@@ -98,8 +100,8 @@ export function useDebugSSE(options: UseDebugSSEOptions) {
     if (stopping.value) return '正在停止...';
     if (sseState.value === 'connecting') return '正在连接...';
     if (sseState.value === 'error') return '连接错误';
-    if (debugSummary.value) {
-      const status = debugSummary.value.status;
+    if (executionSummary.value) {
+      const status = executionSummary.value.status;
       if (status === 'completed' || status === 'success') return '执行完成';
       if (status === 'failed') return '执行失败';
       if (status === 'timeout') return '执行超时';
@@ -110,8 +112,8 @@ export function useDebugSSE(options: UseDebugSSEOptions) {
   });
 
   const statusColor = computed(() => {
-    if (debugSummary.value) {
-      const status = debugSummary.value.status;
+    if (executionSummary.value) {
+      const status = executionSummary.value.status;
       if (status === 'completed' || status === 'success') return 'success';
       if (status === 'failed' || status === 'timeout') return 'error';
       if (status === 'stopped') return 'warning';
@@ -249,7 +251,7 @@ export function useDebugSSE(options: UseDebugSSEOptions) {
   }
 
   function handleWorkflowComplete(data: WorkflowCompletedData) {
-    debugSummary.value = {
+    executionSummary.value = {
       session_id: data.session_id,
       total_steps: data.total_steps,
       success_steps: data.success_steps,
@@ -260,7 +262,7 @@ export function useDebugSSE(options: UseDebugSSEOptions) {
       start_time: '',
       end_time: '',
     };
-    onComplete?.(debugSummary.value);
+    onComplete?.(executionSummary.value);
     sseService?.disconnect();
   }
 
@@ -299,7 +301,7 @@ export function useDebugSSE(options: UseDebugSSEOptions) {
 
   // 处理连接断开
   function handleDisconnect() {
-    if (debugSummary.value) return;
+    if (executionSummary.value) return;
 
     disconnected.value = true;
     errorMessage.value = 'SSE 连接已断开';
@@ -311,14 +313,14 @@ export function useDebugSSE(options: UseDebugSSEOptions) {
 
   // 自动重连
   function autoReconnect() {
-    if (reconnecting.value || debugSummary.value) return;
+    if (reconnecting.value || executionSummary.value) return;
 
     reconnecting.value = true;
     reconnectAttempts.value++;
     errorMessage.value = `正在尝试重连 (${reconnectAttempts.value}/${maxReconnectAttempts})...`;
 
     setTimeout(() => {
-      if (disconnected.value && !debugSummary.value) {
+      if (disconnected.value && !executionSummary.value) {
         sseService?.disconnect();
         connectSSE(lastSSEUrl);
       }
@@ -347,13 +349,13 @@ export function useDebugSSE(options: UseDebugSSEOptions) {
           reconnecting.value = false;
           reconnectAttempts.value = 0;
           disconnected.value = false;
-        } else if (state === 'disconnected' && !debugSummary.value) {
+        } else if (state === 'disconnected' && !executionSummary.value) {
           handleDisconnect();
         }
       },
       onError: () => {
         loading.value = false;
-        if (!debugSummary.value) {
+        if (!executionSummary.value) {
           handleDisconnect();
         }
       },
@@ -363,7 +365,7 @@ export function useDebugSSE(options: UseDebugSSEOptions) {
   }
 
   // 开始执行
-  async function startDebug() {
+  async function start() {
     if (!workflowId.value || !envId.value) return;
 
     try {
@@ -371,7 +373,7 @@ export function useDebugSSE(options: UseDebugSSEOptions) {
       errorMessage.value = null;
       stepResults.value = [];
       currentProgress.value = null;
-      debugSummary.value = null;
+      executionSummary.value = null;
       logs.value = [];
       aiContent.value = new Map();
       currentAIStepId.value = null;
@@ -383,6 +385,7 @@ export function useDebugSSE(options: UseDebugSSEOptions) {
         env_id: envId.value,
         executor_type: executorType?.value || 'local',
         slave_id: slaveId?.value,
+        persist: persist?.value ?? true,
       };
 
       if (definition?.value) {
@@ -407,7 +410,7 @@ export function useDebugSSE(options: UseDebugSSEOptions) {
   }
 
   // 停止执行
-  async function stopDebug() {
+  async function stop() {
     if (!sessionId.value) return;
 
     try {
@@ -489,7 +492,7 @@ export function useDebugSSE(options: UseDebugSSEOptions) {
   // 重新开始
   function restart() {
     cleanup();
-    startDebug();
+    start();
   }
 
   return {
@@ -500,7 +503,7 @@ export function useDebugSSE(options: UseDebugSSEOptions) {
     sseState,
     stepResults,
     currentProgress,
-    debugSummary,
+    executionSummary,
     logs,
     errorMessage,
 
@@ -529,8 +532,8 @@ export function useDebugSSE(options: UseDebugSSEOptions) {
 
     // 方法
     generateNodeKey,
-    startDebug,
-    stopDebug,
+    start,
+    stop,
     restart,
     cleanup,
     handleReconnect,
