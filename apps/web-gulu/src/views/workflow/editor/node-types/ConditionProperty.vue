@@ -85,11 +85,11 @@ function handleDrop(targetIndex: number) {
     dragOverIndex.value = null;
     return;
   }
-  
+
   const branches = props.node.branches;
   const [removed] = branches.splice(dragIndex.value, 1);
   branches.splice(targetIndex, 0, removed);
-  
+
   dragIndex.value = null;
   dragOverIndex.value = null;
   emit('update', props.node);
@@ -108,17 +108,17 @@ function handleDragEnd() {
       <span class="section-title">分支列表</span>
       <Button type="primary" size="small" @click="addBranch">+ 添加分支</Button>
     </div>
-    
+
     <div v-if="branches.length === 0" class="empty-state">
       暂无分支，点击上方按钮添加
     </div>
-    
+
     <div v-else class="branch-list">
       <div
         v-for="(br, index) in branches"
         :key="br.id"
         class="branch-card"
-        :class="{ 
+        :class="{
           'dragging': dragIndex === index,
           'drag-over': dragOverIndex === index && dragIndex !== index,
           'is-if': br.kind === 'if',
@@ -137,7 +137,7 @@ function handleDragEnd() {
           <span class="drag-handle" title="拖拽排序">
             <GripVertical class="size-4" />
           </span>
-          
+
           <!-- 类型选择器（带颜色标签样式） -->
           <Select
             v-model:value="br.kind"
@@ -147,7 +147,7 @@ function handleDragEnd() {
             :popupClassName="'kind-select-popup'"
             @change="handleKindChange(index)"
           />
-          
+
           <!-- 分支名称 -->
           <Input
             v-model:value="br.name"
@@ -157,7 +157,7 @@ function handleDragEnd() {
             :bordered="false"
             @blur="handleUpdate"
           />
-          
+
           <!-- 删除按钮 -->
           <Popconfirm
             title="删除此分支？"
@@ -171,12 +171,11 @@ function handleDragEnd() {
             </Button>
           </Popconfirm>
         </div>
-        
+
         <!-- 条件表达式 -->
         <div v-if="br.kind !== 'else'" class="expression-area">
           <Input
             v-model:value="br.expression"
-            size="small"
             placeholder="输入条件表达式，如: ${response.status} == 200"
             @blur="handleUpdate"
           />
