@@ -158,8 +158,14 @@ export function useExecution(options: UseExecutionOptions) {
         handleStepStarted(event.data as StepStartedData);
         break;
       case 'step_completed':
-      case 'step_failed':
         handleStepResult(event.data as StepResult);
+        break;
+      case 'step_failed':
+        // step_failed 事件需要确保 status 为 'failed'
+        handleStepResult({
+          ...(event.data as StepResult),
+          status: 'failed',
+        });
         break;
       case 'step_skipped':
         handleStepSkipped(event.data as {
