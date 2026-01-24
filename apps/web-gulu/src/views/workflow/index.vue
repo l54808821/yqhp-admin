@@ -19,6 +19,7 @@ const projectStore = useProjectStore();
 
 const loading = ref(false);
 const ideLayoutRef = ref<InstanceType<typeof IdeLayout> | null>(null);
+const categoryTreeRef = ref<InstanceType<typeof CategoryTree> | null>(null);
 const editorRefs = ref<Map<string | number, InstanceType<typeof WorkflowEditor>>>(new Map());
 
 // 从路由或 store 获取 projectId
@@ -82,8 +83,11 @@ function handleSelectWorkflow(workflow: { id: number; name: string }) {
   });
 }
 
-function handleTabChange(_tab: TabItem | undefined) {
-  // tab 切换时的处理
+function handleTabChange(tab: TabItem | undefined) {
+  // tab 切换时，自动定位到左侧树对应的节点
+  if (tab?.data?.workflowId) {
+    categoryTreeRef.value?.selectByWorkflowId(tab.data.workflowId);
+  }
 }
 
 // 处理编辑器修改状态变化
@@ -135,6 +139,7 @@ function handleAddWorkflow() {
       >
         <template #sidebar>
           <CategoryTree
+            ref="categoryTreeRef"
             :project-id="getProjectId()"
             @select-workflow="handleSelectWorkflow"
             @workflow-renamed="handleWorkflowRenamed"

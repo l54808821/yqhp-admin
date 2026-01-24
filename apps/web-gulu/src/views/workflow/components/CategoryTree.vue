@@ -307,6 +307,43 @@ function handleMenuClick(key: string, node: any) {
       break;
   }
 }
+
+// 根据 workflowId 查找节点并返回路径
+function findNodePathByWorkflowId(
+  categories: CategoryTreeNode[],
+  workflowId: number,
+  path: number[] = [],
+): number[] | null {
+  for (const cat of categories) {
+    const currentPath = [...path, cat.id];
+    if (cat.type === 'workflow' && cat.source_id === workflowId) {
+      return currentPath;
+    }
+    if (cat.children?.length) {
+      const found = findNodePathByWorkflowId(cat.children, workflowId, currentPath);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+// 根据 workflowId 定位并选中节点（供外部调用）
+function selectByWorkflowId(workflowId: number) {
+  const path = findNodePathByWorkflowId(categoryStore.categories, workflowId);
+  if (path && path.length > 0) {
+    // 展开所有父节点（除最后一个）
+    const parentKeys = path.slice(0, -1);
+    expandedKeys.value = [...new Set([...expandedKeys.value, ...parentKeys])];
+    // 选中目标节点
+    const targetKey = path[path.length - 1];
+    selectedKeys.value = [targetKey!];
+  }
+}
+
+// 暴露方法给父组件
+defineExpose({
+  selectByWorkflowId,
+});
 </script>
 
 <template>
