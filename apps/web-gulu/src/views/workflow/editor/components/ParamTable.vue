@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 import { createIconifyIcon } from '@vben/icons';
 import {
+  AutoComplete,
   Button,
   Checkbox,
   Dropdown,
@@ -23,9 +24,64 @@ const UploadIcon = createIconifyIcon('lucide:upload');
 const FileIcon = createIconifyIcon('lucide:file');
 const GripIcon = createIconifyIcon('lucide:grip-vertical');
 
+// 常用 HTTP Headers 列表
+const COMMON_HEADERS = [
+  'Accept',
+  'Accept-Charset',
+  'Accept-Encoding',
+  'Accept-Language',
+  'Authorization',
+  'Cache-Control',
+  'Content-Disposition',
+  'Content-Encoding',
+  'Content-Language',
+  'Content-Length',
+  'Content-Type',
+  'Cookie',
+  'Date',
+  'ETag',
+  'Expect',
+  'Expires',
+  'From',
+  'Host',
+  'If-Match',
+  'If-Modified-Since',
+  'If-None-Match',
+  'If-Range',
+  'If-Unmodified-Since',
+  'Last-Modified',
+  'Location',
+  'Max-Forwards',
+  'Origin',
+  'Pragma',
+  'Proxy-Authorization',
+  'Range',
+  'Referer',
+  'Retry-After',
+  'Server',
+  'Set-Cookie',
+  'TE',
+  'Trailer',
+  'Transfer-Encoding',
+  'Upgrade',
+  'User-Agent',
+  'Vary',
+  'Via',
+  'Warning',
+  'WWW-Authenticate',
+  'X-Requested-With',
+  'X-Forwarded-For',
+  'X-Forwarded-Host',
+  'X-Forwarded-Proto',
+  'X-Frame-Options',
+  'X-Content-Type-Options',
+  'X-XSS-Protection',
+];
+
 interface Props {
   items: ParamItem[];
   showType?: boolean; // 是否显示类型列（用于 form-data）
+  showHeaderSuggestions?: boolean; // 是否显示 Header 联想（用于 headers）
   placeholder?: {
     key?: string;
     value?: string;
@@ -35,9 +91,24 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   showType: false,
+  showHeaderSuggestions: false,
   placeholder: () => ({ key: '参数名', value: '参数值' }),
   disabled: false,
 });
+
+// Header 联想选项
+const headerOptions = computed(() => {
+  return COMMON_HEADERS.map((header) => ({ value: header }));
+});
+
+// 过滤 Header 选项
+function filterHeaderOptions(inputValue: string) {
+  if (!inputValue) return headerOptions.value;
+  const lowerInput = inputValue.toLowerCase();
+  return COMMON_HEADERS.filter((header) =>
+    header.toLowerCase().includes(lowerInput)
+  ).map((header) => ({ value: header }));
+}
 
 const emit = defineEmits<{
   (e: 'update', items: ParamItem[]): void;
@@ -248,7 +319,17 @@ function isLastEmptyRow(index: number): boolean {
 
         <!-- 参数名 -->
         <div class="param-col param-col-key">
+          <AutoComplete
+            v-if="showHeaderSuggestions"
+            :value="item.key"
+            :options="filterHeaderOptions(item.key)"
+            :placeholder="placeholder.key"
+            :disabled="disabled"
+            @change="(value: any) => updateKey(index, value)"
+            @select="(value: any) => updateKey(index, value)"
+          />
           <Input
+            v-else
             :value="item.key"
             :placeholder="placeholder.key"
             :disabled="disabled"
@@ -486,5 +567,34 @@ function isLastEmptyRow(index: number): boolean {
   border: 1px solid hsl(var(--primary));
   box-shadow: 0 0 0 2px hsl(var(--primary) / 20%);
   background: hsl(var(--background));
+}
+
+/* AutoComplete 样式 - 填充整个单元格 */
+:deep(.ant-select-auto-complete) {
+  width: 100%;
+  height: 100%;
+}
+
+:deep(.ant-select-auto-complete .ant-select-selector) {
+  border: none !important;
+  border-radius: 0 !important;
+  min-height: 36px !important;
+  padding: 4px 12px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+:deep(.ant-select-auto-complete .ant-select-selector:hover) {
+  background: hsl(var(--accent) / 20%) !important;
+}
+
+:deep(.ant-select-auto-complete.ant-select-focused .ant-select-selector) {
+  border: 1px solid hsl(var(--primary)) !important;
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 20%) !important;
+  background: hsl(var(--background)) !important;
+}
+
+:deep(.ant-select-auto-complete .ant-select-selection-search-input) {
+  height: 100% !important;
 }
 </style>

@@ -411,6 +411,7 @@ const postProcessorsCount = computed(() => {
             <ParamTable
               :items="localNode.config?.headers || []"
               :placeholder="{ key: 'Header 名称', value: 'Header 值' }"
+              :show-header-suggestions="true"
               @update="updateHeaders"
             />
           </div>
