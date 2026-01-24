@@ -503,10 +503,19 @@ function updateConditionBranch(
   return false;
 }
 
-// 暴露保存方法给父组件
+// 更新工作流名称（供外部调用，如左侧树重命名时同步）
+function updateWorkflowName(newName: string) {
+  if (workflow.value) {
+    workflow.value.name = newName;
+  }
+  workflowDefinition.value.name = newName;
+}
+
+// 暴露方法给父组件
 defineExpose({
   save: handleSave,
   isModified: () => isModified.value,
+  updateWorkflowName,
 });
 
 // 执行相关

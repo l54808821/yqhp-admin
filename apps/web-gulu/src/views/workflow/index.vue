@@ -97,6 +97,18 @@ function handleTitleChange(tabId: string | number, title: string) {
   (ideLayoutRef.value as any)?.updateTabTitle(tabId, title);
 }
 
+// 处理工作流重命名（从左侧树触发）
+function handleWorkflowRenamed(payload: { id: number; name: string }) {
+  const tabId = `workflow-${payload.id}`;
+  // 更新 tab 标题
+  (ideLayoutRef.value as any)?.updateTabTitle(tabId, payload.name);
+  // 更新编辑器中的 workflow 名称
+  const editor = editorRefs.value.get(tabId);
+  if (editor) {
+    (editor as any).updateWorkflowName?.(payload.name);
+  }
+}
+
 // 注册编辑器引用
 function registerEditorRef(tabId: string | number, ref: any) {
   if (ref) {
@@ -125,6 +137,7 @@ function handleAddWorkflow() {
           <CategoryTree
             :project-id="getProjectId()"
             @select-workflow="handleSelectWorkflow"
+            @workflow-renamed="handleWorkflowRenamed"
           />
         </template>
         <template #editor="{ activeTab: tab, tabs }">

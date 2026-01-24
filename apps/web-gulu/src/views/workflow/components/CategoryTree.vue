@@ -35,7 +35,7 @@ import {
   moveCategoryApi,
   updateCategoryApi,
 } from '#/api/category';
-import { createWorkflowApi } from '#/api/workflow';
+import { createWorkflowApi, updateWorkflowApi } from '#/api/workflow';
 import { useCategoryStore } from '#/store/category';
 
 interface Props {
@@ -46,6 +46,7 @@ const props = defineProps<Props>();
 
 const emit = defineEmits<{
   (e: 'selectWorkflow', workflow: { id: number; name: string }): void;
+  (e: 'workflowRenamed', payload: { id: number; name: string }): void;
 }>();
 
 const categoryStore = useCategoryStore();
@@ -265,9 +266,21 @@ async function handleSaveEdit() {
       }
       message.success('创建成功');
     } else if (editingCategory.value) {
+      // 更新分类节点名称
       await updateCategoryApi(editingCategory.value.id, {
         name: editForm.value.name,
       });
+      // 如果是工作流类型，同时更新工作流名称
+      if (editingCategory.value.type === 'workflow' && editingCategory.value.source_id) {
+        await updateWorkflowApi(editingCategory.value.source_id, {
+          name: editForm.value.name,
+        });
+        // 通知父组件工作流已重命名
+        emit('workflowRenamed', {
+          id: editingCategory.value.source_id,
+          name: editForm.value.name,
+        });
+      }
       message.success('更新成功');
     }
     await categoryStore.loadCategories(props.projectId);
