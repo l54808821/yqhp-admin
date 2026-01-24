@@ -22,8 +22,7 @@ import ParamTable from '../../components/ParamTable.vue';
 import BodyPanel from './BodyPanel.vue';
 import AuthPanel from './AuthPanel.vue';
 import SettingsPanel from './SettingsPanel.vue';
-import PreProcessorPanel from './PreProcessorPanel.vue';
-import PostProcessorPanel from './PostProcessorPanel.vue';
+import ProcessorPanel from './ProcessorPanel.vue';
 import ResponsePanel from './ResponsePanel.vue';
 
 // 图标
@@ -446,7 +445,8 @@ const postProcessorsCount = computed(() => {
             <span v-if="preProcessorsCount > 0" class="tab-badge">{{ preProcessorsCount }}</span>
           </template>
           <div class="tab-content">
-            <PreProcessorPanel
+            <ProcessorPanel
+              type="pre"
               :processors="localNode.preProcessors || []"
               @update="updatePreProcessors"
             />
@@ -459,7 +459,8 @@ const postProcessorsCount = computed(() => {
             <span v-if="postProcessorsCount > 0" class="tab-badge">{{ postProcessorsCount }}</span>
           </template>
           <div class="tab-content">
-            <PostProcessorPanel
+            <ProcessorPanel
+              type="post"
               :processors="localNode.postProcessors || []"
               @update="updatePostProcessors"
             />

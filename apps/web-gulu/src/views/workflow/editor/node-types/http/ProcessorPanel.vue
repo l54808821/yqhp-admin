@@ -11,9 +11,10 @@ import {
   Tooltip,
 } from 'ant-design-vue';
 
-import type { KeywordConfig, PostProcessorKeywordType } from '../../types';
+import type { KeywordConfig, PreProcessorKeywordType, PostProcessorKeywordType } from '../../types';
 import {
   createKeywordConfig,
+  getPreProcessorKeywordTypes,
   getPostProcessorKeywordTypes,
   KEYWORD_TYPE_META,
 } from '../../types';
@@ -23,6 +24,8 @@ import AssertionForm from './keywords/AssertionForm.vue';
 import ExtractParamForm from './keywords/ExtractParamForm.vue';
 import SetVariableForm from './keywords/SetVariableForm.vue';
 import JsScriptForm from './keywords/JsScriptForm.vue';
+import DbQueryForm from './keywords/DbQueryForm.vue';
+import WaitForm from './keywords/WaitForm.vue';
 
 // 图标
 const PlusIcon = createIconifyIcon('lucide:plus');
@@ -31,7 +34,10 @@ const TrashIcon = createIconifyIcon('lucide:trash-2');
 const ChevronDownIcon = createIconifyIcon('lucide:chevron-down');
 const ChevronRightIcon = createIconifyIcon('lucide:chevron-right');
 
+type ProcessorType = 'pre' | 'post';
+
 interface Props {
+  type: ProcessorType;
   processors: KeywordConfig[];
 }
 
@@ -41,12 +47,29 @@ const emit = defineEmits<{
   (e: 'update', processors: KeywordConfig[]): void;
 }>();
 
+// 配置映射
+const CONFIG = {
+  pre: {
+    buttonText: '添加前置操作',
+    emptyText: '暂无前置操作',
+    getKeywordTypes: getPreProcessorKeywordTypes,
+  },
+  post: {
+    buttonText: '添加后置操作',
+    emptyText: '暂无后置操作',
+    getKeywordTypes: getPostProcessorKeywordTypes,
+  },
+} as const;
+
+// 当前配置
+const currentConfig = computed(() => CONFIG[props.type]);
+
 // 本地数据
 const localProcessors = ref<KeywordConfig[]>([]);
 const expandedIds = ref<Set<string>>(new Set());
 
 // 可用的关键字类型
-const availableKeywordTypes = computed(() => getPostProcessorKeywordTypes());
+const availableKeywordTypes = computed(() => currentConfig.value.getKeywordTypes());
 
 // 同步外部数据
 watch(
@@ -63,7 +86,7 @@ function emitUpdate() {
 }
 
 // 添加关键字
-function addKeyword(type: PostProcessorKeywordType) {
+function addKeyword(type: PreProcessorKeywordType | PostProcessorKeywordType) {
   const keyword = createKeywordConfig(type);
   localProcessors.value.push(keyword);
   expandedIds.value.add(keyword.id);
@@ -103,15 +126,6 @@ function updateKeywordConfig(id: string, config: any) {
   const keyword = localProcessors.value.find(k => k.id === id);
   if (keyword) {
     keyword.config = config;
-    emitUpdate();
-  }
-}
-
-// 更新关键字名称
-function updateKeywordName(id: string, name: string) {
-  const keyword = localProcessors.value.find(k => k.id === id);
-  if (keyword) {
-    keyword.name = name;
     emitUpdate();
   }
 }
@@ -182,7 +196,7 @@ function handleDragEnd() {
       <Dropdown :trigger="['click']">
         <Button type="primary" size="small">
           <template #icon><PlusIcon class="size-4" /></template>
-          添加后置操作
+          {{ currentConfig.buttonText }}
           <ChevronDownIcon class="size-4 ml-1" />
         </Button>
         <template #overlay>
@@ -269,6 +283,7 @@ function handleDragEnd() {
 
         <!-- 关键字配置表单 -->
         <div v-if="expandedIds.has(keyword.id)" class="keyword-body">
+          <!-- 后置处理器专用 -->
           <AssertionForm
             v-if="keyword.type === 'assertion'"
             :config="keyword.config"
@@ -279,6 +294,18 @@ function handleDragEnd() {
             :config="keyword.config"
             @update="(config) => updateKeywordConfig(keyword.id, config)"
           />
+          <!-- 前置处理器专用 -->
+          <DbQueryForm
+            v-else-if="keyword.type === 'db_query'"
+            :config="keyword.config"
+            @update="(config) => updateKeywordConfig(keyword.id, config)"
+          />
+          <WaitForm
+            v-else-if="keyword.type === 'wait'"
+            :config="keyword.config"
+            @update="(config) => updateKeywordConfig(keyword.id, config)"
+          />
+          <!-- 通用 -->
           <SetVariableForm
             v-else-if="keyword.type === 'set_variable'"
             :config="keyword.config"
@@ -297,7 +324,7 @@ function handleDragEnd() {
     <Empty
       v-else
       :image="Empty.PRESENTED_IMAGE_SIMPLE"
-      description="暂无后置操作"
+      :description="currentConfig.emptyText"
       class="empty-state"
     />
   </div>
