@@ -70,6 +70,7 @@ function handleExecutionComplete(summary: DebugSummary) {
     :width="1100"
     :mask-closable="false"
     :body-style="{ padding: 0 }"
+    :header-style="{ padding: '10px 16px' }"
     @close="handleClose"
   >
     <ExecutionPanel
