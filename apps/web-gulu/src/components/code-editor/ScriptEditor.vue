@@ -295,6 +295,9 @@ function insertSnippet(snippet: { code: string }) {
 
   const position = editor.getPosition();
   if (position) {
+    // 添加撤销点，确保插入操作可以被撤销
+    editor.pushUndoStop();
+
     // 在当前位置插入代码
     editor.executeEdits('snippet', [
       {
@@ -307,6 +310,10 @@ function insertSnippet(snippet: { code: string }) {
         text: snippet.code + '\n',
       },
     ]);
+
+    // 再次添加撤销点，确保后续操作与此次插入分开
+    editor.pushUndoStop();
+
     // 聚焦编辑器
     editor.focus();
   }
