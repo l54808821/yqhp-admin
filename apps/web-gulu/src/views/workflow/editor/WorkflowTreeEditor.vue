@@ -448,7 +448,14 @@ function allowDrop(options: { dropNode: any; dropPosition: number }): boolean {
   // dropPosition: -1 表示放在节点前面，0 表示放入节点内部，1 表示放在节点后面
   // 如果是放入节点内部（dropPosition === 0），只允许可以有子节点的节点
   if (dropPosition === 0) {
+    // condition_branch 可以接收子节点（分支内的步骤）
     if (targetStep?.type === 'condition_branch') return true;
+
+    // condition 节点不能直接接收子节点（子节点必须放在分支内）
+    if (targetStep?.type === 'condition') {
+      return false;
+    }
+
     const config = getNodeTypeConfig(targetStep?.type || '');
     return config?.canHaveChildren ?? false;
   }
