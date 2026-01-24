@@ -34,10 +34,10 @@ const TrashIcon = createIconifyIcon('lucide:trash-2');
 const ChevronDownIcon = createIconifyIcon('lucide:chevron-down');
 const ChevronRightIcon = createIconifyIcon('lucide:chevron-right');
 
-type ProcessorType = 'pre' | 'post';
+type ProcessorMode = 'pre' | 'post';
 
 interface Props {
-  type: ProcessorType;
+  mode: ProcessorMode;
   processors: KeywordConfig[];
 }
 
@@ -62,7 +62,7 @@ const CONFIG = {
 } as const;
 
 // 当前配置
-const currentConfig = computed(() => CONFIG[props.type]);
+const currentConfig = computed(() => CONFIG[props.mode]);
 
 // 本地数据
 const localProcessors = ref<KeywordConfig[]>([]);

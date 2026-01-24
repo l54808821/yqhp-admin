@@ -446,7 +446,7 @@ const postProcessorsCount = computed(() => {
           </template>
           <div class="tab-content">
             <ProcessorPanel
-              type="pre"
+              mode="pre"
               :processors="localNode.preProcessors || []"
               @update="updatePreProcessors"
             />
@@ -460,7 +460,7 @@ const postProcessorsCount = computed(() => {
           </template>
           <div class="tab-content">
             <ProcessorPanel
-              type="post"
+              mode="post"
               :processors="localNode.postProcessors || []"
               @update="updatePostProcessors"
             />

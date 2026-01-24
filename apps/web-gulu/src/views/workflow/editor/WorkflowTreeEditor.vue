@@ -51,6 +51,21 @@ export interface StepNode {
     expression?: string;
     steps?: StepNode[];
   }>;
+  // HTTP 节点特有字段
+  preProcessors?: Array<{
+    id: string;
+    type: string;
+    enabled: boolean;
+    name?: string;
+    config: Record<string, unknown>;
+  }>;
+  postProcessors?: Array<{
+    id: string;
+    type: string;
+    enabled: boolean;
+    name?: string;
+    config: Record<string, unknown>;
+  }>;
 }
 
 interface Props {

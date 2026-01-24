@@ -63,6 +63,15 @@ function backendToFrontend(steps: any[]): StepNode[] {
       config: step.config,
       loop: step.loop,
     };
+    // HTTP 节点：复制前后置处理器
+    if (step.type === 'http') {
+      if (step.preProcessors?.length) {
+        node.preProcessors = step.preProcessors;
+      }
+      if (step.postProcessors?.length) {
+        node.postProcessors = step.postProcessors;
+      }
+    }
     // loop：children 直接使用
     if (step.type === 'loop' && step.children?.length) {
       node.children = backendToFrontend(step.children);
@@ -99,6 +108,16 @@ function frontendToBackend(steps: StepNode[]): any[] {
     // 复制 config
     if (step.config) {
       node.config = step.config;
+    }
+
+    // HTTP 节点：复制前后置处理器
+    if (step.type === 'http') {
+      if (step.preProcessors?.length) {
+        node.preProcessors = step.preProcessors;
+      }
+      if (step.postProcessors?.length) {
+        node.postProcessors = step.postProcessors;
+      }
     }
 
     // 条件节点：只使用 branches 新结构
