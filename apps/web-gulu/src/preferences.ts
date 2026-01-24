@@ -22,6 +22,7 @@ export const overridesPreferences = defineOverridesPreferences({
     collapsedButton: false,
     collapsedShowTitle: true,
     fixedButton: false,
+    "expandOnHover": false,
   },
   tabbar: {
     enable: false,
