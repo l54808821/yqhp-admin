@@ -4,6 +4,7 @@
 
 // 组件
 export { default as HttpResponsePanel } from './HttpResponsePanel.vue';
+export { default as ScriptResponsePanel } from './ScriptResponsePanel.vue';
 
 // 类型
 export type {
@@ -13,6 +14,9 @@ export type {
   DebugStepApiResponse,
   StepResultOutput,
 } from './types';
+
+// 脚本响应类型
+export type { ScriptResponseData } from './ScriptResponsePanel.vue';
 
 // 工具函数
 export {
