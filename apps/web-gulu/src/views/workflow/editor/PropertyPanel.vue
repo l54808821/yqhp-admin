@@ -199,7 +199,8 @@ function handleDelete(node: any) {
 
 .panel-header.http-header,
 .panel-header.script-header {
-  padding: 12px 16px;
+  height: 49px;
+  padding: 0 16px;
   margin-bottom: 0;
   border-bottom: 1px solid hsl(var(--border));
   background: hsl(var(--card));
