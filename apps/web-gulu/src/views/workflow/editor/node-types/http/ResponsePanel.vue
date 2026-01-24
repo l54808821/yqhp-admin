@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 
+import { createIconifyIcon } from '@vben/icons';
 import { Tabs, Tag } from 'ant-design-vue';
 
 import type { ResponseData } from '../../types';
 import { ResponseBodyEditor } from '#/components/code-editor';
+
+const CheckCircleIcon = createIconifyIcon('lucide:check-circle');
+const XCircleIcon = createIconifyIcon('lucide:x-circle');
 
 interface Props {
   response: ResponseData;
@@ -40,6 +44,44 @@ const headersCount = computed(() => Object.keys(props.response.headers || {}).le
 
 // Cookies 数量
 const cookiesCount = computed(() => Object.keys(props.response.cookies || {}).length);
+
+// 是否有控制台输出
+const hasConsoleOutput = computed(() => {
+  const hasConsoleLogs = props.response.console && props.response.console.length > 0;
+  const hasPreResults = props.response.preProcessorResults && props.response.preProcessorResults.length > 0;
+  const hasPostResults = props.response.postProcessorResults && props.response.postProcessorResults.length > 0;
+  return hasConsoleLogs || hasPreResults || hasPostResults;
+});
+
+// 控制台日志总数
+const consoleLogsCount = computed(() => {
+  let count = 0;
+  if (props.response.console) count += props.response.console.length;
+  if (props.response.preProcessorResults) {
+    props.response.preProcessorResults.forEach(r => {
+      if (r.logs) count += r.logs.length;
+    });
+  }
+  if (props.response.postProcessorResults) {
+    props.response.postProcessorResults.forEach(r => {
+      if (r.logs) count += r.logs.length;
+    });
+  }
+  return count;
+});
+
+// 获取处理器类型名称
+function getProcessorTypeName(type: string): string {
+  const names: Record<string, string> = {
+    'js_script': 'JS 脚本',
+    'set_variable': '设置变量',
+    'db_query': '数据库查询',
+    'wait': '等待',
+    'assertion': '断言',
+    'extract_param': '提取参数',
+  };
+  return names[type] || type;
+}
 </script>
 
 <template>
@@ -58,6 +100,12 @@ const cookiesCount = computed(() => Object.keys(props.response.cookies || {}).le
           <template #tab>
             <span>Cookies</span>
             <span class="tab-count">{{ cookiesCount }}</span>
+          </template>
+        </Tabs.TabPane>
+        <Tabs.TabPane key="console" v-if="hasConsoleOutput">
+          <template #tab>
+            <span>控制台</span>
+            <span v-if="consoleLogsCount > 0" class="tab-count">{{ consoleLogsCount }}</span>
           </template>
         </Tabs.TabPane>
         <Tabs.TabPane key="request" v-if="response.actualRequest" tab="实际请求" />
@@ -112,6 +160,84 @@ const cookiesCount = computed(() => Object.keys(props.response.cookies || {}).le
           </div>
           <div v-if="cookiesCount === 0" class="empty-hint">无 Cookies</div>
         </div>
+      </div>
+
+      <!-- 控制台 -->
+      <div v-else-if="activeTab === 'console'" class="tab-content console-content">
+        <!-- 前置处理器结果 -->
+        <template v-if="response.preProcessorResults && response.preProcessorResults.length > 0">
+          <div class="processor-section">
+            <div class="processor-section-title">前置操作</div>
+            <div
+              v-for="result in response.preProcessorResults"
+              :key="result.keywordId"
+              class="processor-result"
+            >
+              <div class="processor-header">
+                <component
+                  :is="result.success ? CheckCircleIcon : XCircleIcon"
+                  class="processor-status-icon"
+                  :class="{ success: result.success, failed: !result.success }"
+                />
+                <span class="processor-type">{{ getProcessorTypeName(result.type) }}</span>
+                <span v-if="result.name" class="processor-name">{{ result.name }}</span>
+              </div>
+              <div v-if="result.message" class="processor-message" :class="{ error: !result.success }">
+                {{ result.message }}
+              </div>
+              <div v-if="result.logs && result.logs.length > 0" class="processor-logs">
+                <div v-for="(log, idx) in result.logs" :key="idx" class="log-line">
+                  {{ log }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- 通用控制台日志 -->
+        <template v-if="response.console && response.console.length > 0">
+          <div class="processor-section">
+            <div class="processor-section-title">控制台输出</div>
+            <div class="processor-logs">
+              <div v-for="(log, idx) in response.console" :key="idx" class="log-line">
+                {{ log }}
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- 后置处理器结果 -->
+        <template v-if="response.postProcessorResults && response.postProcessorResults.length > 0">
+          <div class="processor-section">
+            <div class="processor-section-title">后置操作</div>
+            <div
+              v-for="result in response.postProcessorResults"
+              :key="result.keywordId"
+              class="processor-result"
+            >
+              <div class="processor-header">
+                <component
+                  :is="result.success ? CheckCircleIcon : XCircleIcon"
+                  class="processor-status-icon"
+                  :class="{ success: result.success, failed: !result.success }"
+                />
+                <span class="processor-type">{{ getProcessorTypeName(result.type) }}</span>
+                <span v-if="result.name" class="processor-name">{{ result.name }}</span>
+              </div>
+              <div v-if="result.message" class="processor-message" :class="{ error: !result.success }">
+                {{ result.message }}
+              </div>
+              <div v-if="result.logs && result.logs.length > 0" class="processor-logs">
+                <div v-for="(log, idx) in result.logs" :key="idx" class="log-line">
+                  {{ log }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- 空状态 -->
+        <div v-if="!hasConsoleOutput" class="empty-hint">无控制台输出</div>
       </div>
 
       <!-- 实际请求 -->
@@ -322,5 +448,112 @@ const cookiesCount = computed(() => Object.keys(props.response.cookies || {}).le
   border-radius: 4px;
   white-space: pre-wrap;
   word-break: break-all;
+}
+
+/* 控制台样式 */
+.console-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 12px 0;
+}
+
+.processor-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.processor-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: hsl(var(--foreground) / 70%);
+  padding: 4px 0;
+  border-bottom: 1px solid hsl(var(--border) / 50%);
+}
+
+.processor-result {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+  background: hsl(var(--accent) / 30%);
+  border-radius: 6px;
+  border-left: 3px solid hsl(var(--border));
+}
+
+.processor-result:has(.processor-status-icon.success) {
+  border-left-color: #52c41a;
+}
+
+.processor-result:has(.processor-status-icon.failed) {
+  border-left-color: #ff4d4f;
+}
+
+.processor-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.processor-status-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.processor-status-icon.success {
+  color: #52c41a;
+}
+
+.processor-status-icon.failed {
+  color: #ff4d4f;
+}
+
+.processor-type {
+  font-size: 12px;
+  font-weight: 500;
+  color: hsl(var(--foreground) / 80%);
+}
+
+.processor-name {
+  font-size: 12px;
+  color: hsl(var(--foreground) / 55%);
+}
+
+.processor-message {
+  font-size: 12px;
+  color: hsl(var(--foreground) / 70%);
+  padding-left: 22px;
+}
+
+.processor-message.error {
+  color: #ff4d4f;
+}
+
+.processor-logs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  margin-top: 4px;
+  background: hsl(var(--background));
+  border-radius: 4px;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  font-size: 11px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.log-line {
+  color: hsl(var(--foreground) / 75%);
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.5;
+}
+
+.log-line::before {
+  content: '>';
+  margin-right: 8px;
+  color: hsl(var(--foreground) / 40%);
 }
 </style>

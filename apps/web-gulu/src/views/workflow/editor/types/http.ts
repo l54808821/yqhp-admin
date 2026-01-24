@@ -246,6 +246,19 @@ export interface AssertionResult {
 /**
  * 响应数据
  */
+/**
+ * 处理器执行结果
+ */
+export interface ProcessorResult {
+  keywordId: string;
+  type: string;
+  name?: string;
+  success: boolean;
+  message?: string;
+  output?: Record<string, unknown>;
+  logs?: string[];
+}
+
 export interface ResponseData {
   statusCode: number;
   statusText: string;
@@ -257,6 +270,8 @@ export interface ResponseData {
   bodyType: ResponseBodyType;
   assertions?: AssertionResult[];
   console?: string[];
+  preProcessorResults?: ProcessorResult[];
+  postProcessorResults?: ProcessorResult[];
   actualRequest?: {
     url: string;
     method: string;

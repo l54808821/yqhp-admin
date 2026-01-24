@@ -234,6 +234,8 @@ async function handleSend() {
         bodyType: response.response.bodyType,
         assertions: response.assertionResults,
         console: response.consoleLogs,
+        preProcessorResults: response.preProcessorResults,
+        postProcessorResults: response.postProcessorResults,
         actualRequest: response.actualRequest,
       };
       // 有响应时调整面板比例

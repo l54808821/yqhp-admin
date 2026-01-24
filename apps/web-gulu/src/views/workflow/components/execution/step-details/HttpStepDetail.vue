@@ -13,6 +13,17 @@ import {
 import type { StepResult } from '#/api/debug';
 import { ResponseBodyEditor } from '#/components/code-editor';
 
+// 处理器执行结果
+interface ProcessorResult {
+  keywordId: string;
+  type: string;
+  name?: string;
+  success: boolean;
+  message?: string;
+  output?: Record<string, unknown>;
+  logs?: string[];
+}
+
 // HTTP 输出类型定义
 interface HttpOutput {
   status_code?: number;
@@ -34,6 +45,8 @@ interface HttpOutput {
     message?: string;
   }>;
   console_logs?: string[];
+  pre_processor_results?: ProcessorResult[];
+  post_processor_results?: ProcessorResult[];
 }
 
 interface Props {
@@ -80,6 +93,38 @@ const consoleLogs = computed(() => {
   if (!output?.console_logs) return props.stepResult.logs || [];
   return output.console_logs;
 });
+
+// 前置处理器结果
+const preProcessorResults = computed(() => {
+  const output = props.stepResult.output as HttpOutput | undefined;
+  return output?.pre_processor_results || [];
+});
+
+// 后置处理器结果
+const postProcessorResults = computed(() => {
+  const output = props.stepResult.output as HttpOutput | undefined;
+  return output?.post_processor_results || [];
+});
+
+// 是否有处理器输出
+const hasProcessorOutput = computed(() => {
+  return preProcessorResults.value.length > 0 ||
+         postProcessorResults.value.length > 0 ||
+         consoleLogs.value.length > 0;
+});
+
+// 获取处理器类型名称
+function getProcessorTypeName(type: string): string {
+  const names: Record<string, string> = {
+    'js_script': 'JS 脚本',
+    'set_variable': '设置变量',
+    'db_query': '数据库查询',
+    'wait': '等待',
+    'assertion': '断言',
+    'extract_param': '提取参数',
+  };
+  return names[type] || type;
+}
 
 // 状态码颜色
 const statusCodeColor = computed(() => {
@@ -213,9 +258,65 @@ function handleDebugStep() {
       </Tabs.TabPane>
 
       <!-- 控制台 Tab -->
-      <Tabs.TabPane key="console" tab="控制台">
-        <div v-if="consoleLogs.length > 0" class="console-logs">
-          <div v-for="(log, idx) in consoleLogs" :key="idx" class="log-line">{{ log }}</div>
+      <Tabs.TabPane key="console">
+        <template #tab>
+          <span>控制台</span>
+          <Badge v-if="hasProcessorOutput" status="processing" :dot="true" />
+        </template>
+        <div v-if="hasProcessorOutput" class="console-content">
+          <!-- 前置处理器结果 -->
+          <div v-if="preProcessorResults.length > 0" class="processor-section">
+            <div class="processor-section-title">前置操作</div>
+            <div
+              v-for="result in preProcessorResults"
+              :key="result.keywordId"
+              class="processor-result"
+              :class="{ success: result.success, failed: !result.success }"
+            >
+              <div class="processor-header">
+                <span class="processor-status-icon">{{ result.success ? '✓' : '✗' }}</span>
+                <span class="processor-type">{{ getProcessorTypeName(result.type) }}</span>
+                <span v-if="result.name" class="processor-name">{{ result.name }}</span>
+              </div>
+              <div v-if="result.message" class="processor-message" :class="{ error: !result.success }">
+                {{ result.message }}
+              </div>
+              <div v-if="result.logs && result.logs.length > 0" class="processor-logs">
+                <div v-for="(log, idx) in result.logs" :key="idx" class="log-line">{{ log }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 通用控制台日志 -->
+          <div v-if="consoleLogs.length > 0" class="processor-section">
+            <div class="processor-section-title">控制台输出</div>
+            <div class="processor-logs">
+              <div v-for="(log, idx) in consoleLogs" :key="idx" class="log-line">{{ log }}</div>
+            </div>
+          </div>
+
+          <!-- 后置处理器结果 -->
+          <div v-if="postProcessorResults.length > 0" class="processor-section">
+            <div class="processor-section-title">后置操作</div>
+            <div
+              v-for="result in postProcessorResults"
+              :key="result.keywordId"
+              class="processor-result"
+              :class="{ success: result.success, failed: !result.success }"
+            >
+              <div class="processor-header">
+                <span class="processor-status-icon">{{ result.success ? '✓' : '✗' }}</span>
+                <span class="processor-type">{{ getProcessorTypeName(result.type) }}</span>
+                <span v-if="result.name" class="processor-name">{{ result.name }}</span>
+              </div>
+              <div v-if="result.message" class="processor-message" :class="{ error: !result.success }">
+                {{ result.message }}
+              </div>
+              <div v-if="result.logs && result.logs.length > 0" class="processor-logs">
+                <div v-for="(log, idx) in result.logs" :key="idx" class="log-line">{{ log }}</div>
+              </div>
+            </div>
+          </div>
         </div>
         <div v-else class="empty-tip">无日志</div>
       </Tabs.TabPane>
@@ -414,20 +515,106 @@ function handleDebugStep() {
   font-size: 12px;
 }
 
-.console-logs {
-  background: hsl(var(--accent) / 50%);
-  color: hsl(var(--foreground) / 75%);
-  padding: 12px;
+/* 控制台样式 */
+.console-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.processor-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.processor-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: hsl(var(--foreground) / 70%);
+  padding: 4px 0;
+  border-bottom: 1px solid hsl(var(--border) / 50%);
+}
+
+.processor-result {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+  background: hsl(var(--accent) / 30%);
+  border-radius: 6px;
+  border-left: 3px solid hsl(var(--border));
+}
+
+.processor-result.success {
+  border-left-color: #52c41a;
+}
+
+.processor-result.failed {
+  border-left-color: #ff4d4f;
+}
+
+.processor-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.processor-status-icon {
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.processor-result.success .processor-status-icon {
+  color: #52c41a;
+}
+
+.processor-result.failed .processor-status-icon {
+  color: #ff4d4f;
+}
+
+.processor-type {
+  font-size: 12px;
+  font-weight: 500;
+  color: hsl(var(--foreground) / 80%);
+}
+
+.processor-name {
+  font-size: 12px;
+  color: hsl(var(--foreground) / 55%);
+}
+
+.processor-message {
+  font-size: 12px;
+  color: hsl(var(--foreground) / 70%);
+  padding-left: 20px;
+}
+
+.processor-message.error {
+  color: #ff4d4f;
+}
+
+.processor-logs {
+  background: hsl(var(--background));
+  padding: 8px;
   border-radius: 4px;
   font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
-  font-size: 12px;
-  max-height: 200px;
-  overflow: auto;
+  font-size: 11px;
+  max-height: 150px;
+  overflow-y: auto;
 }
 
 .log-line {
+  color: hsl(var(--foreground) / 75%);
   white-space: pre-wrap;
   word-break: break-all;
+  line-height: 1.5;
+}
+
+.log-line::before {
+  content: '>';
+  margin-right: 8px;
+  color: hsl(var(--foreground) / 40%);
 }
 
 .actual-request {
