@@ -231,33 +231,25 @@ export interface HttpStepNode {
  */
 export type ResponseBodyType = 'json' | 'xml' | 'html' | 'text' | 'binary';
 
+// 从共享模块导入类型
+import type {
+  ProcessorResult as SharedProcessorResult,
+  AssertionResult as SharedAssertionResult,
+} from '../../components/shared/types';
+
 /**
- * 断言结果
+ * 断言结果（扩展共享类型）
  */
-export interface AssertionResult {
+export interface AssertionResult extends SharedAssertionResult {
   id: string;
-  name: string;
-  passed: boolean;
-  message?: string;
   expected?: string;
   actual?: string;
 }
 
 /**
- * 响应数据
+ * 处理器执行结果（直接使用共享类型）
  */
-/**
- * 处理器执行结果
- */
-export interface ProcessorResult {
-  keywordId: string;
-  type: string;
-  name?: string;
-  success: boolean;
-  message?: string;
-  output?: Record<string, unknown>;
-  logs?: string[];
-}
+export type ProcessorResult = SharedProcessorResult;
 
 export interface ResponseData {
   statusCode: number;
