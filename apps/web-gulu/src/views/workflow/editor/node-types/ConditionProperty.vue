@@ -138,10 +138,15 @@ function handleDragEnd() {
             <GripVertical class="size-4" />
           </span>
           
-          <!-- 分支类型标签 -->
-          <span class="kind-tag">
-            {{ br.kind === 'if' ? 'IF' : br.kind === 'else_if' ? 'ELSE IF' : 'ELSE' }}
-          </span>
+          <!-- 类型选择器（带颜色标签样式） -->
+          <Select
+            v-model:value="br.kind"
+            :options="kindOptions"
+            size="small"
+            :class="['kind-select', `kind-${br.kind}`]"
+            :popupClassName="'kind-select-popup'"
+            @change="handleKindChange(index)"
+          />
           
           <!-- 分支名称 -->
           <Input
@@ -151,16 +156,6 @@ function handleDragEnd() {
             class="name-input"
             :bordered="false"
             @blur="handleUpdate"
-          />
-          
-          <!-- 类型切换 -->
-          <Select
-            v-model:value="br.kind"
-            :options="kindOptions"
-            size="small"
-            class="kind-select"
-            :bordered="false"
-            @change="handleKindChange(index)"
           />
           
           <!-- 删除按钮 -->
@@ -286,31 +281,6 @@ function handleDragEnd() {
   cursor: grabbing;
 }
 
-.kind-tag {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: hsl(var(--foreground) / 0.08);
-  color: hsl(var(--foreground) / 0.7);
-  white-space: nowrap;
-}
-
-.is-if .kind-tag {
-  background: #1890ff20;
-  color: #1890ff;
-}
-
-.is-else-if .kind-tag {
-  background: #fa8c1620;
-  color: #fa8c16;
-}
-
-.is-else .kind-tag {
-  background: #8c8c8c20;
-  color: #8c8c8c;
-}
-
 .name-input {
   flex: 1;
   min-width: 0;
@@ -318,21 +288,67 @@ function handleDragEnd() {
 
 .name-input :deep(.ant-input) {
   font-weight: 500;
-  padding: 0 4px;
+  padding: 0 8px;
 }
 
 .name-input :deep(.ant-input:not(:focus)) {
   background: transparent;
 }
 
+/* 类型选择器样式 - 标签风格 */
 .kind-select {
-  width: 85px;
   flex-shrink: 0;
 }
 
+
 .kind-select :deep(.ant-select-selector) {
-  padding: 0 4px !important;
-  font-size: 12px;
+  padding: 0 8px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  border-radius: 4px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  border: none !important;
+}
+
+.kind-select :deep(.ant-select-selection-item) {
+  line-height: 22px !important;
+  padding-right: 14px !important;
+}
+
+.kind-select :deep(.ant-select-arrow) {
+  font-size: 10px;
+  right: 6px;
+}
+
+/* IF 样式 */
+.kind-select.kind-if :deep(.ant-select-selector) {
+  background: #1890ff20 !important;
+  color: #1890ff !important;
+}
+
+.kind-select.kind-if :deep(.ant-select-arrow) {
+  color: #1890ff;
+}
+
+/* ELSE IF 样式 */
+.kind-select.kind-else_if :deep(.ant-select-selector) {
+  background: #fa8c1620 !important;
+  color: #fa8c16 !important;
+}
+
+.kind-select.kind-else_if :deep(.ant-select-arrow) {
+  color: #fa8c16;
+}
+
+/* ELSE 样式 */
+.kind-select.kind-else :deep(.ant-select-selector) {
+  background: #8c8c8c20 !important;
+  color: #8c8c8c !important;
+}
+
+.kind-select.kind-else :deep(.ant-select-arrow) {
+  color: #8c8c8c;
 }
 
 .delete-btn {
@@ -363,5 +379,18 @@ function handleDragEnd() {
 
 .expression-area :deep(.ant-input::placeholder) {
   font-family: inherit;
+}
+</style>
+
+<!-- 全局样式，用于下拉菜单 -->
+<style>
+.kind-select-popup {
+  min-width: 100px !important;
+}
+
+.kind-select-popup .ant-select-item {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 12px;
 }
 </style>
