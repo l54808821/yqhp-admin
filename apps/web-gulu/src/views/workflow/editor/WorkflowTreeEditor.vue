@@ -2,8 +2,6 @@
 import { computed, h, ref, watch } from 'vue';
 
 import {
-  ChevronDown,
-  ChevronRight,
   Copy,
   Plus,
   X,
@@ -13,6 +11,8 @@ import {
 // 禁用/启用图标
 const Ban = createIconifyIcon('lucide:ban');
 const CircleCheck = createIconifyIcon('lucide:circle-check');
+// 分支图标（从上往下分叉的形状）
+const GitFork = createIconifyIcon('lucide:git-fork');
 
 import {
   Button,
@@ -273,14 +273,6 @@ function isIndeterminate(step: StepNode): boolean {
   return checkedCount > 0 && checkedCount < childKeys.length;
 }
 
-// 判断节点是否可展开
-function isExpandable(step: StepNode): boolean {
-  if (step.type === 'condition') return true;
-  if ((step as any).type === 'condition_branch') return true;
-  const config = getNodeTypeConfig(step.type);
-  return config?.canHaveChildren ?? false;
-}
-
 // 获取节点类型配置
 function getNodeType(type: string) {
   return getNodeTypeConfig(type) || nodeTypes[0];
@@ -291,6 +283,33 @@ function getStepDescription(step: StepNode | null | undefined): string {
   if (!step || !step.type) return '';
   const config = getNodeTypeConfig(step.type);
   return config?.getDescription?.(step) || '';
+}
+
+// 获取节点的子节点数量
+function getChildrenCount(step: StepNode | any): number {
+  if (!step) return 0;
+  
+  // condition 类型：统计 branches 数量
+  if (step.type === 'condition' && step.branches?.length) {
+    return step.branches.length;
+  }
+  
+  // condition_branch 类型：统计 branch.steps 数量
+  if (step.type === 'condition_branch' && step.branch?.steps?.length) {
+    return step.branch.steps.length;
+  }
+  
+  // 其他类型（如 loop）：统计 children 数量
+  if (step.children?.length) {
+    return step.children.length;
+  }
+  
+  return 0;
+}
+
+// 判断节点是否有子节点
+function hasChildren(step: StepNode | any): boolean {
+  return getChildrenCount(step) > 0;
 }
 
 // 获取节点序号
@@ -776,18 +795,18 @@ function renderAddBranchMenu(conditionId: string) {
               @click.stop
               @change="(e: any) => toggleCheck(nodeProps.stepData.id, e.target.checked)"
             />
-            <!-- 展开/收缩按钮 -->
-            <span
-              v-if="isExpandable(nodeProps.stepData)"
-              class="expand-btn"
-              @click="toggleExpand(nodeProps.stepData.id, $event)"
-            >
-              <ChevronDown v-if="localExpandedKeys.includes(nodeProps.stepData.id)" class="size-4" />
-              <ChevronRight v-else class="size-4" />
-            </span>
-            <span v-else class="expand-placeholder"></span>
-            <!-- 序号 -->
+            <!-- 序号 + 子节点数量 -->
             <span class="node-index">{{ getNodeIndex(nodeProps.stepData.id) }}</span>
+            <span
+              v-if="hasChildren(nodeProps.stepData)"
+              class="children-toggle"
+              :class="{ 'is-expanded': localExpandedKeys.includes(nodeProps.stepData.id) }"
+              @click="toggleExpand(nodeProps.stepData.id, $event)"
+              :title="localExpandedKeys.includes(nodeProps.stepData.id) ? '收起' : '展开'"
+            >
+              <GitFork class="toggle-icon" />
+              <span class="toggle-count">{{ getChildrenCount(nodeProps.stepData) }}</span>
+            </span>
             <span
               class="node-type-tag"
               :style="{
@@ -932,14 +951,14 @@ function renderAddBranchMenu(conditionId: string) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 4px;
-  font-size: 11px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  font-size: 10px;
   font-weight: 500;
-  color: hsl(var(--primary));
-  background: hsl(var(--primary) / 10%);
-  border-radius: 10px;
+  color: #fff;
+  background: #c0c0c0;
+  border-radius: 8px;
 }
 
 .node-type-tag {
@@ -1052,25 +1071,32 @@ function renderAddBranchMenu(conditionId: string) {
   display: none;
 }
 
-.expand-btn {
+.children-toggle {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
+  gap: 2px;
   cursor: pointer;
-  color: hsl(var(--foreground) / 60%);
-  border-radius: 4px;
+  color: hsl(var(--muted-foreground));
   flex-shrink: 0;
+  user-select: none;
+  transition: color 0.2s;
 }
 
-.expand-btn:hover {
-  background: hsl(var(--accent) / 50%);
-  color: hsl(var(--foreground));
+.children-toggle:hover {
+  color: hsl(var(--primary));
 }
 
-.expand-placeholder {
-  width: 20px;
-  flex-shrink: 0;
+.children-toggle.is-expanded {
+  color: hsl(var(--primary));
+}
+
+.children-toggle .toggle-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.children-toggle .toggle-count {
+  font-size: 11px;
+  font-weight: 500;
 }
 </style>
