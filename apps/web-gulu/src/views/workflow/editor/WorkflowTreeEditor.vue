@@ -791,9 +791,58 @@ function insertNodeAtTarget(steps: StepNode[], node: StepNode, targetId: string,
   return false;
 }
 
+// 在条件分支旁边插入新分支
+function handleInsertBranch(branchNodeId: string, kind: 'if' | 'else_if' | 'else', position: 'before' | 'after') {
+  if (props.readonly) return;
+
+  // branchNodeId 格式：conditionId__br__branchId
+  const parts = branchNodeId.split('__br__');
+  if (parts.length !== 2) return;
+
+  const conditionId = parts[0];
+  const branchId = parts[1];
+
+  const newSteps = JSON.parse(JSON.stringify(props.definition.steps));
+  const conditionNode = findNodeById(newSteps, conditionId!);
+
+  if (conditionNode && conditionNode.type === 'condition' && conditionNode.branches) {
+    const branchIndex = conditionNode.branches.findIndex((br: any) => br.id === branchId);
+    if (branchIndex === -1) return;
+
+    let branchName: string;
+    if (kind === 'if') {
+      branchName = 'IF 条件';
+    } else if (kind === 'else') {
+      branchName = '默认分支';
+    } else {
+      branchName = `条件${conditionNode.branches.length + 1}`;
+    }
+
+    const newBranch = {
+      id: `br_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      name: branchName,
+      kind,
+      expression: kind === 'else' ? '' : '',
+      steps: [],
+    };
+
+    const insertIndex = position === 'before' ? branchIndex : branchIndex + 1;
+    conditionNode.branches.splice(insertIndex, 0, newBranch);
+    emit('update', { ...props.definition, steps: newSteps });
+  }
+}
+
 // 渲染插入节点菜单（添加子步骤 / 在上方插入 / 在下方插入）
-function renderInsertMenu(nodeId: string, canHaveChildren: boolean) {
+function renderInsertMenu(nodeId: string, nodeType: string, canHaveChildren: boolean) {
   const menuItems: any[] = [];
+  const isConditionBranch = nodeType === 'condition_branch';
+
+  // 分支类型选项
+  const branchTypes = [
+    { key: 'if', label: 'IF 分支', color: '#1890ff' },
+    { key: 'else_if', label: 'ELSE IF 分支', color: '#fa8c16' },
+    { key: 'else', label: 'ELSE 分支', color: '#8c8c8c' },
+  ];
 
   // 如果可以有子节点，添加"添加子步骤"子菜单
   if (canHaveChildren) {
@@ -812,32 +861,70 @@ function renderInsertMenu(nodeId: string, canHaveChildren: boolean) {
   }
 
   // 在上方插入
-  menuItems.push(
-    h(Menu.SubMenu, { key: 'insert-before', title: '↑ 在上方插入' }, () =>
-      nodeTypes.map((type) =>
-        h(Menu.Item, { key: `before:${type.key}` }, () =>
-          h('div', { style: 'display: flex; align-items: center; gap: 8px;' }, [
-            h(type.icon, { class: 'size-4', style: { color: type.color } }),
-            h('span', type.label),
-          ])
+  if (isConditionBranch) {
+    // 条件分支：只能插入分支
+    menuItems.push(
+      h(Menu.SubMenu, { key: 'insert-before', title: '↑ 在上方插入分支' }, () =>
+        branchTypes.map((type) =>
+          h(Menu.Item, { key: `before-branch:${type.key}` }, () =>
+            h('div', { style: 'display: flex; align-items: center; gap: 8px;' }, [
+              h('span', {
+                style: `display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ${type.color};`
+              }),
+              h('span', type.label),
+            ])
+          )
         )
       )
-    )
-  );
+    );
+  } else {
+    // 普通节点：可以插入任何步骤类型
+    menuItems.push(
+      h(Menu.SubMenu, { key: 'insert-before', title: '↑ 在上方插入' }, () =>
+        nodeTypes.map((type) =>
+          h(Menu.Item, { key: `before:${type.key}` }, () =>
+            h('div', { style: 'display: flex; align-items: center; gap: 8px;' }, [
+              h(type.icon, { class: 'size-4', style: { color: type.color } }),
+              h('span', type.label),
+            ])
+          )
+        )
+      )
+    );
+  }
 
   // 在下方插入
-  menuItems.push(
-    h(Menu.SubMenu, { key: 'insert-after', title: '↓ 在下方插入' }, () =>
-      nodeTypes.map((type) =>
-        h(Menu.Item, { key: `after:${type.key}` }, () =>
-          h('div', { style: 'display: flex; align-items: center; gap: 8px;' }, [
-            h(type.icon, { class: 'size-4', style: { color: type.color } }),
-            h('span', type.label),
-          ])
+  if (isConditionBranch) {
+    // 条件分支：只能插入分支
+    menuItems.push(
+      h(Menu.SubMenu, { key: 'insert-after', title: '↓ 在下方插入分支' }, () =>
+        branchTypes.map((type) =>
+          h(Menu.Item, { key: `after-branch:${type.key}` }, () =>
+            h('div', { style: 'display: flex; align-items: center; gap: 8px;' }, [
+              h('span', {
+                style: `display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ${type.color};`
+              }),
+              h('span', type.label),
+            ])
+          )
         )
       )
-    )
-  );
+    );
+  } else {
+    // 普通节点：可以插入任何步骤类型
+    menuItems.push(
+      h(Menu.SubMenu, { key: 'insert-after', title: '↓ 在下方插入' }, () =>
+        nodeTypes.map((type) =>
+          h(Menu.Item, { key: `after:${type.key}` }, () =>
+            h('div', { style: 'display: flex; align-items: center; gap: 8px;' }, [
+              h(type.icon, { class: 'size-4', style: { color: type.color } }),
+              h('span', type.label),
+            ])
+          )
+        )
+      )
+    );
+  }
 
   return h(Menu, {
     onClick: (info: { key: string | number }) => {
@@ -849,6 +936,10 @@ function renderInsertMenu(nodeId: string, canHaveChildren: boolean) {
         handleInsertNode(type!, nodeId, 'before');
       } else if (action === 'after') {
         handleInsertNode(type!, nodeId, 'after');
+      } else if (action === 'before-branch') {
+        handleInsertBranch(nodeId, type as 'if' | 'else_if' | 'else', 'before');
+      } else if (action === 'after-branch') {
+        handleInsertBranch(nodeId, type as 'if' | 'else_if' | 'else', 'after');
       }
     },
   }, () => menuItems);
@@ -976,7 +1067,7 @@ function renderInsertMenu(nodeId: string, canHaveChildren: boolean) {
                   </Button>
                 </Tooltip>
                 <template #overlay>
-                  <component :is="renderInsertMenu(nodeProps.stepData.id, getNodeTypeConfig(nodeProps.stepData.type)?.canHaveChildren || false)" />
+                  <component :is="renderInsertMenu(nodeProps.stepData.id, nodeProps.stepData.type, getNodeTypeConfig(nodeProps.stepData.type)?.canHaveChildren || false)" />
                 </template>
               </Dropdown>
               <Tooltip :title="nodeProps.stepData.disabled ? '启用' : '禁用'">
