@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 
 import { createIconifyIcon } from '@vben/icons';
 import {
@@ -17,7 +17,6 @@ import type { ParamItem } from '../types';
 import { createParamItem } from '../types';
 
 // 图标
-const PlusIcon = createIconifyIcon('lucide:plus');
 const TrashIcon = createIconifyIcon('lucide:trash-2');
 const MoreIcon = createIconifyIcon('lucide:more-horizontal');
 const UploadIcon = createIconifyIcon('lucide:upload');
@@ -44,14 +43,28 @@ const emit = defineEmits<{
   (e: 'update', items: ParamItem[]): void;
 }>();
 
-// 本地数据
+// 本地数据（包含一个空行用于输入）
 const localItems = ref<ParamItem[]>([]);
+
+// 判断参数项是否为空
+function isEmptyItem(item: ParamItem): boolean {
+  return !item.key && !item.value;
+}
+
+// 确保始终有一个空行在末尾
+function ensureEmptyRow() {
+  const items = localItems.value;
+  if (items.length === 0 || !isEmptyItem(items[items.length - 1]!)) {
+    localItems.value.push(createParamItem());
+  }
+}
 
 // 同步外部数据
 watch(
   () => props.items,
   (newItems) => {
     localItems.value = JSON.parse(JSON.stringify(newItems || []));
+    ensureEmptyRow();
   },
   { immediate: true, deep: true }
 );
@@ -60,9 +73,11 @@ watch(
 const dragIndex = ref<number | null>(null);
 const dragOverIndex = ref<number | null>(null);
 
-// 触发更新
+// 触发更新（过滤掉空数据）
 function emitUpdate() {
-  emit('update', JSON.parse(JSON.stringify(localItems.value)));
+  // 过滤掉空的参数项（key 和 value 都为空）
+  const validItems = localItems.value.filter((item) => !isEmptyItem(item));
+  emit('update', JSON.parse(JSON.stringify(validItems)));
 }
 
 // 切换启用状态
@@ -76,6 +91,8 @@ function toggleEnabled(index: number) {
 function updateKey(index: number, value: string) {
   if (props.disabled) return;
   localItems.value[index]!.key = value;
+  // 如果是最后一行且不为空，自动添加新行
+  ensureEmptyRow();
   emitUpdate();
 }
 
@@ -83,6 +100,8 @@ function updateKey(index: number, value: string) {
 function updateValue(index: number, value: string) {
   if (props.disabled) return;
   localItems.value[index]!.value = value;
+  // 如果是最后一行且不为空，自动添加新行
+  ensureEmptyRow();
   emitUpdate();
 }
 
@@ -93,17 +112,11 @@ function updateDescription(index: number, value: string) {
   emitUpdate();
 }
 
-// 添加参数
-function addParam() {
-  if (props.disabled) return;
-  localItems.value.push(createParamItem());
-  emitUpdate();
-}
-
 // 删除参数
 function removeParam(index: number) {
   if (props.disabled) return;
   localItems.value.splice(index, 1);
+  ensureEmptyRow();
   emitUpdate();
 }
 
@@ -124,19 +137,30 @@ function handleFileChange(index: number, info: any) {
   if (file) {
     localItems.value[index]!.value = file.name;
     // 这里可以存储文件对象或转为 base64
+    ensureEmptyRow();
     emitUpdate();
   }
 }
 
-// 拖拽开始
-function handleDragStart(index: number) {
+// 拖拽开始（只能通过拖拽手柄触发）
+function handleDragStart(index: number, event: DragEvent) {
   if (props.disabled) return;
+  // 检查是否是最后一行空数据，空行不允许拖拽
+  if (isEmptyItem(localItems.value[index]!)) {
+    event.preventDefault();
+    return;
+  }
   dragIndex.value = index;
+  // 设置拖拽效果
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move';
+  }
 }
 
 // 拖拽经过
 function handleDragOver(index: number, event: DragEvent) {
   if (props.disabled) return;
+  if (dragIndex.value === null) return;
   event.preventDefault();
   dragOverIndex.value = index;
 }
@@ -166,8 +190,13 @@ function handleDragEnd() {
   dragOverIndex.value = null;
 }
 
-// 计算是否有参数
-const hasParams = computed(() => localItems.value.length > 0);
+// 判断是否是最后一个空行
+function isLastEmptyRow(index: number): boolean {
+  return (
+    index === localItems.value.length - 1 &&
+    isEmptyItem(localItems.value[index]!)
+  );
+}
 </script>
 
 <template>
@@ -176,9 +205,9 @@ const hasParams = computed(() => localItems.value.length > 0);
     <div class="param-header">
       <div class="param-col param-col-drag"></div>
       <div class="param-col param-col-checkbox"></div>
-      <div class="param-col param-col-key">参数名</div>
-      <div class="param-col param-col-value">参数值</div>
+      <div class="param-col param-col-key"><span class="header-text">参数名</span></div>
       <div v-if="showType" class="param-col param-col-type">类型</div>
+      <div class="param-col param-col-value"><span class="header-text">参数值</span></div>
       <div class="param-col param-col-actions">操作</div>
     </div>
 
@@ -192,16 +221,20 @@ const hasParams = computed(() => localItems.value.length > 0);
           'param-row-disabled': !item.enabled,
           'param-row-dragging': dragIndex === index,
           'param-row-drag-over': dragOverIndex === index,
+          'param-row-empty': isLastEmptyRow(index),
         }"
-        draggable="true"
-        @dragstart="handleDragStart(index)"
         @dragover="handleDragOver(index, $event)"
         @drop="handleDrop(index)"
         @dragend="handleDragEnd"
       >
         <!-- 拖拽手柄 -->
-        <div class="param-col param-col-drag">
-          <GripIcon class="drag-handle" />
+        <div
+          class="param-col param-col-drag"
+          :class="{ 'drag-disabled': isLastEmptyRow(index) }"
+          :draggable="!isLastEmptyRow(index)"
+          @dragstart="handleDragStart(index, $event)"
+        >
+          <GripIcon v-if="!isLastEmptyRow(index)" class="drag-handle" />
         </div>
 
         <!-- 启用复选框 -->
@@ -219,9 +252,26 @@ const hasParams = computed(() => localItems.value.length > 0);
             :value="item.key"
             :placeholder="placeholder.key"
             :disabled="disabled"
-            size="small"
             @change="(e: any) => updateKey(index, e.target.value)"
           />
+        </div>
+
+        <!-- 类型选择（仅 form-data） -->
+        <div v-if="showType" class="param-col param-col-type">
+          <Dropdown :trigger="['click']" :disabled="disabled">
+            <Button size="small" type="text" :disabled="disabled">
+              <template #icon>
+                <FileIcon v-if="item.type === 'file'" class="size-3" />
+                <span v-else class="type-text">Aa</span>
+              </template>
+            </Button>
+            <template #overlay>
+              <Menu @click="({ key }: any) => toggleType(index, key)">
+                <Menu.Item key="text">文本</Menu.Item>
+                <Menu.Item key="file">文件</Menu.Item>
+              </Menu>
+            </template>
+          </Dropdown>
         </div>
 
         <!-- 参数值 -->
@@ -244,35 +294,16 @@ const hasParams = computed(() => localItems.value.length > 0);
               :value="item.value"
               :placeholder="placeholder.value"
               :disabled="disabled"
-              size="small"
               @change="(e: any) => updateValue(index, e.target.value)"
             />
           </template>
         </div>
 
-        <!-- 类型选择（仅 form-data） -->
-        <div v-if="showType" class="param-col param-col-type">
-          <Dropdown :trigger="['click']" :disabled="disabled">
-            <Button size="small" type="text" :disabled="disabled">
-              <template #icon>
-                <FileIcon v-if="item.type === 'file'" class="size-3" />
-                <span v-else class="type-text">Aa</span>
-              </template>
-            </Button>
-            <template #overlay>
-              <Menu @click="({ key }: any) => toggleType(index, key)">
-                <Menu.Item key="text">文本</Menu.Item>
-                <Menu.Item key="file">文件</Menu.Item>
-              </Menu>
-            </template>
-          </Dropdown>
-        </div>
-
         <!-- 操作按钮 -->
         <div class="param-col param-col-actions">
-          <Dropdown :trigger="['click']" :disabled="disabled">
+          <Dropdown :trigger="['click']" :disabled="disabled || isLastEmptyRow(index)">
             <Tooltip title="更多">
-              <Button type="text" size="small" :disabled="disabled">
+              <Button type="text" size="small" :disabled="disabled || isLastEmptyRow(index)">
                 <template #icon><MoreIcon class="size-4" /></template>
               </Button>
             </Tooltip>
@@ -292,31 +323,17 @@ const hasParams = computed(() => localItems.value.length > 0);
           </Dropdown>
           <Popconfirm
             title="确定删除此参数？"
-            :disabled="disabled"
+            :disabled="disabled || isLastEmptyRow(index)"
             @confirm="removeParam(index)"
           >
             <Tooltip title="删除">
-              <Button type="text" size="small" danger :disabled="disabled">
+              <Button type="text" size="small" danger :disabled="disabled || isLastEmptyRow(index)">
                 <template #icon><TrashIcon class="size-4" /></template>
               </Button>
             </Tooltip>
           </Popconfirm>
         </div>
       </div>
-    </div>
-
-    <!-- 添加参数按钮 -->
-    <div class="param-footer">
-      <Button
-        type="text"
-        size="small"
-        class="add-param-btn"
-        :disabled="disabled"
-        @click="addParam"
-      >
-        <template #icon><PlusIcon class="size-4" /></template>
-        添加参数
-      </Button>
     </div>
   </div>
 </template>
@@ -329,11 +346,14 @@ const hasParams = computed(() => localItems.value.length > 0);
   overflow: hidden;
 }
 
-.param-header {
+.param-header,
+.param-row {
   display: flex;
-  align-items: center;
-  padding: 8px 12px;
-  background: hsl(var(--accent) / 30%);
+  align-items: stretch;
+}
+
+.param-header {
+  min-height: 36px;
   border-bottom: 1px solid hsl(var(--border));
   font-size: 12px;
   font-weight: 500;
@@ -346,9 +366,7 @@ const hasParams = computed(() => localItems.value.length > 0);
 }
 
 .param-row {
-  display: flex;
-  align-items: center;
-  padding: 6px 12px;
+  min-height: 36px;
   border-bottom: 1px solid hsl(var(--border) / 50%);
   transition: background-color 0.2s;
 }
@@ -374,50 +392,67 @@ const hasParams = computed(() => localItems.value.length > 0);
   border-top: 2px solid hsl(var(--primary));
 }
 
+.param-row-empty {
+  background: hsl(var(--accent) / 10%);
+}
+
 .param-col {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
 }
 
 .param-col-drag {
   width: 24px;
   cursor: grab;
+  justify-content: center;
 }
 
 .param-col-drag:active {
   cursor: grabbing;
 }
 
+.param-col-drag.drag-disabled {
+  cursor: default;
+}
+
 .drag-handle {
   width: 16px;
   height: 16px;
   color: hsl(var(--foreground) / 40%);
+  transition: color 0.2s;
+}
+
+.drag-handle:hover {
+  color: hsl(var(--foreground) / 70%);
 }
 
 .param-col-checkbox {
   width: 32px;
+  justify-content: center;
 }
 
 .param-col-key {
   flex: 1;
   min-width: 120px;
-  padding-right: 8px;
+}
+
+.param-col-type {
+  width: 50px;
+  justify-content: center;
 }
 
 .param-col-value {
   flex: 2;
   min-width: 200px;
-  padding-right: 8px;
-}
-
-.param-col-type {
-  width: 50px;
 }
 
 .param-col-actions {
   width: 80px;
   display: flex;
-  justify-content: flex-end;
-  gap: 4px;
+  justify-content: center;
+  gap: 2px;
 }
 
 .type-text {
@@ -425,26 +460,31 @@ const hasParams = computed(() => localItems.value.length > 0);
   font-weight: 600;
 }
 
-.param-footer {
-  padding: 8px 12px;
-  border-top: 1px solid hsl(var(--border) / 50%);
+/* Header 文本的 padding，与 input 的 padding 对齐 */
+.header-text {
+  padding: 0 12px;
 }
 
-.add-param-btn {
-  color: hsl(var(--primary));
-}
-
-.add-param-btn:hover {
-  background: hsl(var(--primary) / 10%);
-}
-
-/* 输入框样式 */
+/* 输入框样式 - 填充整个单元格 */
 :deep(.ant-input) {
-  border-radius: 4px;
+  border: none;
+  border-radius: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 36px;
+  padding: 8px 12px;
+  background: transparent;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+:deep(.ant-input:hover) {
+  background: hsl(var(--accent) / 20%);
 }
 
 :deep(.ant-input:focus) {
-  border-color: hsl(var(--primary));
+  border: 1px solid hsl(var(--primary));
   box-shadow: 0 0 0 2px hsl(var(--primary) / 20%);
+  background: hsl(var(--background));
 }
 </style>
