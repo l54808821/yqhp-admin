@@ -7,7 +7,7 @@ import { ref, watch } from 'vue';
 import { useDebounceFn } from '@vueuse/core';
 
 import { createIconifyIcon } from '@vben/icons';
-import { Button, Select, message } from 'ant-design-vue';
+import { Button, Select, Spin, message } from 'ant-design-vue';
 
 import { debugStepApi } from '#/api/debug';
 import { ScriptEditor } from '#/components/code-editor';
@@ -107,7 +107,6 @@ async function handleRun() {
   if (!localNode.value || isDebugging.value) return;
 
   isDebugging.value = true;
-  debugResponse.value = null;
 
   try {
     const response = await debugStepApi({
@@ -227,7 +226,7 @@ function stopDrag() {
 
     <!-- 分割条 -->
     <div
-      v-if="debugResponse"
+      v-if="debugResponse || isDebugging"
       class="resize-bar"
       :class="{ dragging: isDragging }"
       @mousedown="startDrag"
@@ -237,14 +236,18 @@ function stopDrag() {
 
     <!-- 响应区域（使用共享组件） -->
     <div
-      v-if="debugResponse"
+      v-if="debugResponse || isDebugging"
       class="response-section"
       :style="{ height: `calc(${100 - editorPanelHeight}% - 4px)` }"
     >
-      <ScriptResponsePanel
-        :response="debugResponse"
-        :show-script-tab="false"
-      />
+      <Spin :spinning="isDebugging" tip="执行中...">
+        <ScriptResponsePanel
+          v-if="debugResponse"
+          :response="debugResponse"
+          :show-script-tab="false"
+        />
+        <div v-else class="loading-placeholder" />
+      </Spin>
     </div>
   </div>
 </template>
@@ -318,5 +321,15 @@ function stopDrag() {
   min-height: 150px;
   overflow: hidden;
   background: hsl(var(--card));
+}
+
+.response-section :deep(.ant-spin-nested-loading),
+.response-section :deep(.ant-spin-container) {
+  height: 100%;
+}
+
+.loading-placeholder {
+  height: 100%;
+  min-height: 150px;
 }
 </style>

@@ -8,6 +8,7 @@ import {
   Dropdown,
   Input,
   Menu,
+  Spin,
   Tabs,
   Tooltip,
   message,
@@ -195,7 +196,6 @@ async function handleSend() {
   if (!localNode.value || isDebugging.value) return;
 
   isDebugging.value = true;
-  debugResponse.value = null;
 
   try {
     const response = await debugStepApi({
@@ -478,7 +478,7 @@ const postProcessorsCount = computed(() => {
 
     <!-- 分割条 -->
     <div
-      v-if="debugResponse"
+      v-if="debugResponse || isDebugging"
       class="resize-bar"
       :class="{ dragging: isDragging }"
       @mousedown="startDrag"
@@ -488,11 +488,14 @@ const postProcessorsCount = computed(() => {
 
     <!-- 响应区域 -->
     <div
-      v-if="debugResponse"
+      v-if="debugResponse || isDebugging"
       class="response-section"
       :style="{ height: `calc(${100 - requestPanelHeight}% - 4px)` }"
     >
-      <ResponsePanel :response="debugResponse" />
+      <Spin :spinning="isDebugging" tip="请求中...">
+        <ResponsePanel v-if="debugResponse" :response="debugResponse" />
+        <div v-else class="loading-placeholder" />
+      </Spin>
     </div>
   </div>
 </template>
@@ -691,5 +694,15 @@ const postProcessorsCount = computed(() => {
   min-height: 150px;
   overflow: hidden;
   background: hsl(var(--card));
+}
+
+.response-section :deep(.ant-spin-nested-loading),
+.response-section :deep(.ant-spin-container) {
+  height: 100%;
+}
+
+.loading-placeholder {
+  height: 100%;
+  min-height: 150px;
 }
 </style>
