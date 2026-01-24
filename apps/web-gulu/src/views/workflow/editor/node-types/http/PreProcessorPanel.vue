@@ -130,9 +130,29 @@ function getKeywordColor(type: string) {
 
 // 拖拽相关
 const draggedIndex = ref<number | null>(null);
+const isDragging = ref(false);
+const canDrag = ref(false);
 
-function handleDragStart(index: number) {
+// 在 drag handle 上按下鼠标时启用拖动
+function handleDragHandleMouseDown() {
+  canDrag.value = true;
+}
+
+// 鼠标释放时禁用拖动
+function handleDragHandleMouseUp() {
+  canDrag.value = false;
+}
+
+function handleDragStart(e: DragEvent, index: number) {
+  if (!canDrag.value) {
+    e.preventDefault();
+    return;
+  }
+  isDragging.value = true;
   draggedIndex.value = index;
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move';
+  }
 }
 
 function handleDragOver(e: DragEvent, index: number) {
@@ -148,7 +168,9 @@ function handleDragOver(e: DragEvent, index: number) {
 }
 
 function handleDragEnd() {
+  isDragging.value = false;
   draggedIndex.value = null;
+  canDrag.value = false;
   emitUpdate();
 }
 </script>
@@ -190,15 +212,20 @@ function handleDragEnd() {
         v-for="(keyword, index) in localProcessors"
         :key="keyword.id"
         class="keyword-item"
-        :class="{ 'is-disabled': !keyword.enabled }"
+        :class="{ 'is-disabled': !keyword.enabled, 'is-dragging': isDragging && draggedIndex === index }"
         draggable="true"
-        @dragstart="handleDragStart(index)"
+        @dragstart="(e) => handleDragStart(e, index)"
         @dragover="(e) => handleDragOver(e, index)"
         @dragend="handleDragEnd"
       >
         <!-- 关键字头部 -->
         <div class="keyword-header" @click="toggleExpanded(keyword.id)">
-          <div class="keyword-drag-handle">
+          <div
+            class="keyword-drag-handle"
+            @click.stop
+            @mousedown="handleDragHandleMouseDown"
+            @mouseup="handleDragHandleMouseUp"
+          >
             <GripVerticalIcon class="size-4" />
           </div>
           <div class="keyword-expand">
@@ -322,6 +349,11 @@ function handleDragEnd() {
   opacity: 0.6;
 }
 
+.keyword-item.is-dragging {
+  opacity: 0.5;
+  border-color: hsl(var(--primary));
+}
+
 .keyword-header {
   display: flex;
   align-items: center;
@@ -336,12 +368,25 @@ function handleDragEnd() {
 }
 
 .keyword-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  margin: -4px;
   cursor: grab;
   color: hsl(var(--foreground) / 40%);
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.keyword-drag-handle:hover {
+  color: hsl(var(--foreground) / 70%);
+  background: hsl(var(--accent) / 50%);
 }
 
 .keyword-drag-handle:active {
   cursor: grabbing;
+  color: hsl(var(--primary));
 }
 
 .keyword-expand {
