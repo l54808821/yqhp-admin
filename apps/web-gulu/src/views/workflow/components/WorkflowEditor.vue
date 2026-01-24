@@ -345,6 +345,96 @@ function handleNodeUpdate(node: any) {
   pushHistory();
 }
 
+// 处理节点删除（主要用于分支删除）
+function handleNodeDelete(node: any) {
+  if (!node) return;
+
+  // condition_branch 是虚拟节点，需要从所属的 condition.branches 中删除
+  if (node?.type === 'condition_branch' && node.parentConditionId && node.branch?.id) {
+    const deleted = deleteConditionBranch(
+      workflowDefinition.value.steps,
+      node.parentConditionId,
+      node.branch.id,
+    );
+    if (deleted) {
+      // 关闭属性面板并清除选中状态
+      showPropertyPanel.value = false;
+      selectedNode.value = null;
+      treeSelectedKeys.value = [];
+      pushHistory();
+    }
+    return;
+  }
+
+  // 普通步骤删除：按 ID 删除
+  const deleted = deleteNodeFromSteps(workflowDefinition.value.steps, node.id);
+  if (deleted) {
+    showPropertyPanel.value = false;
+    selectedNode.value = null;
+    treeSelectedKeys.value = [];
+    pushHistory();
+  }
+}
+
+// 从 condition 节点的 branches 中删除指定分支
+function deleteConditionBranch(
+  steps: StepNode[],
+  conditionId: string,
+  branchId: string,
+): boolean {
+  for (const step of steps) {
+    if (step.id === conditionId && step.type === 'condition' && step.branches?.length) {
+      const index = step.branches.findIndex((br: any) => br.id === branchId);
+      if (index !== -1) {
+        step.branches.splice(index, 1);
+        return true;
+      }
+    }
+
+    // 递归 condition.branches[].steps
+    if (step.type === 'condition' && step.branches?.length) {
+      for (const br of step.branches) {
+        if (br.steps?.length && deleteConditionBranch(br.steps, conditionId, branchId)) {
+          return true;
+        }
+      }
+    }
+
+    // 递归 children（loop 等）
+    if (step.children?.length && deleteConditionBranch(step.children, conditionId, branchId)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// 从 steps 中删除指定节点
+function deleteNodeFromSteps(steps: StepNode[], nodeId: string): boolean {
+  for (let i = 0; i < steps.length; i++) {
+    if (steps[i]!.id === nodeId) {
+      steps.splice(i, 1);
+      return true;
+    }
+
+    const step = steps[i]!;
+
+    // condition：递归到分支 steps
+    if (step.type === 'condition' && step.branches?.length) {
+      for (const br of step.branches) {
+        if (br.steps?.length && deleteNodeFromSteps(br.steps, nodeId)) {
+          return true;
+        }
+      }
+    }
+
+    // loop/其它：递归 children
+    if (step.children?.length && deleteNodeFromSteps(step.children, nodeId)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function updateNodeInSteps(steps: StepNode[], updatedNode: StepNode): boolean {
   for (let i = 0; i < steps.length; i++) {
     if (steps[i]!.id === updatedNode.id) {
@@ -384,9 +474,9 @@ function updateConditionBranch(
   for (const step of steps) {
     if (step.id === conditionId && step.type === 'condition' && step.branches?.length) {
       const index = step.branches.findIndex((br: any) => br.id === updatedBranch.id);
-      if (index !== -1) {
+      const old = step.branches[index];
+      if (index !== -1 && old) {
         // 只替换分支的核心字段，保留 steps 等结构
-        const old = step.branches[index];
         step.branches[index] = {
           ...old,
           ...updatedBranch,
@@ -505,6 +595,7 @@ async function handleRename(newName: string) {
               :node="selectedNode"
               @update="handleNodeUpdate"
               @close="handleClosePropertyPanel"
+              @delete="handleNodeDelete"
             />
           </template>
         </SplitPane>

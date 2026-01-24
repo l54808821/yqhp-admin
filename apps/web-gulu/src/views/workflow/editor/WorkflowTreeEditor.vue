@@ -652,6 +652,67 @@ function renderAddMenu(parentId?: string) {
     )
   ));
 }
+
+// 为条件节点添加分支
+function handleAddBranch(conditionId: string, kind: 'if' | 'else_if' | 'else') {
+  if (props.readonly) return;
+  const newSteps = JSON.parse(JSON.stringify(props.definition.steps));
+  const conditionNode = findNodeById(newSteps, conditionId);
+  
+  if (conditionNode && conditionNode.type === 'condition') {
+    if (!conditionNode.branches) {
+      conditionNode.branches = [];
+    }
+    
+    // 根据分支类型设置名称
+    let branchName: string;
+    if (kind === 'if') {
+      branchName = 'IF 条件';
+    } else if (kind === 'else') {
+      branchName = '默认分支';
+    } else {
+      branchName = `条件${conditionNode.branches.length + 1}`;
+    }
+    
+    const newBranch = {
+      id: `br_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      name: branchName,
+      kind,
+      expression: kind === 'else' ? '' : '',
+      steps: [],
+    };
+    conditionNode.branches.push(newBranch);
+    emit('update', { ...props.definition, steps: newSteps });
+    
+    // 展开条件节点以显示新分支
+    if (!localExpandedKeys.value.includes(conditionId)) {
+      localExpandedKeys.value = [...localExpandedKeys.value, conditionId];
+      emit('update:expandedKeys', localExpandedKeys.value);
+    }
+  }
+}
+
+// 渲染添加分支菜单
+function renderAddBranchMenu(conditionId: string) {
+  const branchTypes = [
+    { key: 'if', label: 'IF 分支', color: '#1890ff' },
+    { key: 'else_if', label: 'ELSE IF 分支', color: '#fa8c16' },
+    { key: 'else', label: 'ELSE 分支', color: '#8c8c8c' },
+  ];
+  
+  return h(Menu, {
+    onClick: (info: { key: string | number }) => handleAddBranch(conditionId, info.key as 'if' | 'else_if' | 'else'),
+  }, () => branchTypes.map((type) =>
+    h(Menu.Item, { key: type.key }, () =>
+      h('div', { style: 'display: flex; align-items: center; gap: 8px;' }, [
+        h('span', { 
+          style: `display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ${type.color};` 
+        }),
+        h('span', type.label),
+      ])
+    )
+  ));
+}
 </script>
 
 <template>
@@ -750,8 +811,23 @@ function renderAddMenu(parentId?: string) {
               {{ getStepDescription(nodeProps.stepData) }}
             </span>
             <div class="node-actions" v-if="!readonly" @click.stop>
+              <!-- 条件节点：显示分支类型选择菜单 -->
               <Dropdown
-                v-if="getNodeTypeConfig(nodeProps.stepData.type)?.canHaveChildren"
+                v-if="nodeProps.stepData.type === 'condition'"
+                :trigger="['click']"
+              >
+                <Tooltip title="添加分支">
+                  <Button type="text" size="small">
+                    <Plus class="size-4" />
+                  </Button>
+                </Tooltip>
+                <template #overlay>
+                  <component :is="renderAddBranchMenu(nodeProps.stepData.id)" />
+                </template>
+              </Dropdown>
+              <!-- 其他可以有子节点的节点：显示下拉菜单选择步骤类型 -->
+              <Dropdown
+                v-else-if="getNodeTypeConfig(nodeProps.stepData.type)?.canHaveChildren"
                 :trigger="['click']"
               >
                 <Tooltip title="添加子步骤">

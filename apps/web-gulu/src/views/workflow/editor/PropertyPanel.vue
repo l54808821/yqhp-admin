@@ -14,6 +14,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   update: [node: any];
   close: [];
+  delete: [node: any];
 }>();
 
 const localNode = ref<any>(null);
@@ -65,6 +66,9 @@ const isScriptNode = computed(() => localNode.value?.type === 'script');
 // 是否使用特殊布局（无 padding）
 const useSpecialLayout = computed(() => isHttpNode.value || isScriptNode.value);
 
+// 是否是条件分支节点（不显示通用的节点名称字段）
+const isConditionBranch = computed(() => localNode.value?.type === 'condition_branch');
+
 function handleUpdate(updatedNode?: any) {
   if (updatedNode) {
     // 如果子组件传递了更新后的节点数据，直接使用
@@ -77,6 +81,10 @@ function handleUpdate(updatedNode?: any) {
 
 function handleClose() {
   emit('close');
+}
+
+function handleDelete(node: any) {
+  emit('delete', node);
 }
 </script>
 
@@ -137,7 +145,8 @@ function handleClose() {
         </div>
 
         <Form layout="vertical">
-          <Form.Item label="节点名称">
+          <!-- 条件分支节点不显示通用的节点名称字段，因为分支属性组件中已有分支名称 -->
+          <Form.Item v-if="!isConditionBranch" label="节点名称">
             <Input v-model:value="localNode.name" @blur="handleUpdate()" />
           </Form.Item>
 
@@ -147,6 +156,7 @@ function handleClose() {
             v-if="propertyComponent"
             :node="localNode"
             @update="handleUpdate()"
+            @delete="handleDelete"
           />
         </Form>
       </template>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Form, Input, Select } from 'ant-design-vue';
+import { Button, Form, Input, Select, Popconfirm } from 'ant-design-vue';
 
 const props = defineProps<{
   node: any;
@@ -8,6 +8,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   update: [node: any];
+  delete: [node: any];
 }>();
 
 const kindOptions = [
@@ -82,6 +83,10 @@ const branchExpression = computed({
 function handleUpdate() {
   emit('update', props.node);
 }
+
+function handleDelete() {
+  emit('delete', props.node);
+}
 </script>
 
 <template>
@@ -98,6 +103,17 @@ function handleUpdate() {
       placeholder="如: ${response.status_code} == 200"
       @blur="handleUpdate"
     />
+  </Form.Item>
+  <Form.Item>
+    <Popconfirm
+      title="确定要删除此分支吗？"
+      description="分支下的所有步骤也将被删除"
+      ok-text="确定"
+      cancel-text="取消"
+      @confirm="handleDelete"
+    >
+      <Button danger block>删除此分支</Button>
+    </Popconfirm>
   </Form.Item>
 </template>
 
