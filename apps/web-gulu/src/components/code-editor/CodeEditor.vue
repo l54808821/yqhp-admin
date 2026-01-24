@@ -172,8 +172,9 @@ defineExpose({
 .code-editor-wrapper {
   position: relative;
   border: 1px solid hsl(var(--border));
-  border-radius: 4px;
+  border-radius: 6px;
   background: hsl(var(--background));
+  overflow: hidden;
 }
 
 .code-editor {
