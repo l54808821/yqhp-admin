@@ -238,10 +238,6 @@ async function handleSend() {
         postProcessorResults: response.postProcessorResults,
         actualRequest: response.actualRequest,
       };
-      // 有响应时调整面板比例
-      if (requestPanelHeight.value > 50) {
-        requestPanelHeight.value = 50;
-      }
     } else {
       debugResponse.value = {
         statusCode: 0,

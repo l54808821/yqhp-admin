@@ -135,10 +135,6 @@ async function handleRun() {
         variables: scriptResult?.variables || {},
         error: scriptResult?.error || response.error,
       };
-      // 有响应时调整面板比例
-      if (editorPanelHeight.value > 50) {
-        editorPanelHeight.value = 50;
-      }
     } else {
       debugResponse.value = {
         success: false,

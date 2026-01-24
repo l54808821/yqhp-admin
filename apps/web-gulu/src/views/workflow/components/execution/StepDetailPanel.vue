@@ -227,7 +227,7 @@ function formatDuration(ms?: number) {
 .detail-panel-body {
   height: 100%;
   overflow: hidden;
-  padding: 12px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
 }
