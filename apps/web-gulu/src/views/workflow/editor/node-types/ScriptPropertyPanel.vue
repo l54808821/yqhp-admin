@@ -11,7 +11,7 @@ import {
 } from 'ant-design-vue';
 
 import { debugStepApi } from '#/api/debug';
-import { CodeEditor } from '#/components/code-editor';
+import { ScriptEditor } from '#/components/code-editor';
 
 // 图标
 const PlayIcon = createIconifyIcon('lucide:play');
@@ -237,10 +237,12 @@ const variablesCount = computed(() => {
 
       <!-- 代码编辑器 -->
       <div class="editor-wrapper">
-        <CodeEditor
+        <ScriptEditor
           :model-value="localNode.config?.script || ''"
           language="javascript"
           height="100%"
+          :show-toolbar="true"
+          :show-snippets="true"
           @update:model-value="updateScript"
         />
       </div>
@@ -371,7 +373,6 @@ const variablesCount = computed(() => {
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  padding: 12px 12px;
 }
 
 /* 分割条 */
