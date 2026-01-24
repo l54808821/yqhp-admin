@@ -247,7 +247,6 @@ function updateEncoding(info: { key: string | number }) {
   align-items: center;
   justify-content: space-between;
   padding: 4px 8px;
-  border-bottom: 1px solid hsl(var(--border) / 50%);
   background: hsl(var(--background));
   flex-shrink: 0;
 }

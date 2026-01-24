@@ -335,6 +335,7 @@ function handleDebug() {
   display: flex;
   flex-direction: column;
   height: 100%;
+  padding: 0 10px 10px;
   overflow: hidden;
 }
 
@@ -353,11 +354,10 @@ function handleDebug() {
 
 .response-tabs :deep(.ant-tabs-nav) {
   margin: 0;
-  padding-left: 16px;
 }
 
 .response-tabs :deep(.ant-tabs-nav::before) {
-  display: none;
+  border-bottom: none;
 }
 
 .response-tabs :deep(.ant-tabs-tab) {
@@ -408,7 +408,6 @@ function handleDebug() {
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  padding: 0 16px 12px 16px;
 }
 
 .tab-content {
