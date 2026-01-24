@@ -2,10 +2,13 @@
 import { computed, h, ref, watch } from 'vue';
 
 import {
+  createIconifyIcon,
   Plus,
   Search,
-  X,
 } from '@vben/icons';
+
+const MoreHorizontal = createIconifyIcon('lucide:ellipsis');
+const Trash = createIconifyIcon('lucide:trash-2');
 import {
   File,
   Folder,
@@ -184,7 +187,7 @@ function handleCreateFolder(parentId: number = 0) {
   isCreating.value = true;
   parentIdForCreate.value = parentId;
   editingCategory.value = null;
-  editForm.value = { name: '', type: 'folder' };
+  editForm.value = { name: '', type: 'folder', workflow_type: 'normal' };
   editModalTitle.value = '新建文件夹';
   editModalVisible.value = true;
 }
@@ -274,27 +277,6 @@ async function handleSaveEdit() {
   }
 }
 
-// 渲染右键菜单
-function renderContextMenu(node: any) {
-  const category = node.data as CategoryTreeNode;
-  const items: any[] = [];
-
-  if (category.type === 'folder') {
-    items.push(
-      { key: 'createFolder', label: '新建文件夹', icon: h(Folder, { class: 'size-4' }) },
-      { key: 'createWorkflow', label: '新建工作流', icon: h(File, { class: 'size-4' }) },
-      { type: 'divider' },
-    );
-  }
-
-  items.push(
-    { key: 'rename', label: '重命名', icon: h(Pencil, { class: 'size-4' }) },
-    { key: 'delete', label: '删除', icon: h(X, { class: 'size-4' }), danger: true },
-  );
-
-  return items;
-}
-
 function handleMenuClick(key: string, node: any) {
   const category = node.data as CategoryTreeNode;
   switch (key) {
@@ -355,20 +337,55 @@ function handleMenuClick(key: string, node: any) {
         @rightClick="handleRightClick"
       >
         <template #title="{ title, dataRef }">
-          <Dropdown :trigger="['contextmenu']">
-            <span class="tree-node-title">{{ title }}</span>
-            <template #overlay>
-              <Menu @click="({ key }) => handleMenuClick(key as string, dataRef)">
-                <template v-for="item in renderContextMenu(dataRef)" :key="item.key">
-                  <Menu.Divider v-if="item.type === 'divider'" />
-                  <Menu.Item v-else :key="item.key" :danger="item.danger">
-                    <component :is="item.icon" v-if="item.icon" />
-                    {{ item.label }}
-                  </Menu.Item>
+          <div class="tree-node-wrapper">
+            <span class="tree-node-title" :title="title">{{ title }}</span>
+            <div class="tree-node-actions" @click.stop>
+              <!-- 添加子模块按钮 - 只有文件夹才显示 -->
+              <Dropdown v-if="dataRef.data?.type === 'folder'" :trigger="['click']">
+                <Button type="text" size="small" class="action-btn">
+                  <Plus class="size-3.5" />
+                </Button>
+                <template #overlay>
+                  <Menu @click="({ key }) => handleMenuClick(key as string, dataRef)">
+                    <Menu.Item key="createFolder">
+                      <div class="menu-item-content">
+                        <Folder class="size-4" />
+                        <span>新建文件夹</span>
+                      </div>
+                    </Menu.Item>
+                    <Menu.Item key="createWorkflow">
+                      <div class="menu-item-content">
+                        <File class="size-4" />
+                        <span>新建工作流</span>
+                      </div>
+                    </Menu.Item>
+                  </Menu>
                 </template>
-              </Menu>
-            </template>
-          </Dropdown>
+              </Dropdown>
+              <!-- 更多按钮 -->
+              <Dropdown :trigger="['click']">
+                <Button type="text" size="small" class="action-btn">
+                  <MoreHorizontal class="size-3.5" />
+                </Button>
+                <template #overlay>
+                  <Menu @click="({ key }) => handleMenuClick(key as string, dataRef)">
+                    <Menu.Item key="rename">
+                      <div class="menu-item-content">
+                        <Pencil class="size-4" />
+                        <span>重命名</span>
+                      </div>
+                    </Menu.Item>
+                    <Menu.Item key="delete" danger>
+                      <div class="menu-item-content">
+                        <Trash class="size-4" />
+                        <span>删除</span>
+                      </div>
+                    </Menu.Item>
+                  </Menu>
+                </template>
+              </Dropdown>
+            </div>
+          </div>
         </template>
       </Tree>
     </div>
@@ -427,8 +444,65 @@ function handleMenuClick(key: string, node: any) {
   padding: 8px;
 }
 
+.tree-node-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 4px;
+}
+
 .tree-node-title {
-  display: inline;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.tree-node-actions {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-left: auto;
+  height: 100%;
+}
+
+.action-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 2px !important;
+  height: 20px !important;
+  width: 20px !important;
+  min-width: 20px !important;
+  border-radius: 3px !important;
+  color: hsl(var(--foreground) / 60%) !important;
+  transition: all 0.15s !important;
+}
+
+.action-btn:hover {
+  background: hsl(var(--accent)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+:deep(.action-btn.ant-btn) {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+:deep(.action-btn.ant-btn:hover) {
+  background: hsl(var(--accent)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.menu-item-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* 修复树节点对齐问题 */
@@ -436,6 +510,7 @@ function handleMenuClick(key: string, node: any) {
   display: flex;
   align-items: center;
   padding: 2px 0;
+  width: 100%;
 }
 
 :deep(.ant-tree-switcher) {
@@ -448,9 +523,11 @@ function handleMenuClick(key: string, node: any) {
 }
 
 :deep(.ant-tree-node-content-wrapper) {
-  display: inline-flex !important;
+  display: flex !important;
   align-items: center;
   gap: 4px;
+  flex: 1;
+  min-width: 0;
 }
 
 :deep(.ant-tree-iconEle) {
@@ -460,7 +537,9 @@ function handleMenuClick(key: string, node: any) {
 }
 
 :deep(.ant-tree-title) {
-  display: inline !important;
+  flex: 1;
+  min-width: 0;
+  width: 100%;
 }
 
 /* 减少缩进 */
@@ -471,6 +550,16 @@ function handleMenuClick(key: string, node: any) {
 /* 确保没有展开图标的节点也对齐 */
 :deep(.ant-tree-switcher-noop) {
   width: 20px;
+}
+
+/* 悬浮整个节点行时显示操作按钮 */
+:deep(.ant-tree-treenode:hover .tree-node-actions) {
+  display: flex !important;
+}
+
+/* 备选：通过 wrapper 悬浮触发 */
+.tree-node-wrapper:hover .tree-node-actions {
+  display: flex !important;
 }
 
 .edit-form {
