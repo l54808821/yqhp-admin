@@ -288,22 +288,22 @@ function getStepDescription(step: StepNode | null | undefined): string {
 // 获取节点的子节点数量
 function getChildrenCount(step: StepNode | any): number {
   if (!step) return 0;
-  
+
   // condition 类型：统计 branches 数量
   if (step.type === 'condition' && step.branches?.length) {
     return step.branches.length;
   }
-  
+
   // condition_branch 类型：统计 branch.steps 数量
   if (step.type === 'condition_branch' && step.branch?.steps?.length) {
     return step.branch.steps.length;
   }
-  
+
   // 其他类型（如 loop）：统计 children 数量
   if (step.children?.length) {
     return step.children.length;
   }
-  
+
   return 0;
 }
 
@@ -677,12 +677,12 @@ function handleAddBranch(conditionId: string, kind: 'if' | 'else_if' | 'else') {
   if (props.readonly) return;
   const newSteps = JSON.parse(JSON.stringify(props.definition.steps));
   const conditionNode = findNodeById(newSteps, conditionId);
-  
+
   if (conditionNode && conditionNode.type === 'condition') {
     if (!conditionNode.branches) {
       conditionNode.branches = [];
     }
-    
+
     // 根据分支类型设置名称
     let branchName: string;
     if (kind === 'if') {
@@ -692,7 +692,7 @@ function handleAddBranch(conditionId: string, kind: 'if' | 'else_if' | 'else') {
     } else {
       branchName = `条件${conditionNode.branches.length + 1}`;
     }
-    
+
     const newBranch = {
       id: `br_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       name: branchName,
@@ -702,7 +702,7 @@ function handleAddBranch(conditionId: string, kind: 'if' | 'else_if' | 'else') {
     };
     conditionNode.branches.push(newBranch);
     emit('update', { ...props.definition, steps: newSteps });
-    
+
     // 展开条件节点以显示新分支
     if (!localExpandedKeys.value.includes(conditionId)) {
       localExpandedKeys.value = [...localExpandedKeys.value, conditionId];
@@ -718,14 +718,14 @@ function renderAddBranchMenu(conditionId: string) {
     { key: 'else_if', label: 'ELSE IF 分支', color: '#fa8c16' },
     { key: 'else', label: 'ELSE 分支', color: '#8c8c8c' },
   ];
-  
+
   return h(Menu, {
     onClick: (info: { key: string | number }) => handleAddBranch(conditionId, info.key as 'if' | 'else_if' | 'else'),
   }, () => branchTypes.map((type) =>
     h(Menu.Item, { key: type.key }, () =>
       h('div', { style: 'display: flex; align-items: center; gap: 8px;' }, [
-        h('span', { 
-          style: `display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ${type.color};` 
+        h('span', {
+          style: `display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ${type.color};`
         }),
         h('span', type.label),
       ])
@@ -738,9 +738,9 @@ function handleInsertNode(type: string, targetId: string, position: 'before' | '
   if (props.readonly) return;
   const newNode = createNode(type);
   const newSteps = JSON.parse(JSON.stringify(props.definition.steps));
-  
+
   insertNodeAtTarget(newSteps, newNode, targetId, position);
-  
+
   emit('update', { ...props.definition, steps: newSteps });
   emit('select', newNode);
   localSelectedKeys.value = [newNode.id];
@@ -755,7 +755,7 @@ function insertNodeAtTarget(steps: StepNode[], node: StepNode, targetId: string,
       steps.splice(insertIndex, 0, node);
       return true;
     }
-    
+
     const step = steps[i]!;
     // 递归 condition.branches[].steps
     if (step.type === 'condition' && step.branches?.length) {
@@ -776,7 +776,7 @@ function insertNodeAtTarget(steps: StepNode[], node: StepNode, targetId: string,
 // 渲染插入节点菜单（添加子步骤 / 在上方插入 / 在下方插入）
 function renderInsertMenu(nodeId: string, canHaveChildren: boolean) {
   const menuItems: any[] = [];
-  
+
   // 如果可以有子节点，添加"添加子步骤"子菜单
   if (canHaveChildren) {
     menuItems.push(
@@ -792,7 +792,7 @@ function renderInsertMenu(nodeId: string, canHaveChildren: boolean) {
       )
     );
   }
-  
+
   // 在上方插入
   menuItems.push(
     h(Menu.SubMenu, { key: 'insert-before', title: '↑ 在上方插入' }, () =>
@@ -806,7 +806,7 @@ function renderInsertMenu(nodeId: string, canHaveChildren: boolean) {
       )
     )
   );
-  
+
   // 在下方插入
   menuItems.push(
     h(Menu.SubMenu, { key: 'insert-after', title: '↓ 在下方插入' }, () =>
@@ -820,7 +820,7 @@ function renderInsertMenu(nodeId: string, canHaveChildren: boolean) {
       )
     )
   );
-  
+
   return h(Menu, {
     onClick: (info: { key: string | number }) => {
       const key = String(info.key);
@@ -1159,13 +1159,13 @@ function renderInsertMenu(nodeId: string, canHaveChildren: boolean) {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
   margin-top: 8px;
-  padding: 10px 16px;
+  padding: 6px 16px;
   border: 1px dashed hsl(var(--border));
-  border-radius: 6px;
+  border-radius: 4px;
   color: hsl(var(--primary));
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   transition: all 0.2s;
 }
