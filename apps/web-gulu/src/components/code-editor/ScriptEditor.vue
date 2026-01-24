@@ -80,6 +80,22 @@ console.log(value);`,
         code: `// 设置临时变量
 vars.set("变量名", "变量值");`,
       },
+      {
+        id: 'all-env-vars',
+        name: '获取所有环境变量',
+        description: '获取全部环境变量对象',
+        code: `// 获取所有环境变量
+const allEnvVars = env.all();
+console.log(allEnvVars);`,
+      },
+      {
+        id: 'all-temp-vars',
+        name: '获取所有临时变量',
+        description: '获取全部临时变量对象',
+        code: `// 获取所有临时变量
+const allVars = vars.all();
+console.log(allVars);`,
+      },
     ],
   },
   {
@@ -91,23 +107,35 @@ vars.set("变量名", "变量值");`,
         name: 'GET 请求',
         description: '发送 HTTP GET 请求',
         code: `// 发送 GET 请求
-const response = await http.get("https://api.example.com/data");
-console.log(response.body);`,
+http.get("https://api.example.com/data", function(err, res) {
+  if (err) {
+    console.error("请求失败:", err);
+    return;
+  }
+  console.log("状态码:", res.code);
+  console.log("响应:", res.body);
+});`,
       },
       {
         id: 'http-post',
         name: 'POST 请求',
         description: '发送 HTTP POST 请求',
         code: `// 发送 POST 请求
-const response = await http.post("https://api.example.com/data", {
+http.post("https://api.example.com/data", {
   headers: {
     "Content-Type": "application/json"
   },
   body: JSON.stringify({
     key: "value"
   })
-});
-console.log(response.body);`,
+}, function(err, res) {
+  if (err) {
+    console.error("请求失败:", err);
+    return;
+  }
+  console.log("状态码:", res.code);
+  console.log("响应:", res.body);
+});`,
       },
       {
         id: 'http-with-auth',
@@ -115,12 +143,92 @@ console.log(response.body);`,
         description: '发送带 Bearer Token 认证的请求',
         code: `// 带认证的请求
 const token = env.get("access_token");
-const response = await http.get("https://api.example.com/user", {
+http.get("https://api.example.com/user", {
   headers: {
-    "Authorization": \`Bearer \${token}\`
+    "Authorization": "Bearer " + token
   }
-});
-console.log(response.body);`,
+}, function(err, res) {
+  if (err) {
+    console.error("请求失败:", err);
+    return;
+  }
+  console.log("用户信息:", res.body);
+});`,
+      },
+      {
+        id: 'http-put',
+        name: 'PUT 请求',
+        description: '发送 HTTP PUT 请求',
+        code: `// 发送 PUT 请求
+http.put("https://api.example.com/data/1", {
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    key: "updated_value"
+  })
+}, function(err, res) {
+  if (err) {
+    console.error("请求失败:", err);
+    return;
+  }
+  console.log("更新结果:", res.body);
+});`,
+      },
+      {
+        id: 'http-delete',
+        name: 'DELETE 请求',
+        description: '发送 HTTP DELETE 请求',
+        code: `// 发送 DELETE 请求
+http.delete("https://api.example.com/data/1", function(err, res) {
+  if (err) {
+    console.error("请求失败:", err);
+    return;
+  }
+  console.log("删除结果:", res.code);
+});`,
+      },
+    ],
+  },
+  {
+    key: 'response',
+    title: '响应处理',
+    snippets: [
+      {
+        id: 'response-code',
+        name: '获取状态码',
+        description: '获取上一步 HTTP 响应的状态码',
+        code: `// 获取上一步响应的状态码
+const code = response.code;
+console.log("状态码:", code);`,
+      },
+      {
+        id: 'response-body',
+        name: '获取响应体',
+        description: '获取上一步 HTTP 响应的内容',
+        code: `// 获取上一步响应的内容
+const body = response.body;
+console.log("响应体:", body);
+
+// 如果响应是 JSON，可以直接访问字段
+// console.log("某个字段:", body.fieldName);`,
+      },
+      {
+        id: 'response-json',
+        name: '解析 JSON 响应',
+        description: '将响应体解析为 JSON 对象',
+        code: `// 解析 JSON 响应
+const data = response.json();
+console.log("解析后的数据:", data);`,
+      },
+      {
+        id: 'response-headers',
+        name: '获取响应头',
+        description: '获取上一步 HTTP 响应的头信息',
+        code: `// 获取响应头
+const headers = response.headers;
+console.log("响应头:", headers);
+console.log("Content-Type:", headers["Content-Type"]);`,
       },
     ],
   },
@@ -163,16 +271,17 @@ if (match) {
         name: '生成随机字符串',
         description: '生成指定长度的随机字符串',
         code: `// 生成随机字符串
-function randomString(length = 8) {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let result = '';
-  for (let i = 0; i < length; i++) {
+function randomString(length) {
+  length = length || 8;
+  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  var result = '';
+  for (var i = 0; i < length; i++) {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return result;
 }
 
-const random = randomString(16);
+var random = randomString(16);
 console.log("随机字符串:", random);
 vars.set("randomStr", random);`,
       },
@@ -181,9 +290,9 @@ vars.set("randomStr", random);`,
         name: '时间戳操作',
         description: '获取和格式化时间戳',
         code: `// 时间戳操作
-const now = Date.now();
-const timestamp = Math.floor(now / 1000);
-const isoString = new Date(now).toISOString();
+var now = Date.now();
+var timestamp = Math.floor(now / 1000);
+var isoString = new Date(now).toISOString();
 
 console.log("毫秒时间戳:", now);
 console.log("秒时间戳:", timestamp);
@@ -196,28 +305,82 @@ vars.set("timestamp", timestamp);`,
         name: 'Base64 编解码',
         description: 'Base64 编码和解码',
         code: `// Base64 编解码
-const original = "Hello, World!";
+var original = "Hello, World!";
 
 // 编码
-const encoded = btoa(original);
+var encoded = btoa(original);
 console.log("编码:", encoded);
 
 // 解码
-const decoded = atob(encoded);
+var decoded = atob(encoded);
 console.log("解码:", decoded);`,
       },
       {
-        id: 'sleep',
-        name: '延时等待',
-        description: '暂停执行指定毫秒数',
-        code: `// 延时等待
-async function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
+        id: 'url-encode',
+        name: 'URL 编解码',
+        description: 'URL 编码和解码',
+        code: `// URL 编解码
+var original = "Hello World! 你好";
 
-console.log("开始等待...");
-await sleep(1000); // 等待 1 秒
-console.log("等待结束");`,
+// 编码
+var encoded = encodeURIComponent(original);
+console.log("编码:", encoded);
+
+// 解码
+var decoded = decodeURIComponent(encoded);
+console.log("解码:", decoded);`,
+      },
+    ],
+  },
+  {
+    key: 'crypto',
+    title: '加密哈希',
+    snippets: [
+      {
+        id: 'crypto-md5',
+        name: 'MD5 哈希',
+        description: '计算字符串的 MD5 哈希值',
+        code: `// MD5 哈希
+var text = "Hello, World!";
+var hash = crypto.md5(text);
+console.log("MD5:", hash);`,
+      },
+      {
+        id: 'crypto-sha1',
+        name: 'SHA1 哈希',
+        description: '计算字符串的 SHA1 哈希值',
+        code: `// SHA1 哈希
+var text = "Hello, World!";
+var hash = crypto.sha1(text);
+console.log("SHA1:", hash);`,
+      },
+      {
+        id: 'crypto-sha256',
+        name: 'SHA256 哈希',
+        description: '计算字符串的 SHA256 哈希值',
+        code: `// SHA256 哈希
+var text = "Hello, World!";
+var hash = crypto.sha256(text);
+console.log("SHA256:", hash);`,
+      },
+      {
+        id: 'crypto-sign',
+        name: '签名示例',
+        description: '使用时间戳和密钥生成签名',
+        code: `// 签名示例
+var timestamp = Math.floor(Date.now() / 1000);
+var secret = env.get("api_secret");
+var data = "param1=value1&param2=value2";
+
+// 拼接签名字符串
+var signStr = data + "&timestamp=" + timestamp + "&secret=" + secret;
+
+// 计算签名
+var sign = crypto.md5(signStr);
+console.log("签名:", sign);
+
+vars.set("sign", sign);
+vars.set("timestamp", timestamp);`,
       },
     ],
   },
@@ -230,13 +393,13 @@ console.log("等待结束");`,
         name: '相等断言',
         description: '验证两个值是否相等',
         code: `// 相等断言
-const expected = "success";
-const actual = response.status;
+var expected = "success";
+var actual = response.status;
 
 if (actual === expected) {
   console.log("✓ 断言通过: 值相等");
 } else {
-  throw new Error(\`断言失败: 期望 "\${expected}", 实际 "\${actual}"\`);
+  throw new Error("断言失败: 期望 \\"" + expected + "\\", 实际 \\"" + actual + "\\"");
 }`,
       },
       {
@@ -244,13 +407,13 @@ if (actual === expected) {
         name: '包含断言',
         description: '验证字符串是否包含子串',
         code: `// 包含断言
-const text = response.body;
-const keyword = "success";
+var text = response.text;
+var keyword = "success";
 
-if (text.includes(keyword)) {
-  console.log(\`✓ 断言通过: 包含 "\${keyword}"\`);
+if (text.indexOf(keyword) !== -1) {
+  console.log("✓ 断言通过: 包含 \\"" + keyword + "\\"");
 } else {
-  throw new Error(\`断言失败: 不包含 "\${keyword}"\`);
+  throw new Error("断言失败: 不包含 \\"" + keyword + "\\"");
 }`,
       },
       {
@@ -258,13 +421,27 @@ if (text.includes(keyword)) {
         name: '状态码断言',
         description: '验证 HTTP 状态码',
         code: `// 状态码断言
-const statusCode = response.status_code;
-const expectedCodes = [200, 201];
+var statusCode = response.code;
+var expectedCodes = [200, 201];
 
-if (expectedCodes.includes(statusCode)) {
-  console.log(\`✓ 断言通过: 状态码 \${statusCode}\`);
+if (expectedCodes.indexOf(statusCode) !== -1) {
+  console.log("✓ 断言通过: 状态码 " + statusCode);
 } else {
-  throw new Error(\`断言失败: 期望状态码 \${expectedCodes.join('/')}, 实际 \${statusCode}\`);
+  throw new Error("断言失败: 期望状态码 " + expectedCodes.join("/") + ", 实际 " + statusCode);
+}`,
+      },
+      {
+        id: 'assert-json-field',
+        name: 'JSON 字段断言',
+        description: '验证 JSON 响应中的字段值',
+        code: `// JSON 字段断言
+var data = response.body;
+var expectedCode = 0;
+
+if (data.code === expectedCode) {
+  console.log("✓ 断言通过: code = " + expectedCode);
+} else {
+  throw new Error("断言失败: 期望 code=" + expectedCode + ", 实际 code=" + data.code);
 }`,
       },
     ],
