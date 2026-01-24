@@ -1,14 +1,26 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 
+import { createIconifyIcon, Plus } from '@vben/icons';
+
+import { Database, Globe } from '#/components/icons';
+
+const Trash2 = createIconifyIcon('lucide:trash-2');
+const Settings = createIconifyIcon('lucide:settings');
+const Variable = createIconifyIcon('lucide:variable');
 import {
+  Badge,
   Button,
-  Collapse,
+  Empty,
   Form,
   Input,
+  InputNumber,
   message,
+  Popconfirm,
   Switch,
   Table,
+  Tabs,
+  Tag,
 } from 'ant-design-vue';
 
 import type { Env } from '#/api/env';
@@ -26,20 +38,22 @@ const emit = defineEmits<{
 }>();
 
 const saving = ref(false);
+const activeTab = ref('basic');
 const formData = ref({
   name: '',
+  code: '',
   description: '',
   status: 1,
 });
 
 // 域名配置
-const domains = ref<{ code: string; url: string }[]>([]);
+const domains = ref<{ code: string; url: string; description?: string }[]>([]);
 // 变量配置
-const variables = ref<{ key: string; value: string }[]>([]);
+const variables = ref<{ key: string; value: string; description?: string }[]>([]);
 // 数据库配置
-const databases = ref<{ code: string; host: string; port: number; database: string; username: string }[]>([]);
+const databases = ref<{ code: string; host: string; port: number; database: string; username: string; description?: string }[]>([]);
 // MQ配置
-const mqConfigs = ref<{ code: string; host: string; port: number; username: string }[]>([]);
+const mqConfigs = ref<{ code: string; host: string; port: number; username: string; vhost?: string; description?: string }[]>([]);
 
 watch(
   () => props.env,
@@ -47,6 +61,7 @@ watch(
     if (env) {
       formData.value = {
         name: env.name,
+        code: env.code,
         description: env.description || '',
         status: env.status,
       };
@@ -80,37 +95,42 @@ async function handleSave() {
 
 // 域名表格列
 const domainColumns = [
-  { title: '代码', dataIndex: 'code', key: 'code' },
-  { title: 'URL', dataIndex: 'url', key: 'url' },
-  { title: '操作', key: 'action', width: 80 },
+  { title: '标识代码', dataIndex: 'code', key: 'code', width: 150 },
+  { title: 'URL 地址', dataIndex: 'url', key: 'url' },
+  { title: '备注', dataIndex: 'description', key: 'description', width: 150 },
+  { title: '操作', key: 'action', width: 80, align: 'center' as const },
 ];
 
 // 变量表格列
 const variableColumns = [
-  { title: '变量名', dataIndex: 'key', key: 'key' },
+  { title: '变量名', dataIndex: 'key', key: 'key', width: 180 },
   { title: '变量值', dataIndex: 'value', key: 'value' },
-  { title: '操作', key: 'action', width: 80 },
+  { title: '备注', dataIndex: 'description', key: 'description', width: 150 },
+  { title: '操作', key: 'action', width: 80, align: 'center' as const },
 ];
 
 // 数据库表格列
 const databaseColumns = [
-  { title: '代码', dataIndex: 'code', key: 'code' },
-  { title: '主机', dataIndex: 'host', key: 'host' },
+  { title: '标识代码', dataIndex: 'code', key: 'code', width: 120 },
+  { title: '主机地址', dataIndex: 'host', key: 'host', width: 160 },
   { title: '端口', dataIndex: 'port', key: 'port', width: 80 },
-  { title: '数据库', dataIndex: 'database', key: 'database' },
-  { title: '操作', key: 'action', width: 80 },
+  { title: '数据库名', dataIndex: 'database', key: 'database', width: 140 },
+  { title: '用户名', dataIndex: 'username', key: 'username', width: 120 },
+  { title: '操作', key: 'action', width: 80, align: 'center' as const },
 ];
 
 // MQ表格列
 const mqColumns = [
-  { title: '代码', dataIndex: 'code', key: 'code' },
-  { title: '主机', dataIndex: 'host', key: 'host' },
+  { title: '标识代码', dataIndex: 'code', key: 'code', width: 120 },
+  { title: '主机地址', dataIndex: 'host', key: 'host', width: 160 },
   { title: '端口', dataIndex: 'port', key: 'port', width: 80 },
-  { title: '操作', key: 'action', width: 80 },
+  { title: 'VHost', dataIndex: 'vhost', key: 'vhost', width: 100 },
+  { title: '用户名', dataIndex: 'username', key: 'username', width: 120 },
+  { title: '操作', key: 'action', width: 80, align: 'center' as const },
 ];
 
 function addDomain() {
-  domains.value.push({ code: '', url: '' });
+  domains.value.push({ code: '', url: '', description: '' });
 }
 
 function removeDomain(index: number) {
@@ -118,7 +138,7 @@ function removeDomain(index: number) {
 }
 
 function addVariable() {
-  variables.value.push({ key: '', value: '' });
+  variables.value.push({ key: '', value: '', description: '' });
 }
 
 function removeVariable(index: number) {
@@ -126,7 +146,7 @@ function removeVariable(index: number) {
 }
 
 function addDatabase() {
-  databases.value.push({ code: '', host: '', port: 3306, database: '', username: '' });
+  databases.value.push({ code: '', host: '', port: 3306, database: '', username: '', description: '' });
 }
 
 function removeDatabase(index: number) {
@@ -134,7 +154,7 @@ function removeDatabase(index: number) {
 }
 
 function addMqConfig() {
-  mqConfigs.value.push({ code: '', host: '', port: 5672, username: '' });
+  mqConfigs.value.push({ code: '', host: '', port: 5672, username: '', vhost: '/', description: '' });
 }
 
 function removeMqConfig(index: number) {
@@ -144,156 +164,296 @@ function removeMqConfig(index: number) {
 
 <template>
   <div class="env-detail-form">
-    <div class="form-header">
-      <h3>{{ env.name }}</h3>
-      <Button type="primary" :loading="saving" @click="handleSave">
-        保存
-      </Button>
+    <!-- 顶部标题栏 -->
+    <div class="detail-header">
+      <div class="header-left">
+        <h3 class="env-title">{{ env.name }}</h3>
+        <Tag color="blue" class="env-code-tag">{{ env.code }}</Tag>
+        <Badge
+          :status="formData.status === 1 ? 'success' : 'default'"
+          :text="formData.status === 1 ? '启用' : '禁用'"
+        />
+      </div>
+      <div class="header-right">
+        <Button type="primary" :loading="saving" @click="handleSave">
+          保存配置
+        </Button>
+      </div>
     </div>
 
-    <Form layout="vertical">
-      <Form.Item label="环境名称">
-        <Input v-model:value="formData.name" />
-      </Form.Item>
-      <Form.Item label="描述">
-        <Input.TextArea v-model:value="formData.description" :rows="2" />
-      </Form.Item>
-      <Form.Item label="状态">
-        <Switch
-          :checked="formData.status === 1"
-          checked-children="启用"
-          un-checked-children="禁用"
-          @change="(checked: any) => formData.status = checked ? 1 : 0"
-        />
-      </Form.Item>
-    </Form>
+    <!-- Tabs 内容区 -->
+    <Tabs v-model:activeKey="activeTab" class="detail-tabs">
+      <!-- 基本信息 Tab -->
+      <Tabs.TabPane key="basic">
+        <template #tab>
+          <span class="tab-label">
+            <Settings class="size-4" />
+            <span>基本信息</span>
+          </span>
+        </template>
+        <div class="tab-content">
+          <Form layout="vertical" class="basic-form">
+            <div class="form-grid">
+              <Form.Item label="环境名称" required>
+                <Input v-model:value="formData.name" placeholder="请输入环境名称" />
+              </Form.Item>
+              <Form.Item label="环境代码">
+                <Input v-model:value="formData.code" disabled />
+                <div class="form-hint">环境代码创建后不可修改</div>
+              </Form.Item>
+            </div>
+            <Form.Item label="描述">
+              <Input.TextArea
+                v-model:value="formData.description"
+                :rows="3"
+                placeholder="请输入环境描述"
+              />
+            </Form.Item>
+            <Form.Item label="状态">
+              <div class="status-switch">
+                <Switch
+                  :checked="formData.status === 1"
+                  checked-children="启用"
+                  un-checked-children="禁用"
+                  @change="(checked: any) => formData.status = checked ? 1 : 0"
+                />
+                <span class="status-hint">
+                  {{ formData.status === 1 ? '环境处于启用状态，可用于测试执行' : '环境已禁用，无法用于测试执行' }}
+                </span>
+              </div>
+            </Form.Item>
+          </Form>
+        </div>
+      </Tabs.TabPane>
 
-    <Collapse :default-active-key="['domains']">
-      <!-- 域名配置 -->
-      <Collapse.Panel key="domains" header="域名配置">
-        <div class="config-section">
-          <Button type="dashed" size="small" class="mb-2" @click="addDomain">
-            添加域名
-          </Button>
+      <!-- 域名配置 Tab -->
+      <Tabs.TabPane key="domains">
+        <template #tab>
+          <span class="tab-label">
+            <Globe class="size-4" />
+            <span>域名配置</span>
+            <Tag v-if="domains.length > 0" class="tab-count">{{ domains.length }}</Tag>
+          </span>
+        </template>
+        <div class="tab-content">
+          <div class="config-toolbar">
+            <Button type="primary" @click="addDomain">
+              <template #icon><Plus class="size-4" /></template>
+              添加域名
+            </Button>
+            <span class="toolbar-hint">配置此环境下的服务域名地址</span>
+          </div>
           <Table
+            v-if="domains.length > 0"
             :columns="domainColumns"
             :data-source="domains"
             :pagination="false"
-            size="small"
+            size="middle"
+            :scroll="{ y: 320 }"
+            row-key="code"
           >
             <template #bodyCell="{ column, record, index }">
               <template v-if="column.key === 'code'">
-                <Input v-model:value="record.code" size="small" placeholder="代码" />
+                <Input v-model:value="record.code" placeholder="如：api" />
               </template>
               <template v-else-if="column.key === 'url'">
-                <Input v-model:value="record.url" size="small" placeholder="URL" />
+                <Input v-model:value="record.url" placeholder="如：https://api.example.com" />
+              </template>
+              <template v-else-if="column.key === 'description'">
+                <Input v-model:value="record.description" placeholder="备注" />
               </template>
               <template v-else-if="column.key === 'action'">
-                <Button type="link" size="small" danger @click="removeDomain(index)">
-                  删除
-                </Button>
+                <Popconfirm title="确定删除？" @confirm="removeDomain(index)">
+                  <Button type="text" size="small" danger>
+                    <Trash2 class="size-4" />
+                  </Button>
+                </Popconfirm>
               </template>
             </template>
           </Table>
+          <Empty v-else description="暂无域名配置" class="empty-state">
+            <Button type="primary" @click="addDomain">
+              <template #icon><Plus class="size-4" /></template>
+              添加第一个域名
+            </Button>
+          </Empty>
         </div>
-      </Collapse.Panel>
+      </Tabs.TabPane>
 
-      <!-- 变量配置 -->
-      <Collapse.Panel key="variables" header="变量配置">
-        <div class="config-section">
-          <Button type="dashed" size="small" class="mb-2" @click="addVariable">
-            添加变量
-          </Button>
+      <!-- 变量配置 Tab -->
+      <Tabs.TabPane key="variables">
+        <template #tab>
+          <span class="tab-label">
+            <Variable class="size-4" />
+            <span>变量配置</span>
+            <Tag v-if="variables.length > 0" class="tab-count">{{ variables.length }}</Tag>
+          </span>
+        </template>
+        <div class="tab-content">
+          <div class="config-toolbar">
+            <Button type="primary" @click="addVariable">
+              <template #icon><Plus class="size-4" /></template>
+              添加变量
+            </Button>
+            <span class="toolbar-hint">配置此环境下的全局变量，可在测试用例中引用</span>
+          </div>
           <Table
+            v-if="variables.length > 0"
             :columns="variableColumns"
             :data-source="variables"
             :pagination="false"
-            size="small"
+            size="middle"
+            :scroll="{ y: 320 }"
+            row-key="key"
           >
             <template #bodyCell="{ column, record, index }">
               <template v-if="column.key === 'key'">
-                <Input v-model:value="record.key" size="small" placeholder="变量名" />
+                <Input v-model:value="record.key" placeholder="变量名" />
               </template>
               <template v-else-if="column.key === 'value'">
-                <Input v-model:value="record.value" size="small" placeholder="变量值" />
+                <Input v-model:value="record.value" placeholder="变量值" />
+              </template>
+              <template v-else-if="column.key === 'description'">
+                <Input v-model:value="record.description" placeholder="备注" />
               </template>
               <template v-else-if="column.key === 'action'">
-                <Button type="link" size="small" danger @click="removeVariable(index)">
-                  删除
-                </Button>
+                <Popconfirm title="确定删除？" @confirm="removeVariable(index)">
+                  <Button type="text" size="small" danger>
+                    <Trash2 class="size-4" />
+                  </Button>
+                </Popconfirm>
               </template>
             </template>
           </Table>
+          <Empty v-else description="暂无变量配置" class="empty-state">
+            <Button type="primary" @click="addVariable">
+              <template #icon><Plus class="size-4" /></template>
+              添加第一个变量
+            </Button>
+          </Empty>
         </div>
-      </Collapse.Panel>
+      </Tabs.TabPane>
 
-      <!-- 数据库配置 -->
-      <Collapse.Panel key="databases" header="数据库配置">
-        <div class="config-section">
-          <Button type="dashed" size="small" class="mb-2" @click="addDatabase">
-            添加数据库
-          </Button>
+      <!-- 数据库配置 Tab -->
+      <Tabs.TabPane key="databases">
+        <template #tab>
+          <span class="tab-label">
+            <Database class="size-4" />
+            <span>数据库</span>
+            <Tag v-if="databases.length > 0" class="tab-count">{{ databases.length }}</Tag>
+          </span>
+        </template>
+        <div class="tab-content">
+          <div class="config-toolbar">
+            <Button type="primary" @click="addDatabase">
+              <template #icon><Plus class="size-4" /></template>
+              添加数据库
+            </Button>
+            <span class="toolbar-hint">配置此环境下的数据库连接信息</span>
+          </div>
           <Table
+            v-if="databases.length > 0"
             :columns="databaseColumns"
             :data-source="databases"
             :pagination="false"
-            size="small"
+            size="middle"
+            :scroll="{ y: 320 }"
+            row-key="code"
           >
             <template #bodyCell="{ column, record, index }">
               <template v-if="column.key === 'code'">
-                <Input v-model:value="record.code" size="small" placeholder="代码" />
+                <Input v-model:value="record.code" placeholder="标识" />
               </template>
               <template v-else-if="column.key === 'host'">
-                <Input v-model:value="record.host" size="small" placeholder="主机" />
+                <Input v-model:value="record.host" placeholder="主机地址" />
               </template>
               <template v-else-if="column.key === 'port'">
-                <Input v-model:value="record.port" size="small" type="number" />
+                <InputNumber v-model:value="record.port" :min="1" :max="65535" style="width: 100%" />
               </template>
               <template v-else-if="column.key === 'database'">
-                <Input v-model:value="record.database" size="small" placeholder="数据库" />
+                <Input v-model:value="record.database" placeholder="数据库名" />
+              </template>
+              <template v-else-if="column.key === 'username'">
+                <Input v-model:value="record.username" placeholder="用户名" />
               </template>
               <template v-else-if="column.key === 'action'">
-                <Button type="link" size="small" danger @click="removeDatabase(index)">
-                  删除
-                </Button>
+                <Popconfirm title="确定删除？" @confirm="removeDatabase(index)">
+                  <Button type="text" size="small" danger>
+                    <Trash2 class="size-4" />
+                  </Button>
+                </Popconfirm>
               </template>
             </template>
           </Table>
+          <Empty v-else description="暂无数据库配置" class="empty-state">
+            <Button type="primary" @click="addDatabase">
+              <template #icon><Plus class="size-4" /></template>
+              添加第一个数据库
+            </Button>
+          </Empty>
         </div>
-      </Collapse.Panel>
+      </Tabs.TabPane>
 
-      <!-- MQ配置 -->
-      <Collapse.Panel key="mq" header="MQ配置">
-        <div class="config-section">
-          <Button type="dashed" size="small" class="mb-2" @click="addMqConfig">
-            添加MQ
-          </Button>
+      <!-- MQ配置 Tab -->
+      <Tabs.TabPane key="mq">
+        <template #tab>
+          <span class="tab-label">
+            <Database class="size-4" />
+            <span>MQ 配置</span>
+            <Tag v-if="mqConfigs.length > 0" class="tab-count">{{ mqConfigs.length }}</Tag>
+          </span>
+        </template>
+        <div class="tab-content">
+          <div class="config-toolbar">
+            <Button type="primary" @click="addMqConfig">
+              <template #icon><Plus class="size-4" /></template>
+              添加 MQ
+            </Button>
+            <span class="toolbar-hint">配置此环境下的消息队列连接信息</span>
+          </div>
           <Table
+            v-if="mqConfigs.length > 0"
             :columns="mqColumns"
             :data-source="mqConfigs"
             :pagination="false"
-            size="small"
+            size="middle"
+            :scroll="{ y: 320 }"
+            row-key="code"
           >
             <template #bodyCell="{ column, record, index }">
               <template v-if="column.key === 'code'">
-                <Input v-model:value="record.code" size="small" placeholder="代码" />
+                <Input v-model:value="record.code" placeholder="标识" />
               </template>
               <template v-else-if="column.key === 'host'">
-                <Input v-model:value="record.host" size="small" placeholder="主机" />
+                <Input v-model:value="record.host" placeholder="主机地址" />
               </template>
               <template v-else-if="column.key === 'port'">
-                <Input v-model:value="record.port" size="small" type="number" />
+                <InputNumber v-model:value="record.port" :min="1" :max="65535" style="width: 100%" />
+              </template>
+              <template v-else-if="column.key === 'vhost'">
+                <Input v-model:value="record.vhost" placeholder="/" />
+              </template>
+              <template v-else-if="column.key === 'username'">
+                <Input v-model:value="record.username" placeholder="用户名" />
               </template>
               <template v-else-if="column.key === 'action'">
-                <Button type="link" size="small" danger @click="removeMqConfig(index)">
-                  删除
-                </Button>
+                <Popconfirm title="确定删除？" @confirm="removeMqConfig(index)">
+                  <Button type="text" size="small" danger>
+                    <Trash2 class="size-4" />
+                  </Button>
+                </Popconfirm>
               </template>
             </template>
           </Table>
+          <Empty v-else description="暂无 MQ 配置" class="empty-state">
+            <Button type="primary" @click="addMqConfig">
+              <template #icon><Plus class="size-4" /></template>
+              添加第一个 MQ
+            </Button>
+          </Empty>
         </div>
-      </Collapse.Panel>
-    </Collapse>
+      </Tabs.TabPane>
+    </Tabs>
   </div>
 </template>
 
@@ -304,22 +464,133 @@ function removeMqConfig(index: number) {
   flex-direction: column;
 }
 
-.form-header {
+.detail-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.env-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f1f1f;
+}
+
+.env-code-tag {
+  font-family: 'Monaco', 'Menlo', monospace;
+}
+
+.header-right {
+  display: flex;
+  gap: 8px;
+}
+
+.detail-tabs {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.detail-tabs :deep(.ant-tabs-nav) {
+  margin: 0;
+  padding: 0 16px;
+  background: #fff;
+}
+
+.detail-tabs :deep(.ant-tabs-content-holder) {
+  flex: 1;
+  overflow: hidden;
+}
+
+.detail-tabs :deep(.ant-tabs-content) {
+  height: 100%;
+}
+
+.detail-tabs :deep(.ant-tabs-tabpane) {
+  height: 100%;
+  overflow: auto;
+}
+
+.tab-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tab-count {
+  margin-left: 4px;
+  font-size: 12px;
+  padding: 0 6px;
+  height: 18px;
+  line-height: 18px;
+  border-radius: 9px;
+}
+
+.tab-content {
+  padding: 20px;
+  height: 100%;
+}
+
+.basic-form {
+  max-width: 600px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.form-hint {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-top: 4px;
+}
+
+.status-switch {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-hint {
+  font-size: 13px;
+  color: #8c8c8c;
+}
+
+.config-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
   margin-bottom: 16px;
 }
 
-.form-header h3 {
-  margin: 0;
+.toolbar-hint {
+  font-size: 13px;
+  color: #8c8c8c;
 }
 
-.config-section {
-  padding: 8px 0;
+.empty-state {
+  padding: 60px 0;
 }
 
-.mb-2 {
-  margin-bottom: 8px;
+:deep(.ant-table-wrapper) {
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+}
+
+:deep(.ant-table-thead > tr > th) {
+  background: #fafafa;
 }
 </style>

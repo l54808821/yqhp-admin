@@ -1,16 +1,20 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue';
 
-import { Plus, X } from '@vben/icons';
+import { createIconifyIcon, Plus } from '@vben/icons';
+
+const Trash2 = createIconifyIcon('lucide:trash-2');
 import {
+  Badge,
   Button,
   Empty,
+  Form,
   Input,
-  List,
   message,
   Modal,
   Popconfirm,
   Spin,
+  Tooltip,
 } from 'ant-design-vue';
 
 import type { Env } from '#/api/env';
@@ -39,7 +43,7 @@ const loading = ref(false);
 const envs = ref<Env[]>([]);
 const selectedEnv = ref<Env | null>(null);
 const createModalVisible = ref(false);
-const newEnvForm = ref({ name: '', code: '' });
+const newEnvForm = ref({ name: '', code: '', description: '' });
 
 watch(
   () => props.visible,
@@ -80,7 +84,7 @@ function handleSelectEnv(env: Env) {
 }
 
 function handleCreateEnv() {
-  newEnvForm.value = { name: '', code: '' };
+  newEnvForm.value = { name: '', code: '', description: '' };
   createModalVisible.value = true;
 }
 
@@ -99,6 +103,7 @@ async function handleConfirmCreate() {
       project_id: props.projectId,
       name: newEnvForm.value.name,
       code: newEnvForm.value.code,
+      description: newEnvForm.value.description,
     });
     message.success('创建成功');
     createModalVisible.value = false;
@@ -109,12 +114,13 @@ async function handleConfirmCreate() {
   }
 }
 
-async function handleDeleteEnv(env: Env) {
+async function handleDeleteEnv(env: Env, e: Event) {
+  e.stopPropagation();
   try {
     await deleteEnvApi(env.id);
     message.success('删除成功');
     if (selectedEnv.value?.id === env.id) {
-      selectedEnv.value = null;
+      selectedEnv.value = envs.value.find((e) => e.id !== env.id) || null;
     }
     await loadEnvs();
   } catch {
@@ -125,14 +131,27 @@ async function handleDeleteEnv(env: Env) {
 function handleEnvUpdated() {
   loadEnvs();
 }
+
+// 获取环境状态颜色
+function getEnvStatusColor(env: Env) {
+  return env.status === 1 ? '#52c41a' : '#d9d9d9';
+}
+
+// 获取环境状态文本
+function getEnvStatusText(env: Env) {
+  return env.status === 1 ? '启用' : '禁用';
+}
 </script>
 
 <template>
   <Modal
     :open="visible"
     title="环境管理"
-    width="900px"
+    width="75%"
     :footer="null"
+    :body-style="{ padding: '12px', height: 'calc(90vh - 55px)', overflow: 'hidden' }"
+    :style="{ top: '5vh' }"
+    wrap-class-name="env-manage-modal"
     @cancel="handleClose"
   >
     <Spin :spinning="loading">
@@ -147,39 +166,48 @@ function handleEnvUpdated() {
             </Button>
           </div>
           <div class="env-list">
-            <List
-              v-if="envs.length > 0"
-              :data-source="envs"
-              size="small"
-            >
-              <template #renderItem="{ item }">
-                <List.Item
-                  :class="['env-item', { active: selectedEnv?.id === item.id }]"
-                  @click="handleSelectEnv(item)"
-                >
-                  <div class="env-item-content">
-                    <div class="env-name">{{ item.name }}</div>
-                    <div class="env-code">{{ item.code }}</div>
-                  </div>
-                  <template #actions>
-                    <Popconfirm
-                      title="确定删除此环境？"
-                      @confirm="handleDeleteEnv(item)"
+            <div v-if="envs.length > 0" class="env-card-list">
+              <div
+                v-for="env in envs"
+                :key="env.id"
+                :class="['env-card', { active: selectedEnv?.id === env.id }]"
+                @click="handleSelectEnv(env)"
+              >
+                <div class="env-card-left">
+                  <Tooltip :title="getEnvStatusText(env)">
+                    <Badge :color="getEnvStatusColor(env)" />
+                  </Tooltip>
+                </div>
+                <div class="env-card-content">
+                  <div class="env-card-name">{{ env.name }}</div>
+                  <div class="env-card-code">{{ env.code }}</div>
+                </div>
+                <div class="env-card-actions">
+                  <Popconfirm
+                    title="确定删除此环境？"
+                    placement="right"
+                    @confirm="(e: Event) => handleDeleteEnv(env, e)"
+                  >
+                    <Button
+                      type="text"
+                      size="small"
+                      class="delete-btn"
+                      @click.stop
                     >
-                      <Button
-                        type="text"
-                        size="small"
-                        danger
-                        @click.stop
-                      >
-                        <X class="size-4" />
-                      </Button>
-                    </Popconfirm>
-                  </template>
-                </List.Item>
-              </template>
-            </List>
-            <Empty v-else description="暂无环境" />
+                      <Trash2 class="size-4 text-gray-400 hover:text-red-500" />
+                    </Button>
+                  </Popconfirm>
+                </div>
+              </div>
+            </div>
+            <div v-else class="empty-env-list">
+              <Empty description="暂无环境">
+                <Button type="primary" size="small" @click="handleCreateEnv">
+                  <template #icon><Plus class="size-4" /></template>
+                  创建第一个环境
+                </Button>
+              </Empty>
+            </div>
           </div>
         </div>
 
@@ -187,10 +215,13 @@ function handleEnvUpdated() {
         <div class="env-detail-panel">
           <EnvDetailForm
             v-if="selectedEnv"
+            :key="selectedEnv.id"
             :env="selectedEnv"
             @updated="handleEnvUpdated"
           />
-          <Empty v-else description="请选择一个环境" />
+          <div v-else class="empty-detail">
+            <Empty description="请选择或创建一个环境" />
+          </div>
         </div>
       </div>
     </Spin>
@@ -199,24 +230,31 @@ function handleEnvUpdated() {
     <Modal
       v-model:open="createModalVisible"
       title="新建环境"
+      :width="480"
       @ok="handleConfirmCreate"
     >
-      <div class="create-form">
-        <div class="form-item">
-          <label>环境名称</label>
+      <Form layout="vertical" class="create-form">
+        <Form.Item label="环境名称" required>
           <Input
             v-model:value="newEnvForm.name"
-            placeholder="如：开发环境"
+            placeholder="如：开发环境、测试环境"
           />
-        </div>
-        <div class="form-item">
-          <label>环境代码</label>
+        </Form.Item>
+        <Form.Item label="环境代码" required>
           <Input
             v-model:value="newEnvForm.code"
-            placeholder="如：dev"
+            placeholder="如：dev、test、prod"
           />
-        </div>
-      </div>
+          <div class="form-hint">环境代码用于标识环境，建议使用英文小写</div>
+        </Form.Item>
+        <Form.Item label="描述">
+          <Input.TextArea
+            v-model:value="newEnvForm.description"
+            placeholder="环境描述（可选）"
+            :rows="2"
+          />
+        </Form.Item>
+      </Form>
     </Modal>
   </Modal>
 </template>
@@ -224,84 +262,150 @@ function handleEnvUpdated() {
 <style scoped>
 .env-manage-layout {
   display: flex;
-  height: 500px;
-  gap: 16px;
+  height: calc(90vh - 69px);
+  gap: 12px;
 }
 
 .env-list-panel {
-  width: 280px;
-  border: 1px solid #f0f0f0;
-  border-radius: 4px;
+  width: 260px;
+  min-width: 260px;
+  background: #fafafa;
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px;
+  padding: 14px 16px;
+  background: #fff;
   border-bottom: 1px solid #f0f0f0;
 }
 
 .panel-title {
-  font-weight: 500;
+  font-weight: 600;
+  font-size: 14px;
+  color: #1f1f1f;
 }
 
 .env-list {
   flex: 1;
   overflow: auto;
-  padding: 8px;
+  padding: 12px;
 }
 
-.env-item {
-  cursor: pointer;
-  border-radius: 4px;
-  margin-bottom: 4px;
-}
-
-.env-item:hover {
-  background: #f5f5f5;
-}
-
-.env-item.active {
-  background: #e6f4ff;
-}
-
-.env-item-content {
-  flex: 1;
-}
-
-.env-name {
-  font-weight: 500;
-}
-
-.env-code {
-  font-size: 12px;
-  color: #999;
-}
-
-.env-detail-panel {
-  flex: 1;
-  border: 1px solid #f0f0f0;
-  border-radius: 4px;
-  padding: 16px;
-  overflow: auto;
-}
-
-.create-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.form-item {
+.env-card-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.form-item label {
-  font-weight: 500;
+.env-card {
+  display: flex;
+  align-items: center;
+  padding: 12px 14px;
+  background: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
 }
+
+.env-card:hover {
+  background: #f5f5f5;
+}
+
+.env-card:hover .delete-btn {
+  opacity: 1;
+}
+
+.env-card.active {
+  background: #e6f4ff;
+  border-color: #1890ff;
+}
+
+.env-card-left {
+  margin-right: 10px;
+}
+
+.env-card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.env-card-name {
+  font-weight: 500;
+  font-size: 14px;
+  color: #1f1f1f;
+  margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.env-card-code {
+  font-size: 12px;
+  color: #8c8c8c;
+  font-family: 'Monaco', 'Menlo', monospace;
+}
+
+.env-card-actions {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.delete-btn {
+  padding: 4px;
+}
+
+.empty-env-list {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 40px 20px;
+}
+
+.env-detail-panel {
+  flex: 1;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.empty-detail {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.create-form {
+  padding-top: 8px;
+}
+
+.form-hint {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-top: 4px;
+}
+</style>
+
+<!-- Modal header 样式覆盖 -->
+<style>
+.env-manage-modal .ant-modal-header {
+  padding: 0 16px 0;
+  margin-bottom: 0;
+}
+
+.env-manage-modal .ant-modal-title {
+  font-size: 15px;
+}
+
 </style>
