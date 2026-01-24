@@ -314,32 +314,50 @@ function hasChildren(step: StepNode | any): boolean {
 
 // 获取节点序号
 function getNodeIndex(nodeId: string): string {
-  function findIndex(steps: StepNode[], prefix: string): string {
+  // 在当前层级中查找节点的序号（从1开始）
+  function findIndexInLevel(steps: StepNode[], targetId: string): number {
+    for (let i = 0; i < steps.length; i++) {
+      if (steps[i]!.id === targetId) return i + 1;
+    }
+    return -1;
+  }
+
+  // 递归查找节点并返回其在所属层级的序号
+  function findIndex(steps: StepNode[]): string {
     for (let i = 0; i < steps.length; i++) {
       const step = steps[i]!;
-      const currentIndex = prefix ? `${prefix}.${i + 1}` : `${i + 1}`;
-      if (step.id === nodeId) return currentIndex;
+      if (step.id === nodeId) return `${i + 1}`;
 
-      // condition: branches 虚拟为子层级（用于编号）
+      // condition: branches 虚拟为子层级
       if (step.type === 'condition' && step.branches?.length) {
         for (let bi = 0; bi < step.branches.length; bi++) {
           const br = step.branches[bi]!;
           const brKey = `${step.id}__br__${br.id}`;
-          const brIndex = `${currentIndex}.${bi + 1}`;
-          if (brKey === nodeId) return brIndex;
-          const found = findIndex(br.steps || [], brIndex);
+          if (brKey === nodeId) return `${bi + 1}`;
+
+          // 在分支的 steps 中查找
+          const branchIndex = findIndexInLevel(br.steps || [], nodeId);
+          if (branchIndex > 0) return `${branchIndex}`;
+
+          // 递归到分支的子步骤
+          const found = findIndex(br.steps || []);
           if (found) return found;
         }
       }
 
       if (step.children) {
-        const found = findIndex(step.children, currentIndex);
+        // 先检查是否是直接子节点
+        const childIndex = findIndexInLevel(step.children, nodeId);
+        if (childIndex > 0) return `${childIndex}`;
+
+        // 递归查找
+        const found = findIndex(step.children);
         if (found) return found;
       }
     }
     return '';
   }
-  return findIndex(props.definition.steps, '');
+  return findIndex(props.definition.steps);
 }
 
 // 将步骤转换为树形数据
