@@ -732,6 +732,109 @@ function renderAddBranchMenu(conditionId: string) {
     )
   ));
 }
+
+// 在节点上方或下方插入新节点
+function handleInsertNode(type: string, targetId: string, position: 'before' | 'after') {
+  if (props.readonly) return;
+  const newNode = createNode(type);
+  const newSteps = JSON.parse(JSON.stringify(props.definition.steps));
+  
+  insertNodeAtTarget(newSteps, newNode, targetId, position);
+  
+  emit('update', { ...props.definition, steps: newSteps });
+  emit('select', newNode);
+  localSelectedKeys.value = [newNode.id];
+  emit('update:selectedKeys', localSelectedKeys.value);
+}
+
+// 在目标节点的上方或下方插入节点
+function insertNodeAtTarget(steps: StepNode[], node: StepNode, targetId: string, position: 'before' | 'after'): boolean {
+  for (let i = 0; i < steps.length; i++) {
+    if (steps[i]!.id === targetId) {
+      const insertIndex = position === 'before' ? i : i + 1;
+      steps.splice(insertIndex, 0, node);
+      return true;
+    }
+    
+    const step = steps[i]!;
+    // 递归 condition.branches[].steps
+    if (step.type === 'condition' && step.branches?.length) {
+      for (const br of step.branches) {
+        if (br.steps?.length && insertNodeAtTarget(br.steps, node, targetId, position)) {
+          return true;
+        }
+      }
+    }
+    // 递归 children
+    if (step.children?.length && insertNodeAtTarget(step.children, node, targetId, position)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// 渲染插入节点菜单（添加子步骤 / 在上方插入 / 在下方插入）
+function renderInsertMenu(nodeId: string, canHaveChildren: boolean) {
+  const menuItems: any[] = [];
+  
+  // 如果可以有子节点，添加"添加子步骤"子菜单
+  if (canHaveChildren) {
+    menuItems.push(
+      h(Menu.SubMenu, { key: 'add-child', title: '+ 添加子步骤' }, () =>
+        nodeTypes.map((type) =>
+          h(Menu.Item, { key: `child:${type.key}` }, () =>
+            h('div', { style: 'display: flex; align-items: center; gap: 8px;' }, [
+              h(type.icon, { class: 'size-4', style: { color: type.color } }),
+              h('span', type.label),
+            ])
+          )
+        )
+      )
+    );
+  }
+  
+  // 在上方插入
+  menuItems.push(
+    h(Menu.SubMenu, { key: 'insert-before', title: '↑ 在上方插入' }, () =>
+      nodeTypes.map((type) =>
+        h(Menu.Item, { key: `before:${type.key}` }, () =>
+          h('div', { style: 'display: flex; align-items: center; gap: 8px;' }, [
+            h(type.icon, { class: 'size-4', style: { color: type.color } }),
+            h('span', type.label),
+          ])
+        )
+      )
+    )
+  );
+  
+  // 在下方插入
+  menuItems.push(
+    h(Menu.SubMenu, { key: 'insert-after', title: '↓ 在下方插入' }, () =>
+      nodeTypes.map((type) =>
+        h(Menu.Item, { key: `after:${type.key}` }, () =>
+          h('div', { style: 'display: flex; align-items: center; gap: 8px;' }, [
+            h(type.icon, { class: 'size-4', style: { color: type.color } }),
+            h('span', type.label),
+          ])
+        )
+      )
+    )
+  );
+  
+  return h(Menu, {
+    onClick: (info: { key: string | number }) => {
+      const key = String(info.key);
+      const [action, type] = key.split(':');
+      if (action === 'child') {
+        handleAddNode(type!, nodeId);
+      } else if (action === 'before') {
+        handleInsertNode(type!, nodeId, 'before');
+      } else if (action === 'after') {
+        handleInsertNode(type!, nodeId, 'after');
+      }
+    },
+  }, () => menuItems);
+}
 </script>
 
 <template>
@@ -835,7 +938,7 @@ function renderAddBranchMenu(conditionId: string) {
                 v-if="nodeProps.stepData.type === 'condition'"
                 :trigger="['click']"
               >
-                <Tooltip title="添加分支">
+                <Tooltip title="添加">
                   <Button type="text" size="small">
                     <Plus class="size-4" />
                   </Button>
@@ -844,18 +947,18 @@ function renderAddBranchMenu(conditionId: string) {
                   <component :is="renderAddBranchMenu(nodeProps.stepData.id)" />
                 </template>
               </Dropdown>
-              <!-- 其他可以有子节点的节点：显示下拉菜单选择步骤类型 -->
+              <!-- 其他节点：显示插入菜单（添加子步骤 / 在上方插入 / 在下方插入） -->
               <Dropdown
-                v-else-if="getNodeTypeConfig(nodeProps.stepData.type)?.canHaveChildren"
+                v-else
                 :trigger="['click']"
               >
-                <Tooltip title="添加子步骤">
+                <Tooltip title="添加">
                   <Button type="text" size="small">
                     <Plus class="size-4" />
                   </Button>
                 </Tooltip>
                 <template #overlay>
-                  <component :is="renderAddMenu(nodeProps.stepData.id)" />
+                  <component :is="renderInsertMenu(nodeProps.stepData.id, getNodeTypeConfig(nodeProps.stepData.type)?.canHaveChildren || false)" />
                 </template>
               </Dropdown>
               <Tooltip :title="nodeProps.stepData.disabled ? '启用' : '禁用'">
@@ -891,6 +994,17 @@ function renderAddBranchMenu(conditionId: string) {
         <div class="empty-text">暂无步骤</div>
         <div class="empty-hint">点击"添加步骤"开始构建工作流</div>
       </div>
+
+      <!-- 底部添加步骤按钮 -->
+      <Dropdown v-if="!readonly && treeData?.length" :trigger="['click']">
+        <div class="add-step-area">
+          <Plus class="size-4" />
+          <span>添加步骤</span>
+        </div>
+        <template #overlay>
+          <component :is="renderAddMenu()" />
+        </template>
+      </Dropdown>
     </div>
   </div>
 </template>
@@ -1039,6 +1153,26 @@ function renderAddBranchMenu(conditionId: string) {
 .empty-hint {
   font-size: 14px;
   color: hsl(var(--foreground) / 50%);
+}
+
+.add-step-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 10px 16px;
+  border: 1px dashed hsl(var(--border));
+  border-radius: 6px;
+  color: hsl(var(--primary));
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-step-area:hover {
+  border-color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.05);
 }
 
 :deep(.ant-tree) {
