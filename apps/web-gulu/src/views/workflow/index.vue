@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
+import { nextTick, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { Empty, Spin } from 'ant-design-vue';
@@ -49,6 +49,23 @@ watch(
   { immediate: true },
 );
 
+// 定位到当前激活的 tab 对应的节点
+function syncTreeSelection() {
+  if (!ideLayoutRef.value || !categoryTreeRef.value) {
+    return;
+  }
+  if (categoryStore.categories.length === 0) {
+    return;
+  }
+  
+  const activeTab = (ideLayoutRef.value as any).activeTab;
+  const tabData = activeTab?.value || activeTab;
+  
+  if (tabData?.data?.workflowId) {
+    categoryTreeRef.value.selectByWorkflowId(tabData.data.workflowId);
+  }
+}
+
 // 监听 projectId 变化，加载分类树
 watch(
   () => getProjectId(),
@@ -57,12 +74,39 @@ watch(
       loading.value = true;
       try {
         await categoryStore.loadCategories(newProjectId);
+        // 分类加载完成后，定位到当前激活的 tab
+        await syncTreeSelection();
       } finally {
         loading.value = false;
       }
     }
   },
   { immediate: true },
+);
+
+// 监听分类数据加载完成后进行同步
+watch(
+  () => categoryStore.categories.length,
+  (len) => {
+    if (len > 0) {
+      // 延迟执行确保所有组件已挂载
+      nextTick(() => {
+        setTimeout(syncTreeSelection, 50);
+      });
+    }
+  },
+);
+
+// 监听 categoryTreeRef 挂载
+watch(
+  () => categoryTreeRef.value,
+  (val) => {
+    if (val && categoryStore.categories.length > 0) {
+      nextTick(() => {
+        setTimeout(syncTreeSelection, 50);
+      });
+    }
+  },
 );
 
 onMounted(async () => {
@@ -72,6 +116,8 @@ onMounted(async () => {
   if (!getProjectId()) {
     router.push('/main');
   }
+  // 挂载后延迟尝试同步
+  setTimeout(syncTreeSelection, 300);
 });
 
 // 选择工作流时打开 tab
