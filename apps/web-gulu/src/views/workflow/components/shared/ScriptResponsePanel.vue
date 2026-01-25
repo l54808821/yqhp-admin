@@ -5,11 +5,12 @@
  */
 import { ref, computed } from 'vue';
 
-import { Badge, Button, Tabs, Tag } from 'ant-design-vue';
+import { Button, Tabs, Tag } from 'ant-design-vue';
 
 import { CodeEditor } from '#/components/code-editor';
 
 import type { ConsoleLogEntry } from './types';
+import ConsoleLogPanel from './ConsoleLogPanel.vue';
 
 // 脚本响应数据结构
 export interface ScriptResponseData {
@@ -68,43 +69,6 @@ const variablesCount = computed(() => {
 const consoleLogsCount = computed(() => {
   return props.response.consoleLogs?.length || 0;
 });
-
-// 日志展开状态
-const expandedLogs = ref<Set<number>>(new Set());
-
-// 判断日志是否需要折叠（超过 3 行）
-function needsCollapse(message?: string): boolean {
-  if (!message) return false;
-  const lines = message.split('\n');
-  return lines.length > 3 || message.length > 300;
-}
-
-// 获取截断的消息（最多 3 行）
-function getTruncatedMessage(message?: string): string {
-  if (!message) return '';
-  const lines = message.split('\n');
-  if (lines.length > 3) {
-    return lines.slice(0, 3).join('\n') + '...';
-  }
-  if (message.length > 300) {
-    return message.slice(0, 300) + '...';
-  }
-  return message;
-}
-
-// 切换日志展开状态
-function toggleLogExpand(idx: number) {
-  if (expandedLogs.value.has(idx)) {
-    expandedLogs.value.delete(idx);
-  } else {
-    expandedLogs.value.add(idx);
-  }
-}
-
-// 判断日志是否已展开
-function isLogExpanded(idx: number): boolean {
-  return expandedLogs.value.has(idx);
-}
 
 // 格式化结果
 function formatResult(result: unknown): string {
@@ -183,21 +147,10 @@ function handleDebug() {
       <Tabs.TabPane key="console">
         <template #tab>
           <span>控制台</span>
-          <Badge v-if="consoleLogsCount > 0" :count="consoleLogsCount" :number-style="{ fontSize: '10px' }" />
+          <span v-if="consoleLogsCount > 0" class="tab-count">{{ consoleLogsCount }}</span>
         </template>
-        <div class="tab-content">
-          <div v-if="consoleLogsCount > 0" class="console-logs">
-            <div
-              v-for="(entry, idx) in response.consoleLogs"
-              :key="idx"
-              class="log-line"
-              :class="entry.type"
-            >
-              <span class="log-prefix">[{{ entry.type.toUpperCase() }}]</span>
-              <span class="log-message">{{ entry.message }}</span>
-            </div>
-          </div>
-          <div v-else class="empty-hint">无日志输出</div>
+        <div class="tab-content console-content">
+          <ConsoleLogPanel :logs="response.consoleLogs || []" />
         </div>
       </Tabs.TabPane>
 
@@ -346,51 +299,22 @@ function handleDebug() {
   color: hsl(var(--foreground) / 85%);
 }
 
-.console-logs {
-  background: hsl(var(--accent) / 50%);
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
-  font-size: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.console-content {
+  padding: 0;
 }
 
-.log-line {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 4px 0;
-  color: hsl(var(--foreground) / 75%);
-}
-
-.log-prefix {
+.tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  margin-left: 4px;
   font-size: 10px;
-  font-weight: 500;
-  padding: 1px 4px;
-  border-radius: 3px;
-  flex-shrink: 0;
-}
-
-.log-line.log .log-prefix {
-  background: hsl(var(--foreground) / 10%);
-  color: hsl(var(--foreground) / 60%);
-}
-
-.log-line.warn .log-prefix {
-  background: hsl(45 100% 50% / 20%);
-  color: hsl(45 100% 40%);
-}
-
-.log-line.error .log-prefix {
-  background: hsl(0 84% 60% / 20%);
-  color: #ff4d4f;
-}
-
-.log-message {
-  white-space: pre-wrap;
-  word-break: break-all;
+  color: hsl(var(--foreground) / 50%);
+  background: hsl(var(--accent));
+  border-radius: 8px;
 }
 
 .variables-list {

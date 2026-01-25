@@ -5,6 +5,7 @@
 // 组件
 export { default as HttpResponsePanel } from './HttpResponsePanel.vue';
 export { default as ScriptResponsePanel } from './ScriptResponsePanel.vue';
+export { default as ConsoleLogPanel } from './ConsoleLogPanel.vue';
 
 // 类型
 export type {
