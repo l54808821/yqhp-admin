@@ -20,10 +20,6 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const emit = defineEmits<{
-  (e: 'debug-step'): void;
-}>();
-
 // 直接使用 output 作为响应数据（后端已统一为 ScriptResponseData 格式）
 const scriptResponse = computed<ScriptResponseData | null>(() => {
   const output = props.stepResult.output as ScriptResponseData | undefined;
@@ -35,10 +31,6 @@ const scriptResponse = computed<ScriptResponseData | null>(() => {
     success: props.stepResult.status === 'success',
   };
 });
-
-function handleDebugStep() {
-  emit('debug-step');
-}
 </script>
 
 <template>
@@ -55,9 +47,7 @@ function handleDebugStep() {
     <ScriptResponsePanel
       v-if="scriptResponse"
       :response="scriptResponse"
-      :show-debug-button="true"
       :show-script-tab="true"
-      @debug="handleDebugStep"
     />
 
     <div v-else class="empty-state">

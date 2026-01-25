@@ -17,19 +17,10 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const emit = defineEmits<{
-  (e: 'debug-step'): void;
-}>();
-
 // 直接使用 output 作为响应数据（后端已统一为 HTTPResponseData 格式）
 const httpResponse = computed(() => {
   return props.stepResult.output as HttpResponseData | undefined ?? null;
 });
-
-// 调试此步骤
-function handleDebugStep() {
-  emit('debug-step');
-}
 </script>
 
 <template>
@@ -46,8 +37,6 @@ function handleDebugStep() {
     <HttpResponsePanel
       v-if="httpResponse"
       :response="httpResponse"
-      :show-debug-button="true"
-      @debug="handleDebugStep"
     />
 
     <div v-else class="empty-state">

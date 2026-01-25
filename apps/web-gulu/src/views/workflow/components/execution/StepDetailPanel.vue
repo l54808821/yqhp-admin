@@ -24,11 +24,6 @@ interface Props {
 
 defineProps<Props>();
 
-const emit = defineEmits<{
-  (e: 'debugHttpStep'): void;
-  (e: 'debugScriptStep'): void;
-}>();
-
 // 获取步骤状态图标
 function getStepIcon(status?: string) {
   switch (status) {
@@ -78,14 +73,12 @@ function formatDuration(ms?: number) {
           <HttpStepDetail
             v-if="selectedStep.step_type === 'http'"
             :step-result="selectedStep"
-            @debug-step="emit('debugHttpStep')"
           />
 
           <!-- 脚本步骤使用专用组件 -->
           <ScriptStepDetail
             v-else-if="selectedStep.step_type === 'script'"
             :step-result="selectedStep"
-            @debug-step="emit('debugScriptStep')"
           />
 
           <!-- 条件判断步骤使用专用组件 -->

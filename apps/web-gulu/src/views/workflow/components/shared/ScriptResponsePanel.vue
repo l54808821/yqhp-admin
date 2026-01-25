@@ -5,7 +5,7 @@
  */
 import { ref, computed } from 'vue';
 
-import { Button, Tabs, Tag } from 'ant-design-vue';
+import { Tabs, Tag } from 'ant-design-vue';
 
 import { CodeEditor } from '#/components/code-editor';
 
@@ -17,18 +17,12 @@ export type { ScriptResponseData };
 
 interface Props {
   response: ScriptResponseData;
-  showDebugButton?: boolean;
   showScriptTab?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  showDebugButton: false,
   showScriptTab: true,
 });
-
-const emit = defineEmits<{
-  (e: 'debug'): void;
-}>();
 
 const activeTab = ref(props.showScriptTab ? 'script' : 'result');
 
@@ -68,9 +62,6 @@ function formatDuration(ms: number): string {
   return `${(ms / 1000).toFixed(2)}s`;
 }
 
-function handleDebug() {
-  emit('debug');
-}
 </script>
 
 <template>
@@ -84,14 +75,6 @@ function handleDebug() {
         <span class="divider">|</span>
         <span class="meta-item">语言: {{ response.language || 'javascript' }}</span>
       </div>
-      <Button
-        v-if="showDebugButton"
-        type="primary"
-        size="small"
-        @click="handleDebug"
-      >
-        调试此步骤
-      </Button>
     </div>
 
     <!-- 错误信息 -->

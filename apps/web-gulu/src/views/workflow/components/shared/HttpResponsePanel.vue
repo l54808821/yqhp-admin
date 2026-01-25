@@ -6,7 +6,7 @@
 import { ref, computed } from 'vue';
 
 import { createIconifyIcon } from '@vben/icons';
-import { Badge, Button, Tabs, Tag } from 'ant-design-vue';
+import { Badge, Tabs, Tag } from 'ant-design-vue';
 
 import { ResponseBodyEditor } from '#/components/code-editor';
 
@@ -18,16 +18,9 @@ const XCircleIcon = createIconifyIcon('lucide:x-circle');
 
 interface Props {
   response: HttpResponseData;
-  showDebugButton?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  showDebugButton: false,
-});
-
-const emit = defineEmits<{
-  (e: 'debug'): void;
-}>();
+const props = defineProps<Props>();
 
 const activeTab = ref('body');
 
@@ -92,10 +85,6 @@ const failedAssertions = computed(() => assertionResults.value.filter(a => !a.pa
 function formatHeaderValue(value: string | string[]): string {
   return Array.isArray(value) ? value.join(', ') : value;
 }
-
-function handleDebug() {
-  emit('debug');
-}
 </script>
 
 <template>
@@ -133,14 +122,6 @@ function handleDebug() {
         </Tag>
         <span class="meta-item">{{ formatDuration(response.duration) }}</span>
         <span class="meta-item">{{ formatSize(response.size) }}</span>
-        <Button
-          v-if="showDebugButton"
-          type="primary"
-          size="small"
-          @click="handleDebug"
-        >
-          调试此步骤
-        </Button>
       </div>
     </div>
 
