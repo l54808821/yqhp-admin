@@ -37,6 +37,27 @@ export interface UseExecutionOptions {
   onComplete?: (summary: DebugSummary) => void;
 }
 
+// 递归过滤禁用的步骤
+function filterDisabledSteps(steps: any[]): any[] {
+  return steps
+    .filter((step) => !step.disabled)
+    .map((step) => {
+      const newStep = { ...step };
+      // 处理循环节点的 steps
+      if (newStep.steps && Array.isArray(newStep.steps)) {
+        newStep.steps = filterDisabledSteps(newStep.steps);
+      }
+      // 处理条件节点的 branches
+      if (newStep.branches && Array.isArray(newStep.branches)) {
+        newStep.branches = newStep.branches.map((branch: any) => ({
+          ...branch,
+          steps: branch.steps ? filterDisabledSteps(branch.steps) : [],
+        }));
+      }
+      return newStep;
+    });
+}
+
 export function useExecution(options: UseExecutionOptions) {
   const {
     workflowId,
@@ -395,7 +416,11 @@ export function useExecution(options: UseExecutionOptions) {
       };
 
       if (definition?.value) {
-        params.definition = definition.value;
+        // 过滤掉禁用的步骤
+        params.definition = {
+          ...definition.value,
+          steps: filterDisabledSteps(definition.value.steps || []),
+        };
       }
 
       if (selectedSteps?.value && selectedSteps.value.length > 0) {
