@@ -10,6 +10,7 @@ export { default as ConsoleLogPanel } from './ConsoleLogPanel.vue';
 // 类型
 export type {
   HttpResponseData,
+  ScriptResponseData,
   ConsoleLogEntry,
   ProcessorLogInfo,
   ConsoleLogType,
@@ -17,6 +18,3 @@ export type {
   ActualRequest,
   DebugStepApiResponse,
 } from './types';
-
-// 脚本响应类型
-export type { ScriptResponseData } from './ScriptResponsePanel.vue';

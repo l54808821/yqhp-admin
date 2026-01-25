@@ -14,17 +14,6 @@ import {
   type ScriptResponseData,
 } from '../../shared';
 
-// 脚本输出类型定义
-interface ScriptOutput {
-  script?: string;
-  language?: string;
-  result?: unknown;
-  consoleLogs?: Array<{ type: string; message?: string }>;
-  error?: string;
-  variables?: Record<string, unknown>;
-  durationMs?: number;
-}
-
 interface Props {
   stepResult: StepResult;
 }
@@ -35,20 +24,15 @@ const emit = defineEmits<{
   (e: 'debug-step'): void;
 }>();
 
-// 转换为统一的响应格式
+// 直接使用 output 作为响应数据（后端已统一为 ScriptResponseData 格式）
 const scriptResponse = computed<ScriptResponseData | null>(() => {
-  const output = props.stepResult.output as ScriptOutput | undefined;
+  const output = props.stepResult.output as ScriptResponseData | undefined;
   if (!output) return null;
 
+  // 补充 success 状态（后端 output 中没有此字段，需要从 stepResult 推断）
   return {
+    ...output,
     success: props.stepResult.status === 'success',
-    language: output.language || 'javascript',
-    durationMs: output.durationMs || props.stepResult.duration_ms || 0,
-    script: output.script || '',
-    result: output.result,
-    error: output.error || props.stepResult.error || '',
-    consoleLogs: output.consoleLogs || [],
-    variables: output.variables || {},
   };
 });
 

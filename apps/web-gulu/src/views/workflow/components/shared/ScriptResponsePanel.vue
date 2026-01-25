@@ -9,29 +9,11 @@ import { Button, Tabs, Tag } from 'ant-design-vue';
 
 import { CodeEditor } from '#/components/code-editor';
 
-import type { ConsoleLogEntry } from './types';
+import type { ConsoleLogEntry, ScriptResponseData } from './types';
 import ConsoleLogPanel from './ConsoleLogPanel.vue';
 
-// 脚本响应数据结构
-export interface ScriptResponseData {
-  // 执行状态
-  success: boolean;
-  language?: string;
-  durationMs: number;
-
-  // 脚本内容
-  script?: string;
-
-  // 执行结果
-  result?: unknown;
-  error?: string;
-
-  // 控制台日志（统一格式）
-  consoleLogs?: ConsoleLogEntry[];
-
-  // 变量
-  variables?: Record<string, unknown>;
-}
+// 重新导出类型供外部使用
+export type { ScriptResponseData };
 
 interface Props {
   response: ScriptResponseData;

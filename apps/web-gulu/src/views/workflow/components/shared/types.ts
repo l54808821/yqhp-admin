@@ -68,10 +68,35 @@ export interface HttpResponseData {
   error?: string;
 }
 
+// 统一的脚本响应数据结构（camelCase）
+export interface ScriptResponseData {
+  // 脚本信息
+  script?: string;
+  language?: string;
+
+  // 执行结果
+  result?: unknown;
+  durationMs: number; // 毫秒
+  error?: string;
+
+  // 变量（脚本执行后的变量状态）
+  variables?: Record<string, unknown>;
+
+  // 控制台日志
+  consoleLogs?: ConsoleLogEntry[];
+
+  // 断言结果（如果有）
+  assertions?: AssertionResult[];
+
+  // 由前端补充的状态字段
+  success?: boolean;
+}
+
 // 单步调试 API 响应类型（后端返回的格式）
 export interface DebugStepApiResponse {
   success: boolean;
   response?: HttpResponseData;
+  scriptResult?: ScriptResponseData;
   assertionResults?: AssertionResult[];
   consoleLogs?: ConsoleLogEntry[];
   actualRequest?: ActualRequest;
