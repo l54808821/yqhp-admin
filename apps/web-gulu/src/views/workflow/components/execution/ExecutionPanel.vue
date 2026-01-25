@@ -90,16 +90,6 @@ function handleClose() {
   emit('close');
 }
 
-// 调试 HTTP 步骤
-function handleDebugHttpStep() {
-  console.log('Debug HTTP step:', stepTree.selectedStep.value);
-}
-
-// 调试脚本步骤
-function handleDebugScriptStep() {
-  console.log('Debug Script step:', stepTree.selectedStep.value);
-}
-
 // 暴露方法
 defineExpose({
   startExecution: execution.start,
@@ -168,8 +158,6 @@ defineExpose({
         :is-iteration-selected="stepTree.isIterationSelected.value"
         :ai-content="selectedStepAIContent"
         :current-a-i-step-id="execution.currentAIStepId.value"
-        @debug-http-step="handleDebugHttpStep"
-        @debug-script-step="handleDebugScriptStep"
       />
     </div>
 
