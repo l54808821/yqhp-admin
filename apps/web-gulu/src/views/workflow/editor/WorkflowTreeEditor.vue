@@ -618,14 +618,73 @@ function addNodeToParent(steps: StepNode[], node: StepNode, parentId: string) {
 // 复制节点
 function handleCopyNode(step: StepNode) {
   if (props.readonly) return;
+
+  // 处理 condition_branch 虚拟节点的复制
+  if ((step as any).type === 'condition_branch' && (step as any).parentConditionId && (step as any).branch) {
+    const newSteps = JSON.parse(JSON.stringify(props.definition.steps));
+    const conditionNode = findNodeById(newSteps, (step as any).parentConditionId);
+    if (conditionNode && conditionNode.type === 'condition' && conditionNode.branches?.length) {
+      const originalBranch = (step as any).branch;
+      const branchIndex = conditionNode.branches.findIndex((br: any) => br.id === originalBranch.id);
+      if (branchIndex !== -1) {
+        // 复制分支
+        const newBranch = {
+          ...JSON.parse(JSON.stringify(originalBranch)),
+          id: `br_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          name: `${originalBranch.name || originalBranch.kind} (复制)`,
+        };
+        // 递归为复制的分支内的所有步骤生成新 ID
+        if (newBranch.steps?.length) {
+          newBranch.steps = regenerateStepIds(newBranch.steps);
+        }
+        // 在原分支后面插入
+        conditionNode.branches.splice(branchIndex + 1, 0, newBranch);
+        emit('update', { ...props.definition, steps: newSteps });
+      }
+    }
+    return;
+  }
+
   const newNode: StepNode = {
     ...JSON.parse(JSON.stringify(step)),
     id: `step_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     name: `${step.name} (复制)`,
   };
+  // 递归为复制的节点内的所有子步骤生成新 ID
+  if (newNode.children?.length) {
+    newNode.children = regenerateStepIds(newNode.children);
+  }
+  if (newNode.type === 'condition' && newNode.branches?.length) {
+    newNode.branches = newNode.branches.map((br: any) => ({
+      ...br,
+      id: `br_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      steps: br.steps?.length ? regenerateStepIds(br.steps) : [],
+    }));
+  }
   const newSteps = JSON.parse(JSON.stringify(props.definition.steps));
   insertCopiedNode(newSteps, step.id, newNode);
   emit('update', { ...props.definition, steps: newSteps });
+}
+
+// 递归为步骤及其子步骤生成新 ID
+function regenerateStepIds(steps: StepNode[]): StepNode[] {
+  return steps.map((step) => {
+    const newStep: StepNode = {
+      ...step,
+      id: `step_${Date.now()}_${Math.random().toString(36).slice(2, 7)}_${Math.random().toString(36).slice(2, 4)}`,
+    };
+    if (newStep.children?.length) {
+      newStep.children = regenerateStepIds(newStep.children);
+    }
+    if (newStep.type === 'condition' && newStep.branches?.length) {
+      newStep.branches = newStep.branches.map((br: any) => ({
+        ...br,
+        id: `br_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        steps: br.steps?.length ? regenerateStepIds(br.steps) : [],
+      }));
+    }
+    return newStep;
+  });
 }
 
 function insertCopiedNode(steps: StepNode[], afterId: string, newNode: StepNode): boolean {

@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import type Sortable from 'sortablejs';
+
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
+
 import { Button, Input, Select, Popconfirm } from 'ant-design-vue';
 import { GripVertical, X } from '@vben/icons';
 
@@ -12,6 +15,8 @@ const emit = defineEmits<{
 }>();
 
 const branches = computed(() => props.node.branches || []);
+const branchListRef = ref<HTMLElement | null>(null);
+let sortableInstance: Sortable | null = null;
 
 const kindOptions = [
   { value: 'if', label: 'IF' },
@@ -19,9 +24,58 @@ const kindOptions = [
   { value: 'else', label: 'ELSE' },
 ];
 
-// 拖拽相关状态
-const dragIndex = ref<number | null>(null);
-const dragOverIndex = ref<number | null>(null);
+// 初始化 Sortable
+async function initSortable() {
+  if (sortableInstance) {
+    sortableInstance.destroy();
+    sortableInstance = null;
+  }
+
+  if (!branchListRef.value) return;
+
+  const SortableModule = await import('sortablejs');
+  const SortableClass = SortableModule.default;
+
+  sortableInstance = SortableClass.create(branchListRef.value, {
+    animation: 200,
+    delay: 0,
+    handle: '.drag-handle',
+    ghostClass: 'branch-card-ghost',
+    chosenClass: 'branch-card-chosen',
+    dragClass: 'branch-card-drag',
+    onEnd: handleSortEnd,
+  });
+}
+
+// 监听 branches 变化，重新初始化 Sortable
+watch(
+  () => props.node.branches?.length,
+  async () => {
+    await nextTick();
+    initSortable();
+  },
+  { immediate: true },
+);
+
+onUnmounted(() => {
+  if (sortableInstance) {
+    sortableInstance.destroy();
+    sortableInstance = null;
+  }
+});
+
+// 拖拽排序结束
+function handleSortEnd(event: { oldIndex?: number; newIndex?: number }) {
+  const { oldIndex, newIndex } = event;
+  if (oldIndex === undefined || newIndex === undefined || oldIndex === newIndex) {
+    return;
+  }
+
+  const branches = props.node.branches;
+  const [removed] = branches.splice(oldIndex, 1);
+  branches.splice(newIndex, 0, removed);
+  emit('update', props.node);
+}
 
 // 生成新分支 ID
 function newBranchId() {
@@ -61,45 +115,6 @@ function handleKindChange(index: number) {
   }
   handleUpdate();
 }
-
-// 拖拽开始
-function handleDragStart(index: number) {
-  dragIndex.value = index;
-}
-
-// 拖拽经过
-function handleDragOver(e: DragEvent, index: number) {
-  e.preventDefault();
-  dragOverIndex.value = index;
-}
-
-// 拖拽离开
-function handleDragLeave() {
-  dragOverIndex.value = null;
-}
-
-// 拖拽结束
-function handleDrop(targetIndex: number) {
-  if (dragIndex.value === null || dragIndex.value === targetIndex) {
-    dragIndex.value = null;
-    dragOverIndex.value = null;
-    return;
-  }
-
-  const branches = props.node.branches;
-  const [removed] = branches.splice(dragIndex.value, 1);
-  branches.splice(targetIndex, 0, removed);
-
-  dragIndex.value = null;
-  dragOverIndex.value = null;
-  emit('update', props.node);
-}
-
-// 拖拽结束清理
-function handleDragEnd() {
-  dragIndex.value = null;
-  dragOverIndex.value = null;
-}
 </script>
 
 <template>
@@ -113,24 +128,17 @@ function handleDragEnd() {
       暂无分支，点击上方按钮添加
     </div>
 
-    <div v-else class="branch-list">
+    <div v-else ref="branchListRef" class="branch-list">
       <div
         v-for="(br, index) in branches"
         :key="br.id"
+        :data-id="br.id"
         class="branch-card"
         :class="{
-          'dragging': dragIndex === index,
-          'drag-over': dragOverIndex === index && dragIndex !== index,
           'is-if': br.kind === 'if',
           'is-else-if': br.kind === 'else_if',
           'is-else': br.kind === 'else'
         }"
-        draggable="true"
-        @dragstart="handleDragStart(index)"
-        @dragover="handleDragOver($event, index)"
-        @dragleave="handleDragLeave"
-        @drop="handleDrop(index)"
-        @dragend="handleDragEnd"
       >
         <div class="card-header">
           <!-- 拖拽手柄 -->
@@ -232,13 +240,21 @@ function handleDragEnd() {
   box-shadow: 0 2px 8px hsl(var(--foreground) / 0.05);
 }
 
-.branch-card.dragging {
-  opacity: 0.5;
+/* Sortable.js 拖拽动画样式 */
+.branch-card-ghost {
+  opacity: 0.4;
+  background: hsl(var(--primary) / 0.1);
+  border: 2px dashed hsl(var(--primary));
 }
 
-.branch-card.drag-over {
-  border-color: hsl(var(--primary));
-  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2);
+.branch-card-chosen {
+  box-shadow: 0 8px 24px hsl(var(--foreground) / 0.15);
+  transform: scale(1.02);
+}
+
+.branch-card-drag {
+  opacity: 0.95;
+  box-shadow: 0 12px 32px hsl(var(--foreground) / 0.2);
 }
 
 /* 根据分支类型添加左边框颜色 */
