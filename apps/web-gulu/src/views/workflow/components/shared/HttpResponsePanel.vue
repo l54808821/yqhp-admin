@@ -10,12 +10,12 @@ import { Badge, Button, Tabs, Tag } from 'ant-design-vue';
 
 import { ResponseBodyEditor } from '#/components/code-editor';
 
-import type { HttpResponseData, ConsoleLogEntry } from './types';
+import type { HttpResponseData } from './types';
+
+import { Tooltip } from 'ant-design-vue';
 
 const CheckCircleIcon = createIconifyIcon('lucide:check-circle');
 const XCircleIcon = createIconifyIcon('lucide:x-circle');
-const ChevronRightIcon = createIconifyIcon('lucide:chevron-right');
-const ChevronDownIcon = createIconifyIcon('lucide:chevron-down');
 
 interface Props {
   response: HttpResponseData;
@@ -82,19 +82,10 @@ const consoleLogsCount = computed(() => {
   return props.response.consoleLogs?.length || 0;
 });
 
-// 处理器展开状态
-const expandedProcessors = ref<Set<string>>(new Set());
-
-function toggleProcessor(id: string) {
-  if (expandedProcessors.value.has(id)) {
-    expandedProcessors.value.delete(id);
-  } else {
-    expandedProcessors.value.add(id);
-  }
-}
-
-function isProcessorExpanded(id: string): boolean {
-  return expandedProcessors.value.has(id);
+// 格式化处理器输出为 tooltip 内容
+function formatProcessorOutput(output?: Record<string, unknown>): string {
+  if (!output) return '';
+  return JSON.stringify(output, null, 2);
 }
 
 // 断言结果
@@ -240,59 +231,40 @@ function handleDebug() {
       <!-- 控制台 -->
       <div v-else-if="activeTab === 'console'" class="tab-content console-content">
         <template v-if="response.consoleLogs && response.consoleLogs.length > 0">
-          <template v-for="(entry, idx) in response.consoleLogs" :key="idx">
-            <!-- 处理器日志（可折叠） -->
-            <div
-              v-if="entry.type === 'processor' && entry.processor"
-              class="console-entry processor-entry"
-              :class="{ 
-                success: entry.processor.success, 
-                failed: !entry.processor.success,
-                expanded: isProcessorExpanded(entry.processor.id)
-              }"
-            >
-              <div class="processor-header" @click="toggleProcessor(entry.processor.id)">
-                <component
-                  :is="isProcessorExpanded(entry.processor.id) ? ChevronDownIcon : ChevronRightIcon"
-                  class="expand-icon"
-                />
-                <span class="phase-tag" :class="entry.processor.phase">
-                  {{ entry.processor.phase === 'pre' ? '前置' : '后置' }}
-                </span>
-                <span class="processor-type">{{ getProcessorTypeName(entry.processor.procType) }}</span>
-                <span v-if="entry.processor.message" class="processor-message">{{ entry.processor.message }}</span>
-                <component
-                  :is="entry.processor.success ? CheckCircleIcon : XCircleIcon"
-                  class="processor-status-icon"
-                />
-              </div>
-              <!-- 展开的详情 -->
-              <div v-if="isProcessorExpanded(entry.processor.id)" class="processor-details">
-                <div class="detail-row">
-                  <span class="detail-label">ID:</span>
-                  <span class="detail-value">{{ entry.processor.id }}</span>
-                </div>
-                <div v-if="entry.processor.name" class="detail-row">
-                  <span class="detail-label">名称:</span>
-                  <span class="detail-value">{{ entry.processor.name }}</span>
-                </div>
-                <div v-if="entry.processor.output" class="detail-row">
-                  <span class="detail-label">输出:</span>
-                  <pre class="detail-value output-pre">{{ JSON.stringify(entry.processor.output, null, 2) }}</pre>
-                </div>
-              </div>
-            </div>
+          <div
+            v-for="(entry, idx) in response.consoleLogs"
+            :key="idx"
+            class="console-entry"
+            :class="[
+              entry.type === 'processor' ? 'processor-entry' : 'log-entry',
+              entry.type === 'processor' ? (entry.processor?.success ? 'success' : 'failed') : entry.type
+            ]"
+          >
+            <!-- 处理器日志 -->
+            <template v-if="entry.type === 'processor' && entry.processor">
+              <span class="phase-tag" :class="entry.processor.phase">
+                {{ entry.processor.phase === 'pre' ? '前置' : '后置' }}
+              </span>
+              <span class="processor-type">{{ getProcessorTypeName(entry.processor.procType) }}</span>
+              <Tooltip v-if="entry.processor.output" placement="top">
+                <template #title>
+                  <pre class="output-tooltip">{{ formatProcessorOutput(entry.processor.output) }}</pre>
+                </template>
+                <span class="processor-message clickable">{{ entry.processor.message }}</span>
+              </Tooltip>
+              <span v-else class="processor-message">{{ entry.processor.message }}</span>
+              <component
+                :is="entry.processor.success ? CheckCircleIcon : XCircleIcon"
+                class="status-icon"
+              />
+            </template>
 
             <!-- 普通日志 -->
-            <div
-              v-else
-              class="console-entry log-entry"
-              :class="entry.type"
-            >
+            <template v-else>
               <span class="log-prefix">[{{ entry.type.toUpperCase() }}]</span>
               <span class="log-message">{{ entry.message }}</span>
-            </div>
-          </template>
+            </template>
+          </div>
         </template>
 
         <div v-if="!hasConsoleOutput" class="empty-hint">无控制台输出</div>
@@ -513,50 +485,25 @@ function handleDebug() {
 .console-content {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   padding: 8px 0;
 }
 
 .console-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 3px;
   font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
   font-size: 12px;
 }
 
-/* 处理器日志条目 */
-.processor-entry {
+.console-entry:hover {
   background: hsl(var(--accent) / 30%);
-  border-radius: 4px;
-  border-left: 3px solid hsl(var(--border));
 }
 
-.processor-entry.success {
-  border-left-color: #52c41a;
-}
-
-.processor-entry.failed {
-  border-left-color: #ff4d4f;
-}
-
-.processor-entry .processor-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  cursor: pointer;
-  user-select: none;
-}
-
-.processor-entry .processor-header:hover {
-  background: hsl(var(--accent) / 50%);
-}
-
-.expand-icon {
-  width: 14px;
-  height: 14px;
-  color: hsl(var(--foreground) / 50%);
-  flex-shrink: 0;
-}
-
+/* 阶段标签 */
 .phase-tag {
   font-size: 10px;
   font-weight: 500;
@@ -575,15 +522,15 @@ function handleDebug() {
   color: hsl(280 80% 50%);
 }
 
+/* 处理器类型 */
 .processor-type {
-  font-size: 12px;
   font-weight: 500;
   color: hsl(var(--foreground) / 80%);
   flex-shrink: 0;
 }
 
+/* 处理器消息 */
 .processor-message {
-  font-size: 12px;
   color: hsl(var(--foreground) / 60%);
   flex: 1;
   overflow: hidden;
@@ -591,66 +538,44 @@ function handleDebug() {
   white-space: nowrap;
 }
 
-.processor-status-icon {
+.processor-message.clickable {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dashed;
+  text-underline-offset: 2px;
+}
+
+.processor-message.clickable:hover {
+  color: hsl(var(--primary));
+}
+
+/* 状态图标 */
+.status-icon {
   width: 14px;
   height: 14px;
   flex-shrink: 0;
 }
 
-.processor-entry.success .processor-status-icon {
+.processor-entry.success .status-icon {
   color: #52c41a;
 }
 
-.processor-entry.failed .processor-status-icon {
+.processor-entry.failed .status-icon {
   color: #ff4d4f;
 }
 
-/* 处理器详情 */
-.processor-details {
-  padding: 8px 12px 8px 32px;
-  background: hsl(var(--background));
-  border-top: 1px solid hsl(var(--border) / 30%);
-  font-size: 11px;
-}
-
-.detail-row {
-  display: flex;
-  gap: 8px;
-  padding: 2px 0;
-}
-
-.detail-label {
-  color: hsl(var(--foreground) / 50%);
-  min-width: 40px;
-}
-
-.detail-value {
-  color: hsl(var(--foreground) / 80%);
-  word-break: break-all;
-}
-
-.output-pre {
+/* 输出 Tooltip */
+.output-tooltip {
   margin: 0;
-  padding: 4px 8px;
-  background: hsl(var(--accent) / 30%);
-  border-radius: 3px;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  font-size: 11px;
   white-space: pre-wrap;
-  font-size: 10px;
+  max-width: 400px;
+  max-height: 300px;
+  overflow: auto;
 }
 
 /* 普通日志条目 */
-.log-entry {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 4px 8px;
-  border-radius: 3px;
-}
-
-.log-entry:hover {
-  background: hsl(var(--accent) / 30%);
-}
-
 .log-prefix {
   font-size: 10px;
   font-weight: 500;
