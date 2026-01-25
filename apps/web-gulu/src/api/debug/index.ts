@@ -263,10 +263,18 @@ export interface ScriptResult {
   script: string;
   language: string;
   result?: unknown;
-  console_logs: string[];
+  consoleLogs: ConsoleLogEntry[];
   error?: string;
   variables: Record<string, unknown>;
-  duration_ms: number;
+  durationMs: number;
+}
+
+// 实际请求信息
+export interface ActualRequest {
+  url: string;
+  method: string;
+  headers: Record<string, string>;
+  body?: string;
 }
 
 // 控制台日志条目
@@ -285,19 +293,22 @@ export interface ConsoleLogEntry {
   };
 }
 
+// HTTP 响应数据（统一格式）
+export interface HttpResponseData {
+  statusCode: number;
+  statusText: string;
+  duration: number;
+  size: number;
+  headers: Record<string, string>;
+  cookies?: Record<string, string>;
+  body: string;
+  bodyType: string;
+}
+
 // 单步调试响应
 export interface DebugStepResponse {
   success: boolean;
-  response?: {
-    statusCode: number;
-    statusText: string;
-    duration: number;
-    size: number;
-    headers: Record<string, string>;
-    cookies?: Record<string, string>;
-    body: string;
-    bodyType: string;
-  };
+  response?: HttpResponseData;
   scriptResult?: ScriptResult;
   assertionResults?: Array<{
     name: string;
@@ -305,12 +316,7 @@ export interface DebugStepResponse {
     message?: string;
   }>;
   consoleLogs?: ConsoleLogEntry[];
-  actualRequest?: {
-    url: string;
-    method: string;
-    headers: Record<string, string>;
-    body?: string;
-  };
+  actualRequest?: ActualRequest;
   error?: string;
 }
 

@@ -19,10 +19,10 @@ interface ScriptOutput {
   script?: string;
   language?: string;
   result?: unknown;
-  console_logs?: string[];
+  consoleLogs?: Array<{ type: string; message?: string }>;
   error?: string;
   variables?: Record<string, unknown>;
-  duration_ms?: number;
+  durationMs?: number;
 }
 
 interface Props {
@@ -43,11 +43,11 @@ const scriptResponse = computed<ScriptResponseData | null>(() => {
   return {
     success: props.stepResult.status === 'success',
     language: output.language || 'javascript',
-    durationMs: output.duration_ms || props.stepResult.duration_ms || 0,
+    durationMs: output.durationMs || props.stepResult.duration_ms || 0,
     script: output.script || '',
     result: output.result,
     error: output.error || props.stepResult.error || '',
-    consoleLogs: output.console_logs || [],
+    consoleLogs: output.consoleLogs || [],
     variables: output.variables || {},
   };
 });

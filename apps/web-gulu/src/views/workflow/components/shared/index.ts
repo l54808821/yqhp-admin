@@ -14,15 +14,9 @@ export type {
   ProcessorLogInfo,
   ConsoleLogType,
   AssertionResult,
+  ActualRequest,
   DebugStepApiResponse,
-  StepResultOutput,
 } from './types';
 
 // 脚本响应类型
 export type { ScriptResponseData } from './ScriptResponsePanel.vue';
-
-// 工具函数
-export {
-  fromDebugStepResponse,
-  fromStepResultOutput,
-} from './httpResponseUtils';

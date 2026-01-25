@@ -1,5 +1,6 @@
 /**
  * HTTP 响应共享类型定义
+ * 统一使用驼峰命名（camelCase）
  */
 
 // 控制台日志类型
@@ -34,7 +35,15 @@ export interface AssertionResult {
   actual?: string;
 }
 
-// 统一的 HTTP 响应数据结构
+// 实际请求信息
+export interface ActualRequest {
+  url: string;
+  method: string;
+  headers?: Record<string, string>;
+  body?: string;
+}
+
+// 统一的 HTTP 响应数据结构（camelCase）
 export interface HttpResponseData {
   // 响应状态
   statusCode: number;
@@ -53,12 +62,7 @@ export interface HttpResponseData {
   assertions?: AssertionResult[];
 
   // 实际请求（调试用）
-  actualRequest?: {
-    url: string;
-    method: string;
-    headers: Record<string, string>;
-    body?: string;
-  };
+  actualRequest?: ActualRequest;
 
   // 错误信息
   error?: string;
@@ -67,42 +71,9 @@ export interface HttpResponseData {
 // 单步调试 API 响应类型（后端返回的格式）
 export interface DebugStepApiResponse {
   success: boolean;
-  response?: {
-    statusCode: number;
-    statusText: string;
-    duration: number;
-    size: number;
-    headers: Record<string, string>;
-    cookies?: Record<string, string>;
-    body: string;
-    bodyType: string;
-  };
+  response?: HttpResponseData;
   assertionResults?: AssertionResult[];
   consoleLogs?: ConsoleLogEntry[];
-  actualRequest?: {
-    url: string;
-    method: string;
-    headers: Record<string, string>;
-    body?: string;
-  };
+  actualRequest?: ActualRequest;
   error?: string;
-}
-
-// 流程执行步骤输出类型（后端返回的格式）
-export interface StepResultOutput {
-  status_code?: number;
-  statusCode?: number;
-  status?: string;
-  body_raw?: string;
-  body?: unknown;
-  headers?: Record<string, string | string[]>;
-  cookies?: Record<string, string>;
-  request?: {
-    method: string;
-    url: string;
-    headers?: Record<string, string>;
-    body?: string;
-  };
-  assertions?: AssertionResult[];
-  console_logs?: ConsoleLogEntry[];
 }

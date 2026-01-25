@@ -9,11 +9,7 @@ import { Alert } from 'ant-design-vue';
 
 import type { StepResult } from '#/api/debug';
 
-import {
-  HttpResponsePanel,
-  fromStepResultOutput,
-  type StepResultOutput,
-} from '../../shared';
+import { HttpResponsePanel, type HttpResponseData } from '../../shared';
 
 interface Props {
   stepResult: StepResult;
@@ -25,12 +21,16 @@ const emit = defineEmits<{
   (e: 'debug-step'): void;
 }>();
 
-// 转换为统一的响应格式
+// 直接使用 output 作为响应数据（后端已统一格式）
 const httpResponse = computed(() => {
-  const output = props.stepResult.output as StepResultOutput | undefined;
+  const output = props.stepResult.output as HttpResponseData | undefined;
   if (!output) return null;
 
-  return fromStepResultOutput(output, props.stepResult.duration_ms);
+  // 如果 output 中没有 duration，从 stepResult 中获取
+  if (!output.duration && props.stepResult.duration_ms) {
+    output.duration = props.stepResult.duration_ms;
+  }
+  return output;
 });
 
 // 调试此步骤

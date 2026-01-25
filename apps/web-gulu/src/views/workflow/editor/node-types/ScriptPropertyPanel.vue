@@ -128,9 +128,9 @@ async function handleRun() {
       debugResponse.value = {
         success: !scriptResult?.error,
         language: scriptResult?.language || 'javascript',
-        durationMs: scriptResult?.duration_ms || 0,
+        durationMs: scriptResult?.durationMs || 0,
         result: scriptResult?.result,
-        consoleLogs: scriptResult?.console_logs || response.consoleLogs || [],
+        consoleLogs: scriptResult?.consoleLogs || response.consoleLogs || [],
         variables: scriptResult?.variables || {},
         error: scriptResult?.error || response.error,
       };
