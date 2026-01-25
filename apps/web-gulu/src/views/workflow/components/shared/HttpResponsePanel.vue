@@ -139,7 +139,7 @@ function handleDebug() {
         <Tabs.TabPane key="console" v-if="hasConsoleOutput">
           <template #tab>
             <span>控制台</span>
-            <Badge v-if="consoleLogsCount > 0" status="processing" :dot="true" />
+            <span v-if="consoleLogsCount > 0" class="tab-count">{{ consoleLogsCount }}</span>
           </template>
         </Tabs.TabPane>
         <Tabs.TabPane key="request" v-if="response.actualRequest" tab="实际请求" />

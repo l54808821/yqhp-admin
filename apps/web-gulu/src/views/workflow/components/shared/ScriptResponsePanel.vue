@@ -69,6 +69,43 @@ const consoleLogsCount = computed(() => {
   return props.response.consoleLogs?.length || 0;
 });
 
+// 日志展开状态
+const expandedLogs = ref<Set<number>>(new Set());
+
+// 判断日志是否需要折叠（超过 3 行）
+function needsCollapse(message?: string): boolean {
+  if (!message) return false;
+  const lines = message.split('\n');
+  return lines.length > 3 || message.length > 300;
+}
+
+// 获取截断的消息（最多 3 行）
+function getTruncatedMessage(message?: string): string {
+  if (!message) return '';
+  const lines = message.split('\n');
+  if (lines.length > 3) {
+    return lines.slice(0, 3).join('\n') + '...';
+  }
+  if (message.length > 300) {
+    return message.slice(0, 300) + '...';
+  }
+  return message;
+}
+
+// 切换日志展开状态
+function toggleLogExpand(idx: number) {
+  if (expandedLogs.value.has(idx)) {
+    expandedLogs.value.delete(idx);
+  } else {
+    expandedLogs.value.add(idx);
+  }
+}
+
+// 判断日志是否已展开
+function isLogExpanded(idx: number): boolean {
+  return expandedLogs.value.has(idx);
+}
+
 // 格式化结果
 function formatResult(result: unknown): string {
   if (result === undefined) return 'undefined';
