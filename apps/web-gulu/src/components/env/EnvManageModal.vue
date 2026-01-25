@@ -371,15 +371,15 @@ function getEnvStatusText(env: Env) {
 .env-card-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .env-card {
   display: flex;
   align-items: center;
-  padding: 12px 14px;
+  padding: 8px 10px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
   border: 2px solid transparent;
