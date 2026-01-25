@@ -233,9 +233,7 @@ async function handleSend() {
         body: response.response.body,
         bodyType: response.response.bodyType,
         assertions: response.assertionResults,
-        console: response.consoleLogs,
-        preProcessorResults: response.preProcessorResults,
-        postProcessorResults: response.postProcessorResults,
+        consoleLogs: response.consoleLogs,
         actualRequest: response.actualRequest,
       };
     } else {

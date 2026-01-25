@@ -9,6 +9,8 @@ import { Badge, Button, Tabs, Tag } from 'ant-design-vue';
 
 import { CodeEditor } from '#/components/code-editor';
 
+import type { ConsoleLogEntry } from './types';
+
 // 脚本响应数据结构
 export interface ScriptResponseData {
   // 执行状态
@@ -23,8 +25,8 @@ export interface ScriptResponseData {
   result?: unknown;
   error?: string;
 
-  // 控制台日志
-  consoleLogs?: string[];
+  // 控制台日志（统一格式）
+  consoleLogs?: ConsoleLogEntry[];
 
   // 变量
   variables?: Record<string, unknown>;
@@ -149,15 +151,13 @@ function handleDebug() {
         <div class="tab-content">
           <div v-if="consoleLogsCount > 0" class="console-logs">
             <div
-              v-for="(log, idx) in response.consoleLogs"
+              v-for="(entry, idx) in response.consoleLogs"
               :key="idx"
               class="log-line"
-              :class="{
-                warn: log.startsWith('[WARN]'),
-                error: log.startsWith('[ERROR]'),
-              }"
+              :class="entry.type"
             >
-              {{ log }}
+              <span class="log-prefix">[{{ entry.type.toUpperCase() }}]</span>
+              <span class="log-message">{{ entry.message }}</span>
             </div>
           </div>
           <div v-else class="empty-hint">无日志输出</div>
@@ -315,21 +315,45 @@ function handleDebug() {
   padding: 8px 12px;
   font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
   font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .log-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   padding: 4px 0;
   color: hsl(var(--foreground) / 75%);
+}
+
+.log-prefix {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.log-line.log .log-prefix {
+  background: hsl(var(--foreground) / 10%);
+  color: hsl(var(--foreground) / 60%);
+}
+
+.log-line.warn .log-prefix {
+  background: hsl(45 100% 50% / 20%);
+  color: hsl(45 100% 40%);
+}
+
+.log-line.error .log-prefix {
+  background: hsl(0 84% 60% / 20%);
+  color: #ff4d4f;
+}
+
+.log-message {
   white-space: pre-wrap;
   word-break: break-all;
-}
-
-.log-line.warn {
-  color: #faad14;
-}
-
-.log-line.error {
-  color: #ff4d4f;
 }
 
 .variables-list {

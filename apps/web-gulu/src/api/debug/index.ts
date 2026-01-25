@@ -269,6 +269,22 @@ export interface ScriptResult {
   duration_ms: number;
 }
 
+// 控制台日志条目
+export interface ConsoleLogEntry {
+  type: 'log' | 'warn' | 'error' | 'processor';
+  message?: string;
+  ts?: number;
+  processor?: {
+    id: string;
+    phase: 'pre' | 'post';
+    procType: string;
+    name?: string;
+    success: boolean;
+    message?: string;
+    output?: Record<string, unknown>;
+  };
+}
+
 // 单步调试响应
 export interface DebugStepResponse {
   success: boolean;
@@ -283,30 +299,12 @@ export interface DebugStepResponse {
     bodyType: string;
   };
   scriptResult?: ScriptResult;
-  preProcessorResults?: Array<{
-    keywordId: string;
-    type: string;
-    name?: string;
-    success: boolean;
-    message?: string;
-    output?: Record<string, unknown>;
-    logs?: string[];
-  }>;
-  postProcessorResults?: Array<{
-    keywordId: string;
-    type: string;
-    name?: string;
-    success: boolean;
-    message?: string;
-    output?: Record<string, unknown>;
-    logs?: string[];
-  }>;
   assertionResults?: Array<{
     name: string;
     passed: boolean;
     message?: string;
   }>;
-  consoleLogs?: string[];
+  consoleLogs?: ConsoleLogEntry[];
   actualRequest?: {
     url: string;
     method: string;

@@ -10,10 +10,12 @@ import { Badge, Button, Tabs, Tag } from 'ant-design-vue';
 
 import { ResponseBodyEditor } from '#/components/code-editor';
 
-import type { HttpResponseData } from './types';
+import type { HttpResponseData, ConsoleLogEntry } from './types';
 
 const CheckCircleIcon = createIconifyIcon('lucide:check-circle');
 const XCircleIcon = createIconifyIcon('lucide:x-circle');
+const ChevronRightIcon = createIconifyIcon('lucide:chevron-right');
+const ChevronDownIcon = createIconifyIcon('lucide:chevron-down');
 
 interface Props {
   response: HttpResponseData;
@@ -72,28 +74,28 @@ const cookiesCount = computed(() => Object.keys(props.response.cookies || {}).le
 
 // 是否有控制台输出
 const hasConsoleOutput = computed(() => {
-  const hasConsoleLogs = props.response.consoleLogs && props.response.consoleLogs.length > 0;
-  const hasPreResults = props.response.preProcessorResults && props.response.preProcessorResults.length > 0;
-  const hasPostResults = props.response.postProcessorResults && props.response.postProcessorResults.length > 0;
-  return hasConsoleLogs || hasPreResults || hasPostResults;
+  return props.response.consoleLogs && props.response.consoleLogs.length > 0;
 });
 
 // 控制台日志总数
 const consoleLogsCount = computed(() => {
-  let count = 0;
-  if (props.response.consoleLogs) count += props.response.consoleLogs.length;
-  if (props.response.preProcessorResults) {
-    props.response.preProcessorResults.forEach(r => {
-      if (r.logs) count += r.logs.length;
-    });
-  }
-  if (props.response.postProcessorResults) {
-    props.response.postProcessorResults.forEach(r => {
-      if (r.logs) count += r.logs.length;
-    });
-  }
-  return count;
+  return props.response.consoleLogs?.length || 0;
 });
+
+// 处理器展开状态
+const expandedProcessors = ref<Set<string>>(new Set());
+
+function toggleProcessor(id: string) {
+  if (expandedProcessors.value.has(id)) {
+    expandedProcessors.value.delete(id);
+  } else {
+    expandedProcessors.value.add(id);
+  }
+}
+
+function isProcessorExpanded(id: string): boolean {
+  return expandedProcessors.value.has(id);
+}
 
 // 断言结果
 const assertionResults = computed(() => props.response.assertions || []);
@@ -237,65 +239,61 @@ function handleDebug() {
 
       <!-- 控制台 -->
       <div v-else-if="activeTab === 'console'" class="tab-content console-content">
-        <!-- 前置处理器结果 -->
-        <div v-if="response.preProcessorResults && response.preProcessorResults.length > 0" class="processor-section">
-          <div class="processor-section-title">前置操作</div>
-          <div
-            v-for="result in response.preProcessorResults"
-            :key="result.keywordId"
-            class="processor-result"
-            :class="{ success: result.success, failed: !result.success }"
-          >
-            <div class="processor-header">
-              <component
-                :is="result.success ? CheckCircleIcon : XCircleIcon"
-                class="processor-status-icon"
-              />
-              <span class="processor-type">{{ getProcessorTypeName(result.type) }}</span>
-              <span v-if="result.name" class="processor-name">{{ result.name }}</span>
+        <template v-if="response.consoleLogs && response.consoleLogs.length > 0">
+          <template v-for="(entry, idx) in response.consoleLogs" :key="idx">
+            <!-- 处理器日志（可折叠） -->
+            <div
+              v-if="entry.type === 'processor' && entry.processor"
+              class="console-entry processor-entry"
+              :class="{ 
+                success: entry.processor.success, 
+                failed: !entry.processor.success,
+                expanded: isProcessorExpanded(entry.processor.id)
+              }"
+            >
+              <div class="processor-header" @click="toggleProcessor(entry.processor.id)">
+                <component
+                  :is="isProcessorExpanded(entry.processor.id) ? ChevronDownIcon : ChevronRightIcon"
+                  class="expand-icon"
+                />
+                <span class="phase-tag" :class="entry.processor.phase">
+                  {{ entry.processor.phase === 'pre' ? '前置' : '后置' }}
+                </span>
+                <span class="processor-type">{{ getProcessorTypeName(entry.processor.procType) }}</span>
+                <span v-if="entry.processor.message" class="processor-message">{{ entry.processor.message }}</span>
+                <component
+                  :is="entry.processor.success ? CheckCircleIcon : XCircleIcon"
+                  class="processor-status-icon"
+                />
+              </div>
+              <!-- 展开的详情 -->
+              <div v-if="isProcessorExpanded(entry.processor.id)" class="processor-details">
+                <div class="detail-row">
+                  <span class="detail-label">ID:</span>
+                  <span class="detail-value">{{ entry.processor.id }}</span>
+                </div>
+                <div v-if="entry.processor.name" class="detail-row">
+                  <span class="detail-label">名称:</span>
+                  <span class="detail-value">{{ entry.processor.name }}</span>
+                </div>
+                <div v-if="entry.processor.output" class="detail-row">
+                  <span class="detail-label">输出:</span>
+                  <pre class="detail-value output-pre">{{ JSON.stringify(entry.processor.output, null, 2) }}</pre>
+                </div>
+              </div>
             </div>
-            <div v-if="result.message" class="processor-message" :class="{ error: !result.success }">
-              {{ result.message }}
-            </div>
-            <div v-if="result.logs && result.logs.length > 0" class="processor-logs">
-              <div v-for="(log, idx) in result.logs" :key="idx" class="log-line">{{ log }}</div>
-            </div>
-          </div>
-        </div>
 
-        <!-- 通用控制台日志 -->
-        <div v-if="response.consoleLogs && response.consoleLogs.length > 0" class="processor-section">
-          <div class="processor-section-title">控制台输出</div>
-          <div class="processor-logs">
-            <div v-for="(log, idx) in response.consoleLogs" :key="idx" class="log-line">{{ log }}</div>
-          </div>
-        </div>
-
-        <!-- 后置处理器结果 -->
-        <div v-if="response.postProcessorResults && response.postProcessorResults.length > 0" class="processor-section">
-          <div class="processor-section-title">后置操作</div>
-          <div
-            v-for="result in response.postProcessorResults"
-            :key="result.keywordId"
-            class="processor-result"
-            :class="{ success: result.success, failed: !result.success }"
-          >
-            <div class="processor-header">
-              <component
-                :is="result.success ? CheckCircleIcon : XCircleIcon"
-                class="processor-status-icon"
-              />
-              <span class="processor-type">{{ getProcessorTypeName(result.type) }}</span>
-              <span v-if="result.name" class="processor-name">{{ result.name }}</span>
+            <!-- 普通日志 -->
+            <div
+              v-else
+              class="console-entry log-entry"
+              :class="entry.type"
+            >
+              <span class="log-prefix">[{{ entry.type.toUpperCase() }}]</span>
+              <span class="log-message">{{ entry.message }}</span>
             </div>
-            <div v-if="result.message" class="processor-message" :class="{ error: !result.success }">
-              {{ result.message }}
-            </div>
-            <div v-if="result.logs && result.logs.length > 0" class="processor-logs">
-              <div v-for="(log, idx) in result.logs" :key="idx" class="log-line">{{ log }}</div>
-            </div>
-          </div>
-        </div>
+          </template>
+        </template>
 
         <div v-if="!hasConsoleOutput" class="empty-hint">无控制台输出</div>
       </div>
@@ -515,107 +513,172 @@ function handleDebug() {
 .console-content {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 12px 0;
-}
-
-.processor-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.processor-section-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: hsl(var(--foreground) / 70%);
-  padding: 4px 0;
-  border-bottom: 1px solid hsl(var(--border) / 50%);
-}
-
-.processor-result {
-  display: flex;
-  flex-direction: column;
   gap: 4px;
-  padding: 8px 12px;
+  padding: 8px 0;
+}
+
+.console-entry {
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  font-size: 12px;
+}
+
+/* 处理器日志条目 */
+.processor-entry {
   background: hsl(var(--accent) / 30%);
-  border-radius: 6px;
+  border-radius: 4px;
   border-left: 3px solid hsl(var(--border));
 }
 
-.processor-result.success {
+.processor-entry.success {
   border-left-color: #52c41a;
 }
 
-.processor-result.failed {
+.processor-entry.failed {
   border-left-color: #ff4d4f;
 }
 
-.processor-header {
+.processor-entry .processor-header {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 6px 8px;
+  cursor: pointer;
+  user-select: none;
 }
 
-.processor-status-icon {
+.processor-entry .processor-header:hover {
+  background: hsl(var(--accent) / 50%);
+}
+
+.expand-icon {
   width: 14px;
   height: 14px;
+  color: hsl(var(--foreground) / 50%);
+  flex-shrink: 0;
 }
 
-.processor-result.success .processor-status-icon {
-  color: #52c41a;
+.phase-tag {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
 }
 
-.processor-result.failed .processor-status-icon {
-  color: #ff4d4f;
+.phase-tag.pre {
+  background: hsl(200 80% 50% / 20%);
+  color: hsl(200 80% 50%);
+}
+
+.phase-tag.post {
+  background: hsl(280 80% 50% / 20%);
+  color: hsl(280 80% 50%);
 }
 
 .processor-type {
   font-size: 12px;
   font-weight: 500;
   color: hsl(var(--foreground) / 80%);
-}
-
-.processor-name {
-  font-size: 12px;
-  color: hsl(var(--foreground) / 55%);
+  flex-shrink: 0;
 }
 
 .processor-message {
   font-size: 12px;
-  color: hsl(var(--foreground) / 70%);
-  padding-left: 22px;
+  color: hsl(var(--foreground) / 60%);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.processor-message.error {
+.processor-status-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.processor-entry.success .processor-status-icon {
+  color: #52c41a;
+}
+
+.processor-entry.failed .processor-status-icon {
   color: #ff4d4f;
 }
 
-.processor-logs {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px;
-  margin-top: 4px;
+/* 处理器详情 */
+.processor-details {
+  padding: 8px 12px 8px 32px;
   background: hsl(var(--background));
-  border-radius: 4px;
-  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  border-top: 1px solid hsl(var(--border) / 30%);
   font-size: 11px;
-  max-height: 200px;
-  overflow-y: auto;
 }
 
-.log-line {
+.detail-row {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.detail-label {
+  color: hsl(var(--foreground) / 50%);
+  min-width: 40px;
+}
+
+.detail-value {
+  color: hsl(var(--foreground) / 80%);
+  word-break: break-all;
+}
+
+.output-pre {
+  margin: 0;
+  padding: 4px 8px;
+  background: hsl(var(--accent) / 30%);
+  border-radius: 3px;
+  white-space: pre-wrap;
+  font-size: 10px;
+}
+
+/* 普通日志条目 */
+.log-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 3px;
+}
+
+.log-entry:hover {
+  background: hsl(var(--accent) / 30%);
+}
+
+.log-prefix {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.log-entry.log .log-prefix {
+  background: hsl(var(--foreground) / 10%);
+  color: hsl(var(--foreground) / 60%);
+}
+
+.log-entry.warn .log-prefix {
+  background: hsl(45 100% 50% / 20%);
+  color: hsl(45 100% 40%);
+}
+
+.log-entry.error .log-prefix {
+  background: hsl(0 84% 60% / 20%);
+  color: #ff4d4f;
+}
+
+.log-message {
   color: hsl(var(--foreground) / 75%);
   white-space: pre-wrap;
   word-break: break-all;
-  line-height: 1.5;
-}
-
-.log-line::before {
-  content: '>';
-  margin-right: 8px;
-  color: hsl(var(--foreground) / 40%);
+  line-height: 1.4;
 }
 
 /* 实际请求 */

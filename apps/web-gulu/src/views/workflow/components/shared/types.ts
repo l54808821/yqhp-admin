@@ -2,15 +2,26 @@
  * HTTP 响应共享类型定义
  */
 
-// 处理器执行结果
-export interface ProcessorResult {
-  keywordId: string;
-  type: string;
+// 控制台日志类型
+export type ConsoleLogType = 'log' | 'warn' | 'error' | 'processor';
+
+// 处理器日志详情
+export interface ProcessorLogInfo {
+  id: string;
+  phase: 'pre' | 'post';
+  procType: string;
   name?: string;
   success: boolean;
   message?: string;
   output?: Record<string, unknown>;
-  logs?: string[];
+}
+
+// 统一的控制台日志条目
+export interface ConsoleLogEntry {
+  type: ConsoleLogType;
+  message?: string;
+  ts?: number;
+  processor?: ProcessorLogInfo;
 }
 
 // 断言结果
@@ -37,10 +48,8 @@ export interface HttpResponseData {
   body: string;
   bodyType?: 'json' | 'xml' | 'html' | 'text' | 'binary';
 
-  // 处理器结果
-  preProcessorResults?: ProcessorResult[];
-  postProcessorResults?: ProcessorResult[];
-  consoleLogs?: string[];
+  // 控制台日志（统一收集处理器执行结果和脚本日志）
+  consoleLogs?: ConsoleLogEntry[];
   assertions?: AssertionResult[];
 
   // 实际请求（调试用）
@@ -68,10 +77,8 @@ export interface DebugStepApiResponse {
     body: string;
     bodyType: string;
   };
-  preProcessorResults?: ProcessorResult[];
-  postProcessorResults?: ProcessorResult[];
   assertionResults?: AssertionResult[];
-  consoleLogs?: string[];
+  consoleLogs?: ConsoleLogEntry[];
   actualRequest?: {
     url: string;
     method: string;
@@ -81,7 +88,7 @@ export interface DebugStepApiResponse {
   error?: string;
 }
 
-// 流程执行步骤输出类型（后端返回的格式，使用下划线命名）
+// 流程执行步骤输出类型（后端返回的格式）
 export interface StepResultOutput {
   status_code?: number;
   statusCode?: number;
@@ -97,7 +104,5 @@ export interface StepResultOutput {
     body?: string;
   };
   assertions?: AssertionResult[];
-  console_logs?: string[];
-  pre_processor_results?: ProcessorResult[];
-  post_processor_results?: ProcessorResult[];
+  console_logs?: ConsoleLogEntry[];
 }

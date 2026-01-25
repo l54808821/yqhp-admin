@@ -233,7 +233,7 @@ export type ResponseBodyType = 'json' | 'xml' | 'html' | 'text' | 'binary';
 
 // 从共享模块导入类型
 import type {
-  ProcessorResult as SharedProcessorResult,
+  ConsoleLogEntry,
   AssertionResult as SharedAssertionResult,
 } from '../../components/shared/types';
 
@@ -246,11 +246,6 @@ export interface AssertionResult extends SharedAssertionResult {
   actual?: string;
 }
 
-/**
- * 处理器执行结果（直接使用共享类型）
- */
-export type ProcessorResult = SharedProcessorResult;
-
 export interface ResponseData {
   statusCode: number;
   statusText: string;
@@ -261,9 +256,7 @@ export interface ResponseData {
   body: string;
   bodyType: ResponseBodyType;
   assertions?: AssertionResult[];
-  console?: string[];
-  preProcessorResults?: ProcessorResult[];
-  postProcessorResults?: ProcessorResult[];
+  consoleLogs?: ConsoleLogEntry[];
   actualRequest?: {
     url: string;
     method: string;

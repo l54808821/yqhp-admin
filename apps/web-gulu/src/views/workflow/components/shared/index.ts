@@ -9,7 +9,9 @@ export { default as ScriptResponsePanel } from './ScriptResponsePanel.vue';
 // 类型
 export type {
   HttpResponseData,
-  ProcessorResult,
+  ConsoleLogEntry,
+  ProcessorLogInfo,
+  ConsoleLogType,
   AssertionResult,
   DebugStepApiResponse,
   StepResultOutput,

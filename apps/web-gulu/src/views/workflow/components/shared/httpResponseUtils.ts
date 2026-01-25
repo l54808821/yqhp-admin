@@ -7,7 +7,7 @@ import type {
   HttpResponseData,
   DebugStepApiResponse,
   StepResultOutput,
-  ProcessorResult,
+  ConsoleLogEntry,
   AssertionResult,
 } from './types';
 
@@ -27,6 +27,7 @@ export function fromDebugStepResponse(
       body: response.error || '请求失败',
       bodyType: 'text',
       error: response.error,
+      consoleLogs: response.consoleLogs,
     };
   }
 
@@ -41,8 +42,6 @@ export function fromDebugStepResponse(
     cookies: resp.cookies,
     body: resp.body,
     bodyType: resp.bodyType as HttpResponseData['bodyType'],
-    preProcessorResults: response.preProcessorResults,
-    postProcessorResults: response.postProcessorResults,
     consoleLogs: response.consoleLogs,
     assertions: response.assertionResults,
     actualRequest: response.actualRequest,
@@ -77,8 +76,6 @@ export function fromStepResultOutput(
     cookies: output.cookies,
     body: bodyStr,
     bodyType: detectBodyType(bodyStr),
-    preProcessorResults: output.pre_processor_results,
-    postProcessorResults: output.post_processor_results,
     consoleLogs: output.console_logs,
     assertions: output.assertions,
     actualRequest: output.request,
@@ -99,4 +96,4 @@ function detectBodyType(body: string): HttpResponseData['bodyType'] {
 }
 
 // 重新导出类型
-export type { HttpResponseData, ProcessorResult, AssertionResult, StepResultOutput };
+export type { HttpResponseData, ConsoleLogEntry, AssertionResult, StepResultOutput };

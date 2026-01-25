@@ -29,9 +29,7 @@ const httpResponseData = computed((): HttpResponseData => {
     cookies: r.cookies,
     body: r.body,
     bodyType: r.bodyType as HttpResponseData['bodyType'],
-    preProcessorResults: r.preProcessorResults,
-    postProcessorResults: r.postProcessorResults,
-    consoleLogs: r.console,
+    consoleLogs: r.consoleLogs,
     assertions: r.assertions?.map(a => ({
       id: a.id,
       name: a.name,
