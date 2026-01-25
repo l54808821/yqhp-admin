@@ -41,7 +41,6 @@ const saving = ref(false);
 const activeTab = ref('basic');
 const formData = ref({
   name: '',
-  code: '',
   description: '',
   status: 1,
 });
@@ -61,7 +60,6 @@ watch(
     if (env) {
       formData.value = {
         name: env.name,
-        code: env.code,
         description: env.description || '',
         status: env.status,
       };
@@ -168,7 +166,6 @@ function removeMqConfig(index: number) {
     <div class="detail-header">
       <div class="header-left">
         <h3 class="env-title">{{ env.name }}</h3>
-        <Tag color="blue" class="env-code-tag">{{ env.code }}</Tag>
         <Badge
           :status="formData.status === 1 ? 'success' : 'default'"
           :text="formData.status === 1 ? '启用' : '禁用'"
@@ -193,15 +190,9 @@ function removeMqConfig(index: number) {
         </template>
         <div class="tab-content">
           <Form layout="vertical" class="basic-form">
-            <div class="form-grid">
-              <Form.Item label="环境名称" required>
-                <Input v-model:value="formData.name" placeholder="请输入环境名称" />
-              </Form.Item>
-              <Form.Item label="环境代码">
-                <Input v-model:value="formData.code" disabled />
-                <div class="form-hint">环境代码创建后不可修改</div>
-              </Form.Item>
-            </div>
+            <Form.Item label="环境名称" required>
+              <Input v-model:value="formData.name" placeholder="请输入环境名称" />
+            </Form.Item>
             <Form.Item label="描述">
               <Input.TextArea
                 v-model:value="formData.description"
@@ -486,10 +477,6 @@ function removeMqConfig(index: number) {
   color: #1f1f1f;
 }
 
-.env-code-tag {
-  font-family: 'Monaco', 'Menlo', monospace;
-}
-
 .header-right {
   display: flex;
   gap: 8px;
@@ -544,12 +531,6 @@ function removeMqConfig(index: number) {
 
 .basic-form {
   max-width: 600px;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
 }
 
 .form-hint {

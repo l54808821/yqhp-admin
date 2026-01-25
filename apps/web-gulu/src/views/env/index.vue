@@ -39,7 +39,6 @@ const copyingId = ref<number | null>(null);
 
 const formState = ref({
   name: '',
-  code: '',
   description: '',
   sort: 0,
   status: 1,
@@ -47,12 +46,10 @@ const formState = ref({
 
 const copyFormState = ref({
   name: '',
-  code: '',
 });
 
 const columns = [
   { title: '名称', dataIndex: 'name', key: 'name' },
-  { title: '代码', dataIndex: 'code', key: 'code' },
   { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
   { title: '排序', dataIndex: 'sort', key: 'sort', width: 80 },
   { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
@@ -90,7 +87,6 @@ function showAddModal() {
   editingId.value = null;
   formState.value = {
     name: '',
-    code: '',
     description: '',
     sort: 0,
     status: 1,
@@ -103,7 +99,6 @@ function showEditModal(record: Record<string, any>) {
   editingId.value = record.id;
   formState.value = {
     name: record.name,
-    code: record.code,
     description: record.description || '',
     sort: record.sort || 0,
     status: record.status,
@@ -125,7 +120,6 @@ async function handleSubmit() {
       await createEnvApi({
         project_id: projectStore.currentProjectId,
         name: formState.value.name,
-        code: formState.value.code,
         description: formState.value.description,
         sort: formState.value.sort,
         status: formState.value.status,
@@ -156,7 +150,6 @@ function showCopyModal(record: Record<string, any>) {
   copyingId.value = record.id;
   copyFormState.value = {
     name: `${record.name}_copy`,
-    code: `${record.code}_copy`,
   };
   copyModalVisible.value = true;
 }
@@ -166,7 +159,6 @@ async function handleCopy() {
   try {
     await copyEnvApi(copyingId.value, {
       name: copyFormState.value.name,
-      code: copyFormState.value.code,
     });
     message.success('复制成功，包括域名、变量、数据库配置、MQ配置');
     copyModalVisible.value = false;
@@ -232,9 +224,6 @@ async function handleCopy() {
         <Form.Item label="名称" required>
           <Input v-model:value="formState.name" placeholder="请输入环境名称，如：开发环境" />
         </Form.Item>
-        <Form.Item v-if="!editingId" label="代码" required>
-          <Input v-model:value="formState.code" placeholder="请输入环境代码，如：dev" />
-        </Form.Item>
         <Form.Item label="描述">
           <Input.TextArea v-model:value="formState.description" placeholder="请输入描述" :rows="2" />
         </Form.Item>
@@ -263,9 +252,6 @@ async function handleCopy() {
       <Form :model="copyFormState" layout="vertical">
         <Form.Item label="新环境名称" required>
           <Input v-model:value="copyFormState.name" placeholder="请输入新环境名称" />
-        </Form.Item>
-        <Form.Item label="新环境代码" required>
-          <Input v-model:value="copyFormState.code" placeholder="请输入新环境代码" />
         </Form.Item>
       </Form>
     </Modal>

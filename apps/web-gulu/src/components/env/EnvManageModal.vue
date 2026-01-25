@@ -48,7 +48,7 @@ const loading = ref(false);
 const envs = ref<Env[]>([]);
 const selectedEnv = ref<Env | null>(null);
 const createModalVisible = ref(false);
-const newEnvForm = ref({ name: '', code: '', description: '' });
+const newEnvForm = ref({ name: '', description: '' });
 const envListRef = ref<HTMLElement | null>(null);
 let sortableInstance: Sortable | null = null;
 
@@ -164,7 +164,7 @@ function handleSelectEnv(env: Env) {
 }
 
 function handleCreateEnv() {
-  newEnvForm.value = { name: '', code: '', description: '' };
+  newEnvForm.value = { name: '', description: '' };
   createModalVisible.value = true;
 }
 
@@ -173,16 +173,11 @@ async function handleConfirmCreate() {
     message.warning('请输入环境名称');
     return;
   }
-  if (!newEnvForm.value.code.trim()) {
-    message.warning('请输入环境代码');
-    return;
-  }
 
   try {
     const newEnv = await createEnvApi({
       project_id: props.projectId,
       name: newEnvForm.value.name,
-      code: newEnvForm.value.code,
       description: newEnvForm.value.description,
     });
     message.success('创建成功');
@@ -264,7 +259,6 @@ function getEnvStatusText(env: Env) {
                 </div>
                 <div class="env-card-content">
                   <div class="env-card-name">{{ env.name }}</div>
-                  <div class="env-card-code">{{ env.code }}</div>
                 </div>
                 <div class="env-card-actions">
                   <Popconfirm
@@ -323,13 +317,6 @@ function getEnvStatusText(env: Env) {
             v-model:value="newEnvForm.name"
             placeholder="如：开发环境、测试环境"
           />
-        </Form.Item>
-        <Form.Item label="环境代码" required>
-          <Input
-            v-model:value="newEnvForm.code"
-            placeholder="如：dev、test、prod"
-          />
-          <div class="form-hint">环境代码用于标识环境，建议使用英文小写</div>
         </Form.Item>
         <Form.Item label="描述">
           <Input.TextArea
@@ -455,16 +442,9 @@ function getEnvStatusText(env: Env) {
   font-weight: 500;
   font-size: 14px;
   color: #1f1f1f;
-  margin-bottom: 2px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.env-card-code {
-  font-size: 12px;
-  color: #8c8c8c;
-  font-family: 'Monaco', 'Menlo', monospace;
 }
 
 .env-card-actions {

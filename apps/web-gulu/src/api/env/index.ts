@@ -5,7 +5,6 @@ export interface Env {
   id: number;
   project_id: number;
   name: string;
-  code: string;
   description?: string;
   sort?: number;
   status: number;
@@ -16,7 +15,6 @@ export interface Env {
 export interface CreateEnvParams {
   project_id: number;
   name: string;
-  code: string;
   description?: string;
   sort?: number;
   status?: number;
@@ -34,13 +32,11 @@ export interface EnvListParams {
   pageSize?: number;
   project_id?: number;
   name?: string;
-  code?: string;
   status?: number;
 }
 
 export interface CopyEnvParams {
   name: string;
-  code: string;
 }
 
 export interface UpdateEnvSortParams {
