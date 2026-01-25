@@ -89,12 +89,12 @@ async function initSortable() {
     sortableInstance.destroy();
     sortableInstance = null;
   }
-  
+
   if (!envListRef.value) return;
-  
+
   const SortableModule = await import('sortablejs');
   const Sortable = SortableModule.default;
-  
+
   sortableInstance = Sortable.create(envListRef.value, {
     animation: 200,
     delay: 0,
@@ -118,15 +118,15 @@ async function handleSortEnd(event: { oldIndex?: number; newIndex?: number }) {
   if (oldIndex === undefined || newIndex === undefined || oldIndex === newIndex) {
     return;
   }
-  
+
   // 获取拖动项和目标项的信息
   const draggedEnv = envs.value[oldIndex];
   if (!draggedEnv) return;
-  
+
   // 计算目标环境和位置
   let targetEnv: typeof draggedEnv;
   let position: 'before' | 'after';
-  
+
   if (newIndex > oldIndex) {
     // 向下拖动：放到目标位置的后面
     targetEnv = envs.value[newIndex]!;
@@ -136,7 +136,7 @@ async function handleSortEnd(event: { oldIndex?: number; newIndex?: number }) {
     targetEnv = envs.value[newIndex]!;
     position = 'before';
   }
-  
+
   // 调用排序接口
   try {
     await updateEnvSortApi({
