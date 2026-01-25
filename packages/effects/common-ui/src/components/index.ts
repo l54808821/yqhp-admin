@@ -3,6 +3,7 @@ export * from './search-table';
 export * from './captcha';
 export * from './col-page';
 export * from './count-to';
+export * from './cropper';
 export * from './ellipsis-text';
 export * from './icon-picker';
 export * from './json-viewer';
