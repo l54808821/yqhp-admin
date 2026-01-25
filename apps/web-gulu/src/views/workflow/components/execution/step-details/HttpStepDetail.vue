@@ -21,16 +21,9 @@ const emit = defineEmits<{
   (e: 'debug-step'): void;
 }>();
 
-// 直接使用 output 作为响应数据（后端已统一格式）
+// 直接使用 output 作为响应数据（后端已统一为 HTTPResponseData 格式）
 const httpResponse = computed(() => {
-  const output = props.stepResult.output as HttpResponseData | undefined;
-  if (!output) return null;
-
-  // 如果 output 中没有 duration，从 stepResult 中获取
-  if (!output.duration && props.stepResult.duration_ms) {
-    output.duration = props.stepResult.duration_ms;
-  }
-  return output;
+  return props.stepResult.output as HttpResponseData | undefined ?? null;
 });
 
 // 调试此步骤
