@@ -822,12 +822,19 @@ importers:
       pinia:
         specifier: ^3.0.3
         version: 3.0.3(typescript@5.9.3)(vue@3.5.25(typescript@5.9.3))
+      sortablejs:
+        specifier: 'catalog:'
+        version: 1.15.6
       vue:
         specifier: ^3.5.24
         version: 3.5.25(typescript@5.9.3)
       vue-router:
         specifier: 'catalog:'
         version: 4.5.1(vue@3.5.25(typescript@5.9.3))
+    devDependencies:
+      '@types/sortablejs':
+        specifier: 'catalog:'
+        version: 1.15.8
 
   docs:
     dependencies:

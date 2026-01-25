@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
+import type Sortable from 'sortablejs';
+
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import { createIconifyIcon, Plus } from '@vben/icons';
 
 const Trash2 = createIconifyIcon('lucide:trash-2');
+const GripVertical = createIconifyIcon('lucide:grip-vertical');
+
 import {
   Badge,
   Button,
@@ -23,6 +27,7 @@ import {
   createEnvApi,
   deleteEnvApi,
   getEnvsByProjectApi,
+  updateEnvSortApi,
 } from '#/api/env';
 
 import EnvDetailForm from './EnvDetailForm.vue';
@@ -44,6 +49,8 @@ const envs = ref<Env[]>([]);
 const selectedEnv = ref<Env | null>(null);
 const createModalVisible = ref(false);
 const newEnvForm = ref({ name: '', code: '', description: '' });
+const envListRef = ref<HTMLElement | null>(null);
+let sortableInstance: Sortable | null = null;
 
 watch(
   () => props.visible,
@@ -69,8 +76,81 @@ async function loadEnvs() {
     if (envs.value.length > 0 && !selectedEnv.value) {
       selectedEnv.value = envs.value[0]!;
     }
+    // 初始化拖拽排序
+    await nextTick();
+    initSortable();
   } finally {
     loading.value = false;
+  }
+}
+
+async function initSortable() {
+  if (sortableInstance) {
+    sortableInstance.destroy();
+    sortableInstance = null;
+  }
+  
+  if (!envListRef.value) return;
+  
+  const SortableModule = await import('sortablejs');
+  const Sortable = SortableModule.default;
+  
+  sortableInstance = Sortable.create(envListRef.value, {
+    animation: 200,
+    delay: 0,
+    handle: '.drag-handle',
+    ghostClass: 'env-card-ghost',
+    chosenClass: 'env-card-chosen',
+    dragClass: 'env-card-drag',
+    onEnd: handleSortEnd,
+  });
+}
+
+onUnmounted(() => {
+  if (sortableInstance) {
+    sortableInstance.destroy();
+    sortableInstance = null;
+  }
+});
+
+async function handleSortEnd(event: { oldIndex?: number; newIndex?: number }) {
+  const { oldIndex, newIndex } = event;
+  if (oldIndex === undefined || newIndex === undefined || oldIndex === newIndex) {
+    return;
+  }
+  
+  // 获取拖动项和目标项的信息
+  const draggedEnv = envs.value[oldIndex];
+  if (!draggedEnv) return;
+  
+  // 计算目标环境和位置
+  let targetEnv: typeof draggedEnv;
+  let position: 'before' | 'after';
+  
+  if (newIndex > oldIndex) {
+    // 向下拖动：放到目标位置的后面
+    targetEnv = envs.value[newIndex]!;
+    position = 'after';
+  } else {
+    // 向上拖动：放到目标位置的前面
+    targetEnv = envs.value[newIndex]!;
+    position = 'before';
+  }
+  
+  // 调用排序接口
+  try {
+    await updateEnvSortApi({
+      id: draggedEnv.id,
+      target_id: targetEnv.id,
+      position,
+    });
+    message.success('排序已更新');
+    // 重新加载以获取最新顺序
+    await loadEnvs();
+  } catch {
+    message.error('排序更新失败');
+    // 重新加载恢复原顺序
+    await loadEnvs();
   }
 }
 
@@ -166,13 +246,17 @@ function getEnvStatusText(env: Env) {
             </Button>
           </div>
           <div class="env-list">
-            <div v-if="envs.length > 0" class="env-card-list">
+            <div v-if="envs.length > 0" ref="envListRef" class="env-card-list">
               <div
                 v-for="env in envs"
                 :key="env.id"
+                :data-id="env.id"
                 :class="['env-card', { active: selectedEnv?.id === env.id }]"
                 @click="handleSelectEnv(env)"
               >
+                <div class="drag-handle" @click.stop>
+                  <GripVertical class="size-4 text-gray-400" />
+                </div>
                 <div class="env-card-left">
                   <Tooltip :title="getEnvStatusText(env)">
                     <Badge :color="getEnvStatusColor(env)" />
@@ -322,9 +406,40 @@ function getEnvStatusText(env: Env) {
   opacity: 1;
 }
 
+.env-card:hover .drag-handle {
+  opacity: 1;
+}
+
 .env-card.active {
   background: #e6f4ff;
   border-color: #1890ff;
+}
+
+.drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.env-card-ghost {
+  opacity: 0.5;
+  background: #e6f4ff;
+}
+
+.env-card-chosen {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.env-card-drag {
+  opacity: 0.9;
 }
 
 .env-card-left {

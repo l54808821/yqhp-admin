@@ -45,7 +45,11 @@
     "dayjs": "catalog:",
     "monaco-editor": "^0.50.0",
     "pinia": "catalog:",
+    "sortablejs": "catalog:",
     "vue": "catalog:",
     "vue-router": "catalog:"
+  },
+  "devDependencies": {
+    "@types/sortablejs": "catalog:"
   }
 }

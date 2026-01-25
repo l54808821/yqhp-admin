@@ -43,6 +43,12 @@ export interface CopyEnvParams {
   code: string;
 }
 
+export interface UpdateEnvSortParams {
+  id: number;
+  target_id: number;
+  position: 'before' | 'after';
+}
+
 /**
  * 创建环境
  */
@@ -90,4 +96,11 @@ export async function deleteEnvApi(id: number) {
  */
 export async function copyEnvApi(id: number, params: CopyEnvParams) {
   return requestClient.post<Env>(`/envs/${id}/copy`, params);
+}
+
+/**
+ * 更新环境排序
+ */
+export async function updateEnvSortApi(params: UpdateEnvSortParams) {
+  return requestClient.put('/envs/sort', params);
 }
