@@ -409,29 +409,33 @@ export function useExecution(options: UseExecutionOptions) {
       const token = accessStore.accessToken || '';
 
       const params: any = {
-        env_id: envId.value,
-        executor_type: executorType?.value || 'local',
-        slave_id: slaveId?.value,
+        envId: envId.value,
+        executorType: executorType?.value || 'local',
+        slaveId: slaveId?.value,
         persist: persist?.value ?? true,
       };
 
       if (definition?.value) {
-        // 过滤掉禁用的步骤
-        params.definition = {
+        // 过滤掉禁用的步骤，使用 workflow 字段
+        params.workflow = {
           ...definition.value,
           steps: filterDisabledSteps(definition.value.steps || []),
         };
       }
 
       if (selectedSteps?.value && selectedSteps.value.length > 0) {
-        params.selected_steps = selectedSteps.value;
+        params.selectedSteps = selectedSteps.value;
       }
+
+      // 添加 stream 标识
+      params.stream = true;
+      params.mode = 'debug';
 
       const apiUrl = import.meta.env.VITE_GLOB_API_URL || '';
       const baseUrl = apiUrl.startsWith('http')
         ? apiUrl
         : `${window.location.origin}${apiUrl}`;
-      const url = `${baseUrl}/workflows/${workflowId.value}/run/stream`;
+      const url = `${baseUrl}/execute`;
 
       connectSSE(url, params, token);
     } catch (error: any) {

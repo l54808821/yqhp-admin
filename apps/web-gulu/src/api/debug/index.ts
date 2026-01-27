@@ -241,21 +241,62 @@ export function buildSSEUrl(workflowId: number, params: RunStreamParams, token?:
   return `${window.location.origin}${apiUrl}${path}`;
 }
 
-// ============ 单步调试 API ============
+// ============ 统一执行 API ============
 
-// 单步调试请求参数
-export interface DebugStepParams {
-  nodeConfig: {
-    id: string;
-    type: string;
-    name: string;
-    config: Record<string, unknown>; // 通用配置，根据 type 不同内容不同
-    preProcessors?: Array<{ id: string; type: string; enabled: boolean; name?: string; config: Record<string, unknown> }>;
-    postProcessors?: Array<{ id: string; type: string; enabled: boolean; name?: string; config: Record<string, unknown> }>;
-  };
-  envId?: number;
+// 步骤配置（单步执行快捷方式）
+export interface StepConfig {
+  id: string;
+  type: string;
+  name: string;
+  config: Record<string, any>;  // 使用 any 以兼容不同的配置类型
+  preProcessors?: ProcessorConfig[];
+  postProcessors?: ProcessorConfig[];
+}
+
+// 处理器配置
+export interface ProcessorConfig {
+  id: string;
+  type: string;
+  enabled: boolean;
+  name?: string;
+  config: Record<string, any>;  // 使用 any 以兼容不同的配置类型
+}
+
+// 统一执行请求参数
+export interface ExecuteParams {
+  // 工作流定义（完整工作流）
+  workflow?: Record<string, unknown>;
+  // 单步快捷方式：传入单个步骤，自动包装为工作流
+  step?: StepConfig;
+  // 环境 ID
+  envId: number;
+  // 变量
   variables?: Record<string, unknown>;
-  sessionId?: string;  // 调试会话 ID，用于获取会话变量
+  // 执行模式：debug（失败即停止）或 normal（继续执行）
+  mode?: 'debug' | 'normal';
+  // 会话 ID
+  sessionId?: string;
+  // 选中的步骤 ID
+  selectedSteps?: string[];
+  // 超时时间（秒）
+  timeout?: number;
+  // 执行器类型
+  executorType?: 'local' | 'remote';
+  // 指定的 Slave ID
+  slaveId?: string;
+  // 是否使用 SSE 流式响应
+  stream?: boolean;
+  // 是否持久化执行记录
+  persist?: boolean;
+}
+
+// 统一执行响应（阻塞模式）
+export interface ExecuteResponse {
+  success: boolean;
+  executionId?: string;
+  sessionId?: string;
+  summary?: ExecutionSummary;
+  error?: string;
 }
 
 // 脚本执行结果
@@ -306,6 +347,38 @@ export interface HttpResponseData {
 }
 
 // 单步调试响应
+/**
+ * 步骤执行结果（统一格式）
+ */
+export interface StepExecutionResult {
+  stepId: string;
+  stepName: string;
+  stepType: string;
+  success: boolean;
+  durationMs: number;
+  result?: Record<string, any>; // HTTPResponseData / ScriptResponseData / 其他
+  error?: string;
+}
+
+/**
+ * 执行汇总响应（统一格式，SSE 和阻塞模式返回相同结构）
+ */
+export interface ExecuteResponse {
+  session_id: string;
+  total_steps: number;
+  success_steps: number;
+  failed_steps: number;
+  total_duration_ms: number;
+  status: string; // success, failed, timeout, stopped
+  start_time?: string;
+  end_time?: string;
+  steps?: StepExecutionResult[]; // 步骤执行详情
+}
+
+/**
+ * 旧版调试响应（保持兼容）
+ * @deprecated 使用 ExecuteResponse 替代
+ */
 export interface DebugStepResponse {
   success: boolean;
   response?: HttpResponseData;
@@ -321,9 +394,182 @@ export interface DebugStepResponse {
 }
 
 /**
- * 单步调试 HTTP 节点
- * @param params 调试参数
+ * 统一执行接口（支持单步和流程执行，阻塞模式）
+ * 返回统一的 ExecuteResponse 格式，包含步骤详情
+ * @param params 执行参数
  */
-export async function debugStepApi(params: DebugStepParams): Promise<DebugStepResponse> {
-  return requestClient.post<DebugStepResponse>('/debug/step', params);
+export async function executeApi(params: ExecuteParams): Promise<ExecuteResponse> {
+  return requestClient.post<ExecuteResponse>('/execute', params);
+}
+
+/**
+ * SSE 执行回调
+ */
+export interface SSEExecuteCallbacks {
+  onConnected?: (sessionId: string) => void;
+  onStepStarted?: (stepId: string, stepName: string) => void;
+  onStepCompleted?: (data: StepCompletedResult) => void;
+  onWorkflowCompleted?: (data: WorkflowCompletedResult) => void;
+  onError?: (error: string) => void;
+}
+
+/**
+ * 步骤完成结果
+ */
+export interface StepCompletedResult {
+  stepId: string;
+  stepName: string;
+  stepType: string;
+  success: boolean;
+  durationMs: number;
+  result?: Record<string, unknown>;
+}
+
+/**
+ * 工作流完成结果
+ */
+export interface WorkflowCompletedResult {
+  sessionId: string;
+  status: string;
+  totalSteps: number;
+  successSteps: number;
+  failedSteps: number;
+  durationMs: number;
+}
+
+/**
+ * SSE 执行控制器
+ */
+export interface SSEExecuteController {
+  stop: () => void;
+}
+
+/**
+ * SSE 方式执行（支持单步和流程执行，实时事件推送）
+ * @param params 执行参数
+ * @param callbacks 事件回调
+ * @returns 控制器，可用于停止执行
+ */
+export function executeWithSSE(
+  params: ExecuteParams,
+  callbacks: SSEExecuteCallbacks,
+  token?: string,
+): SSEExecuteController {
+  const apiUrl = import.meta.env.VITE_GLOB_API_URL || '';
+  const baseUrl = apiUrl.startsWith('http')
+    ? apiUrl
+    : `${window.location.origin}${apiUrl}`;
+  const url = `${baseUrl}/execute`;
+
+  let abortController: AbortController | null = new AbortController();
+
+  // 强制使用 SSE
+  const requestBody = { ...params, stream: true };
+
+  // 使用传入的 token
+  const authToken = token || '';
+
+  // 使用 fetch + ReadableStream 处理 SSE
+  fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'text/event-stream',
+      'satoken': authToken,
+    },
+    body: JSON.stringify(requestBody),
+    signal: abortController.signal,
+  })
+    .then(async (response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('无法读取响应流');
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      let currentEventType = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            // 保存事件类型
+            currentEventType = line.slice(7).trim();
+          } else if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              handleSSEEvent(currentEventType, data, callbacks);
+            } catch {
+              // 忽略解析错误
+            }
+          }
+        }
+      }
+    })
+    .catch((error) => {
+      if (error.name !== 'AbortError') {
+        callbacks.onError?.(error.message || '执行失败');
+      }
+    });
+
+  return {
+    stop: () => {
+      abortController?.abort();
+      abortController = null;
+    },
+  };
+}
+
+/**
+ * 处理 SSE 事件
+ * @param eventType 事件类型（从 event: 行解析）
+ * @param data 事件数据（从 data: 行解析）
+ */
+function handleSSEEvent(eventType: string, data: Record<string, unknown>, callbacks: SSEExecuteCallbacks) {
+  switch (eventType) {
+    case 'connected':
+      callbacks.onConnected?.((data.session_id || data.sessionId) as string);
+      break;
+    case 'step_started':
+      callbacks.onStepStarted?.(
+        (data.stepId || data.step_id) as string,
+        (data.stepName || data.step_name) as string,
+      );
+      break;
+    case 'step_completed':
+      callbacks.onStepCompleted?.({
+        stepId: (data.stepId || data.step_id) as string,
+        stepName: (data.stepName || data.step_name) as string,
+        stepType: (data.stepType || data.step_type) as string,
+        success: data.success as boolean,
+        durationMs: (data.durationMs || data.duration_ms) as number,
+        result: data.result as Record<string, unknown>,
+      });
+      break;
+    case 'workflow_completed':
+      callbacks.onWorkflowCompleted?.({
+        sessionId: (data.sessionId || data.session_id) as string,
+        status: data.status as string,
+        totalSteps: (data.totalSteps || data.total_steps) as number,
+        successSteps: (data.successSteps || data.success_steps) as number,
+        failedSteps: (data.failedSteps || data.failed_steps) as number,
+        durationMs: (data.durationMs || data.duration_ms) as number,
+      });
+      break;
+    case 'error':
+      callbacks.onError?.(data.message as string);
+      break;
+  }
 }

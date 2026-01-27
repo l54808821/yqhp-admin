@@ -9,7 +9,7 @@ import { useDebounceFn } from '@vueuse/core';
 import { createIconifyIcon } from '@vben/icons';
 import { Button, Select, Spin, message } from 'ant-design-vue';
 
-import { debugStepApi } from '#/api/debug';
+import { executeApi } from '#/api/debug';
 import { ScriptEditor } from '#/components/code-editor';
 
 import {
@@ -102,15 +102,16 @@ function updateScript(script: string) {
   }
 }
 
-// 执行脚本
+// 执行脚本（阻塞模式）
 async function handleRun() {
   if (!localNode.value || isDebugging.value) return;
 
   isDebugging.value = true;
+  debugResponse.value = null;
 
   try {
-    const response = await debugStepApi({
-      nodeConfig: {
+    const response = await executeApi({
+      step: {
         id: localNode.value.id,
         type: 'script',
         name: localNode.value.name || '脚本',
@@ -120,29 +121,36 @@ async function handleRun() {
           timeout: localNode.value.config?.timeout || 60,
         },
       },
-      envId: props.envId,
+      envId: props.envId || 0,
+      mode: 'debug',
+      stream: false,
+      persist: false,
     });
 
-    if (response.success) {
-      const scriptResult = response.scriptResult;
-      debugResponse.value = {
-        success: !scriptResult?.error,
-        language: scriptResult?.language || 'javascript',
-        durationMs: scriptResult?.durationMs || 0,
-        result: scriptResult?.result,
-        consoleLogs: scriptResult?.consoleLogs || response.consoleLogs || [],
-        variables: scriptResult?.variables || {},
-        error: scriptResult?.error || response.error,
-      };
+    // 从统一响应格式中提取步骤结果
+    const stepResult = response.steps?.[0];
+    if (stepResult) {
+      const result = stepResult.result as any;
+      if (result) {
+        debugResponse.value = {
+          success: !result.error,
+          language: result.language || 'javascript',
+          durationMs: result.durationMs || stepResult.durationMs,
+          result: result.result,
+          consoleLogs: result.consoleLogs || [],
+          variables: result.variables || {},
+          error: result.error,
+        };
+      } else {
+        debugResponse.value = {
+          success: stepResult.success,
+          durationMs: stepResult.durationMs,
+          consoleLogs: [],
+          variables: {},
+        };
+      }
     } else {
-      debugResponse.value = {
-        success: false,
-        durationMs: 0,
-        error: response.error || '执行失败',
-        consoleLogs: response.consoleLogs || [],
-        variables: {},
-      };
-      message.error(response.error || '执行失败');
+      message.warning('未获取到执行结果');
     }
   } catch (error: any) {
     debugResponse.value = {

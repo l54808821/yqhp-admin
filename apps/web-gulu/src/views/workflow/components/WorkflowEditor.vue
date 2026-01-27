@@ -8,6 +8,7 @@ import type { Workflow } from '#/api/workflow';
 import { getWorkflowApi, updateWorkflowApi, validateWorkflowDefinitionApi } from '#/api/workflow';
 import SplitPane from '#/components/SplitPane.vue';
 import { useCategoryStore } from '#/store/category';
+import { useProjectStore } from '#/store/project';
 
 import PropertyPanel from '../editor/PropertyPanel.vue';
 import WorkflowTreeEditor from '../editor/WorkflowTreeEditor.vue';
@@ -30,6 +31,7 @@ const emit = defineEmits<{
 
 const router = useRouter();
 const categoryStore = useCategoryStore();
+const projectStore = useProjectStore();
 
 const loading = ref(false);
 const saving = ref(false);
@@ -621,6 +623,7 @@ async function handleRename(newName: string) {
           <template #right>
             <PropertyPanel
               :node="selectedNode"
+              :env-id="projectStore.currentEnvId"
               @update="handleNodeUpdate"
               @close="handleClosePropertyPanel"
               @delete="handleNodeDelete"

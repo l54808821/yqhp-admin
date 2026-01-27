@@ -16,7 +16,7 @@ import {
 
 import type { HttpStepNode, ParamItem, KeywordConfig } from '../../types';
 import { createHttpConfig, HTTP_METHOD_COLORS } from '../../types';
-import { debugStepApi } from '#/api/debug';
+import { executeApi } from '#/api/debug';
 
 // 子组件
 import ParamTable from '../../components/ParamTable.vue';
@@ -191,15 +191,16 @@ function updatePostProcessors(processors: KeywordConfig[]) {
   }
 }
 
-// 发送请求
+// 发送请求（阻塞模式）
 async function handleSend() {
   if (!localNode.value || isDebugging.value) return;
 
   isDebugging.value = true;
+  debugResponse.value = null;
 
   try {
-    const response = await debugStepApi({
-      nodeConfig: {
+    const response = await executeApi({
+      step: {
         id: localNode.value.id,
         type: 'http',
         name: localNode.value.name || 'HTTP 请求',
@@ -219,35 +220,31 @@ async function handleSend() {
           config: p.config,
         })),
       },
-      envId: props.envId,
+      envId: props.envId || 0,
+      mode: 'debug',
+      stream: false,
+      persist: false,
     });
 
-    if (response.success && response.response) {
+    // 从统一响应格式中提取步骤结果
+    const stepResult = response.steps?.[0];
+    if (stepResult?.result) {
+      const result = stepResult.result as any;
       debugResponse.value = {
-        statusCode: response.response.statusCode,
-        statusText: response.response.statusText,
-        duration: response.response.duration,
-        size: response.response.size,
-        headers: response.response.headers,
-        cookies: response.response.cookies || {},
-        body: response.response.body,
-        bodyType: response.response.bodyType,
-        assertions: response.assertionResults,
-        consoleLogs: response.consoleLogs,
-        actualRequest: response.actualRequest,
+        statusCode: result.statusCode,
+        statusText: result.statusText,
+        duration: result.duration,
+        size: result.size,
+        headers: result.headers || {},
+        cookies: result.cookies || {},
+        body: result.body,
+        bodyType: result.bodyType,
+        assertions: result.assertions,
+        consoleLogs: result.consoleLogs,
+        actualRequest: result.actualRequest,
       };
     } else {
-      debugResponse.value = {
-        statusCode: 0,
-        statusText: 'Error',
-        duration: 0,
-        size: 0,
-        headers: {},
-        cookies: {},
-        body: response.error || '请求失败',
-        bodyType: 'text',
-      };
-      message.error(response.error || '请求失败');
+      message.warning('未获取到执行结果');
     }
   } catch (error: any) {
     debugResponse.value = {
