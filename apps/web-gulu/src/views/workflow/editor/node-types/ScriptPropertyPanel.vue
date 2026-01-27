@@ -107,7 +107,7 @@ async function handleRun() {
   if (!localNode.value || isDebugging.value) return;
 
   isDebugging.value = true;
-  debugResponse.value = null;
+  // 不清空 debugResponse，保持响应区域高度稳定
 
   try {
     const response = await executeApi({
