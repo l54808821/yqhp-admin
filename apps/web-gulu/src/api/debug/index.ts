@@ -12,53 +12,41 @@ export type StepStatus = 'pending' | 'running' | 'success' | 'completed' | 'fail
 // 调试会话
 export interface DebugSession {
   id: number;
-  execution_id: string;
-  project_id: number;
-  workflow_id: number;
-  env_id: number;
+  executionId: string;
+  projectId: number;
+  workflowId: number;
+  envId: number;
   mode: ExecutionMode;
   status: DebugSessionStatus;
-  start_time?: string;
-  end_time?: string;
+  startTime?: string;
+  endTime?: string;
   duration?: number;
-  total_steps?: number;
-  success_steps?: number;
-  failed_steps?: number;
+  totalSteps?: number;
+  successSteps?: number;
+  failedSteps?: number;
   result?: string;
-  created_by?: number;
-  created_at?: string;
+  createdBy?: number;
+  createdAt?: string;
 }
 
 // 流式执行请求参数
 export interface RunStreamParams {
-  env_id: number;
+  envId: number;
   variables?: Record<string, unknown>;
   timeout?: number;
-  executor_type?: 'local' | 'remote';
-  slave_id?: string;
+  executorType?: 'local' | 'remote';
+  slaveId?: string;
   definition?: string;  // 工作流定义 JSON 字符串（用于调试未保存的工作流）
-  selected_steps?: string[];  // 选中的步骤 ID（用于选择性调试）
+  selectedSteps?: string[];  // 选中的步骤 ID（用于选择性调试）
 }
 
 // 阻塞式执行请求参数
 export interface RunBlockingParams {
-  env_id: number;
+  envId: number;
   variables?: Record<string, unknown>;
   timeout?: number;
-  executor_type?: 'local' | 'remote';
-  slave_id?: string;
-}
-
-// 执行汇总响应
-export interface ExecutionSummary {
-  session_id: string;
-  total_steps: number;
-  success_steps: number;
-  failed_steps: number;
-  total_duration_ms: number;
-  status: string;
-  start_time: string;
-  end_time: string;
+  executorType?: 'local' | 'remote';
+  slaveId?: string;
 }
 
 // 交互响应请求
@@ -67,41 +55,41 @@ export interface InteractionResponseParams {
   skipped: boolean;
 }
 
-// 步骤执行结果
+// 步骤执行结果（SSE 模式）
 export interface StepResult {
-  step_id: string;
-  step_name: string;
-  step_type?: string;
-  parent_id?: string;
+  stepId: string;
+  stepName: string;
+  stepType?: string;
+  parentId?: string;
   iteration?: number;
   status: StepStatus;
-  duration_ms: number;
+  durationMs: number;
   output?: Record<string, unknown>;
   error?: string;
   logs?: string[];
-  start_time?: string;
-  end_time?: string;
+  startTime?: string;
+  endTime?: string;
 }
 
 // 进度数据
 export interface ProgressData {
-  current_step: number;
-  total_steps: number;
+  currentStep: number;
+  totalSteps: number;
   percentage: number;
-  step_name: string;
+  stepName: string;
 }
 
 // 调试汇总
 export interface DebugSummary {
-  session_id: string;
-  total_steps: number;
-  success_steps: number;
-  failed_steps: number;
-  total_duration_ms: number;
+  sessionId: string;
+  totalSteps: number;
+  successSteps: number;
+  failedSteps: number;
+  totalDurationMs: number;
   status: DebugSessionStatus;
-  step_results: StepResult[];
-  start_time: string;
-  end_time: string;
+  stepResults: StepResult[];
+  startTime: string;
+  endTime: string;
 }
 
 // SSE 事件类型
@@ -124,28 +112,28 @@ export interface SSEEvent {
 
 // 连接成功数据
 export interface ConnectedData {
-  session_id: string;
-  workflow_id: number;
+  sessionId: string;
+  workflowId: number;
   mode: ExecutionMode;
 }
 
 // 步骤开始数据
 export interface StepStartedData {
-  step_id: string;
-  step_name: string;
-  step_type?: string;
-  parent_id?: string;
+  stepId: string;
+  stepName: string;
+  stepType?: string;
+  parentId?: string;
   iteration?: number;
 }
 
 // 交互请求数据
 export interface InteractionData {
-  step_id: string;
-  step_name: string;
+  stepId: string;
+  stepName: string;
   prompt: string;
-  input_type: 'text' | 'select' | 'confirm';
+  inputType: 'text' | 'select' | 'confirm';
   options?: string[];
-  default_value?: string;
+  defaultValue?: string;
   timeout?: number;
 }
 
@@ -290,15 +278,6 @@ export interface ExecuteParams {
   persist?: boolean;
 }
 
-// 统一执行响应（阻塞模式）
-export interface ExecuteResponse {
-  success: boolean;
-  executionId?: string;
-  sessionId?: string;
-  summary?: ExecutionSummary;
-  error?: string;
-}
-
 // 脚本执行结果
 export interface ScriptResult {
   script: string;
@@ -346,7 +325,6 @@ export interface HttpResponseData {
   bodyType: string;
 }
 
-// 单步调试响应
 /**
  * 步骤执行结果（统一格式）
  */
@@ -364,33 +342,15 @@ export interface StepExecutionResult {
  * 执行汇总响应（统一格式，SSE 和阻塞模式返回相同结构）
  */
 export interface ExecuteResponse {
-  session_id: string;
-  total_steps: number;
-  success_steps: number;
-  failed_steps: number;
-  total_duration_ms: number;
+  sessionId: string;
+  totalSteps: number;
+  successSteps: number;
+  failedSteps: number;
+  totalDurationMs: number;
   status: string; // success, failed, timeout, stopped
-  start_time?: string;
-  end_time?: string;
+  startTime?: string;
+  endTime?: string;
   steps?: StepExecutionResult[]; // 步骤执行详情
-}
-
-/**
- * 旧版调试响应（保持兼容）
- * @deprecated 使用 ExecuteResponse 替代
- */
-export interface DebugStepResponse {
-  success: boolean;
-  response?: HttpResponseData;
-  scriptResult?: ScriptResult;
-  assertionResults?: Array<{
-    name: string;
-    passed: boolean;
-    message?: string;
-  }>;
-  consoleLogs?: ConsoleLogEntry[];
-  actualRequest?: ActualRequest;
-  error?: string;
 }
 
 /**
@@ -540,32 +500,29 @@ export function executeWithSSE(
 function handleSSEEvent(eventType: string, data: Record<string, unknown>, callbacks: SSEExecuteCallbacks) {
   switch (eventType) {
     case 'connected':
-      callbacks.onConnected?.((data.session_id || data.sessionId) as string);
+      callbacks.onConnected?.(data.sessionId as string);
       break;
     case 'step_started':
-      callbacks.onStepStarted?.(
-        (data.stepId || data.step_id) as string,
-        (data.stepName || data.step_name) as string,
-      );
+      callbacks.onStepStarted?.(data.stepId as string, data.stepName as string);
       break;
     case 'step_completed':
       callbacks.onStepCompleted?.({
-        stepId: (data.stepId || data.step_id) as string,
-        stepName: (data.stepName || data.step_name) as string,
-        stepType: (data.stepType || data.step_type) as string,
+        stepId: data.stepId as string,
+        stepName: data.stepName as string,
+        stepType: data.stepType as string,
         success: data.success as boolean,
-        durationMs: (data.durationMs || data.duration_ms) as number,
+        durationMs: data.durationMs as number,
         result: data.result as Record<string, unknown>,
       });
       break;
     case 'workflow_completed':
       callbacks.onWorkflowCompleted?.({
-        sessionId: (data.sessionId || data.session_id) as string,
+        sessionId: data.sessionId as string,
         status: data.status as string,
-        totalSteps: (data.totalSteps || data.total_steps) as number,
-        successSteps: (data.successSteps || data.success_steps) as number,
-        failedSteps: (data.failedSteps || data.failed_steps) as number,
-        durationMs: (data.durationMs || data.duration_ms) as number,
+        totalSteps: data.totalSteps as number,
+        successSteps: data.successSteps as number,
+        failedSteps: data.failedSteps as number,
+        durationMs: data.durationMs as number,
       });
       break;
     case 'error':

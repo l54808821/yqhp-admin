@@ -65,7 +65,7 @@ const showLogsModal = ref(false);
 // 选中步骤的 AI 内容
 const selectedStepAIContent = computed(() => {
   if (!stepTree.selectedStep.value) return null;
-  return execution.aiContent.value.get(stepTree.selectedStep.value.step_id) || null;
+  return execution.aiContent.value.get(stepTree.selectedStep.value.stepId) || null;
 });
 
 // 监听 visible 变化

@@ -34,7 +34,7 @@ const emit = defineEmits<{
     <Space align="center">
       <Tag :color="statusColor">{{ statusText }}</Tag>
       <Tag v-if="currentProgress" class="progress-tag">
-        {{ currentProgress.current_step }}/{{ currentProgress.total_steps }}
+        {{ currentProgress.currentStep }}/{{ currentProgress.totalSteps }}
       </Tag>
       <Progress
         v-if="isRunning || isCompleted"

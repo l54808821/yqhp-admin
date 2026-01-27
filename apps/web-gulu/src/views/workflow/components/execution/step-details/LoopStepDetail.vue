@@ -21,12 +21,12 @@ const PlayCircle = createIconifyIcon('lucide:play-circle');
 // 循环输出类型定义
 interface LoopOutput {
   mode?: string;
-  total_iterations?: number;
-  steps_executed?: string[];
-  break_triggered?: boolean;
-  duration_ms?: number;
-  current_item?: unknown;
-  current_index?: number;
+  totalIterations?: number;
+  stepsExecuted?: string[];
+  breakTriggered?: boolean;
+  durationMs?: number;
+  currentItem?: unknown;
+  currentIndex?: number;
 }
 
 interface Props {
@@ -42,10 +42,10 @@ const loopOutput = computed(() => {
 
   return {
     mode: output.mode || 'for',
-    totalIterations: output.total_iterations || 0,
-    stepsExecuted: output.steps_executed || [],
-    breakTriggered: output.break_triggered || false,
-    durationMs: output.duration_ms || props.stepResult.duration_ms || 0,
+    totalIterations: output.totalIterations || 0,
+    stepsExecuted: output.stepsExecuted || [],
+    breakTriggered: output.breakTriggered || false,
+    durationMs: output.durationMs || props.stepResult.durationMs || 0,
   };
 });
 
@@ -97,7 +97,7 @@ function formatDuration(ms: number): string {
           {{ executionStatus.text }}
         </Tag>
         <span class="divider">|</span>
-        <span class="metric">耗时: {{ formatDuration(stepResult.duration_ms || 0) }}</span>
+        <span class="metric">耗时: {{ formatDuration(stepResult.durationMs || 0) }}</span>
       </Space>
     </div>
 
@@ -154,16 +154,16 @@ function formatDuration(ms: number): string {
 
     <!-- 详细信息 -->
     <Descriptions :column="1" size="small" bordered class="detail-desc">
-      <Descriptions.Item label="步骤名称">{{ stepResult.step_name }}</Descriptions.Item>
+      <Descriptions.Item label="步骤名称">{{ stepResult.stepName }}</Descriptions.Item>
       <Descriptions.Item label="步骤ID">
-        <code>{{ stepResult.step_id }}</code>
+        <code>{{ stepResult.stepId }}</code>
       </Descriptions.Item>
       <Descriptions.Item label="步骤类型">loop</Descriptions.Item>
       <Descriptions.Item v-if="loopOutput" label="循环模式">
         <Tag :color="modeColor" size="small">{{ modeLabel }}</Tag>
       </Descriptions.Item>
-      <Descriptions.Item v-if="stepResult.parent_id" label="父步骤">
-        <code>{{ stepResult.parent_id }}</code>
+      <Descriptions.Item v-if="stepResult.parentId" label="父步骤">
+        <code>{{ stepResult.parentId }}</code>
       </Descriptions.Item>
     </Descriptions>
   </div>

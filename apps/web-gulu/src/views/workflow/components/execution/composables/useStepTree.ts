@@ -60,22 +60,22 @@ export function useStepTree(options: UseStepTreeOptions) {
       const nodeKey = generateNodeKey(result);
       const node: TreeNode = {
         key: nodeKey,
-        title: result.step_name,
-        type: result.step_type || 'unknown',
+        title: result.stepName,
+        type: result.stepType || 'unknown',
         status: result.status,
-        duration: result.duration_ms,
+        duration: result.durationMs,
         stepResult: result,
         iteration: result.iteration,
         children: [],
       };
       nodeMap.set(nodeKey, node);
 
-      if (result.parent_id) {
+      if (result.parentId) {
         const iteration = result.iteration || 0;
-        if (!parentChildMap.has(result.parent_id)) {
-          parentChildMap.set(result.parent_id, new Map());
+        if (!parentChildMap.has(result.parentId)) {
+          parentChildMap.set(result.parentId, new Map());
         }
-        const iterMap = parentChildMap.get(result.parent_id)!;
+        const iterMap = parentChildMap.get(result.parentId)!;
         if (!iterMap.has(iteration)) {
           iterMap.set(iteration, []);
         }
@@ -88,17 +88,17 @@ export function useStepTree(options: UseStepTreeOptions) {
     // 第二遍：根据步骤类型组织子节点结构
     for (const result of stepResults.value) {
       // 循环节点：按迭代分组
-      if (result.step_type === 'loop' && parentChildMap.has(result.step_id)) {
+      if (result.stepType === 'loop' && parentChildMap.has(result.stepId)) {
         const nodeKey = generateNodeKey(result);
         const parentNode = nodeMap.get(nodeKey);
         if (parentNode) {
-          const iterMap = parentChildMap.get(result.step_id)!;
+          const iterMap = parentChildMap.get(result.stepId)!;
           const iterations = Array.from(iterMap.keys()).sort((a, b) => a - b);
           for (const iter of iterations) {
             const children = iterMap.get(iter)!;
             if (iter > 0) {
               const iterNode: TreeNode = {
-                key: `${result.step_id}_iteration_${iter}`,
+                key: `${result.stepId}_iteration_${iter}`,
                 title: `第 ${iter} 次迭代`,
                 type: 'iteration',
                 status: children.every((c) => c.status === 'success')
@@ -119,12 +119,12 @@ export function useStepTree(options: UseStepTreeOptions) {
       }
 
       // 条件节点：直接将子步骤挂到条件节点下
-      if (result.step_type === 'condition' && parentChildMap.has(result.step_id)) {
+      if (result.stepType === 'condition' && parentChildMap.has(result.stepId)) {
         const nodeKey = generateNodeKey(result);
         const parentNode = nodeMap.get(nodeKey);
         if (!parentNode) continue;
 
-        const iterMap = parentChildMap.get(result.step_id)!;
+        const iterMap = parentChildMap.get(result.stepId)!;
         const allChildren: TreeNode[] = [];
         for (const children of iterMap.values()) {
           allChildren.push(...children);
@@ -134,10 +134,10 @@ export function useStepTree(options: UseStepTreeOptions) {
 
         // 从第一个子步骤推断命中的分支名称
         if (allChildren.length > 0 && stepToBranch.size > 0) {
-          const firstChildStepId = allChildren[0]?.stepResult?.step_id;
+          const firstChildStepId = allChildren[0]?.stepResult?.stepId;
           if (firstChildStepId && stepToBranch.has(firstChildStepId)) {
             const branchInfo = stepToBranch.get(firstChildStepId)!;
-            if (branchInfo.conditionId === result.step_id) {
+            if (branchInfo.conditionId === result.stepId) {
               parentNode.branchName = branchInfo.branchName;
             }
           }

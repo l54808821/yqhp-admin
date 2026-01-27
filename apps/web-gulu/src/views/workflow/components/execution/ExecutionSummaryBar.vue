@@ -17,10 +17,10 @@ function formatDuration(ms?: number) {
 
 <template>
   <div class="summary-bar">
-    <span>总步骤: <strong>{{ summary.total_steps }}</strong></span>
-    <span class="success">成功: <strong>{{ summary.success_steps }}</strong></span>
-    <span class="error">失败: <strong>{{ summary.failed_steps }}</strong></span>
-    <span>耗时: <strong>{{ formatDuration(summary.total_duration_ms) }}</strong></span>
+    <span>总步骤: <strong>{{ summary.totalSteps }}</strong></span>
+    <span class="success">成功: <strong>{{ summary.successSteps }}</strong></span>
+    <span class="error">失败: <strong>{{ summary.failedSteps }}</strong></span>
+    <span>耗时: <strong>{{ formatDuration(summary.totalDurationMs) }}</strong></span>
   </div>
 </template>
 

@@ -71,38 +71,38 @@ function formatDuration(ms?: number) {
         <template v-if="selectedStep">
           <!-- HTTP 步骤使用专用组件 -->
           <HttpStepDetail
-            v-if="selectedStep.step_type === 'http'"
+            v-if="selectedStep.stepType === 'http'"
             :step-result="selectedStep"
           />
 
           <!-- 脚本步骤使用专用组件 -->
           <ScriptStepDetail
-            v-else-if="selectedStep.step_type === 'script'"
+            v-else-if="selectedStep.stepType === 'script'"
             :step-result="selectedStep"
           />
 
           <!-- 条件判断步骤使用专用组件 -->
           <ConditionStepDetail
-            v-else-if="selectedStep.step_type === 'condition'"
+            v-else-if="selectedStep.stepType === 'condition'"
             :step-result="selectedStep"
           />
 
           <!-- 循环步骤使用专用组件 -->
           <LoopStepDetail
-            v-else-if="selectedStep.step_type === 'loop'"
+            v-else-if="selectedStep.stepType === 'loop'"
             :step-result="selectedStep"
           />
 
           <!-- 其他步骤类型使用通用展示 -->
           <template v-else>
             <Descriptions :column="1" size="small" bordered>
-              <Descriptions.Item label="步骤名称">{{ selectedStep.step_name }}</Descriptions.Item>
-              <Descriptions.Item label="步骤ID">{{ selectedStep.step_id }}</Descriptions.Item>
+              <Descriptions.Item label="步骤名称">{{ selectedStep.stepName }}</Descriptions.Item>
+              <Descriptions.Item label="步骤ID">{{ selectedStep.stepId }}</Descriptions.Item>
               <Descriptions.Item label="步骤类型">{{
-                selectedStep.step_type || '-'
+                selectedStep.stepType || '-'
               }}</Descriptions.Item>
-              <Descriptions.Item v-if="selectedStep.parent_id" label="父步骤">{{
-                selectedStep.parent_id
+              <Descriptions.Item v-if="selectedStep.parentId" label="父步骤">{{
+                selectedStep.parentId
               }}</Descriptions.Item>
               <Descriptions.Item v-if="selectedStep.iteration" label="迭代次数"
                 >第 {{ selectedStep.iteration }} 次</Descriptions.Item
@@ -114,7 +114,7 @@ function formatDuration(ms?: number) {
                 <Tag v-else color="default">等待</Tag>
               </Descriptions.Item>
               <Descriptions.Item label="耗时">{{
-                formatDuration(selectedStep.duration_ms)
+                formatDuration(selectedStep.durationMs)
               }}</Descriptions.Item>
             </Descriptions>
 
@@ -125,11 +125,11 @@ function formatDuration(ms?: number) {
             </div>
 
             <!-- AI 输出内容 -->
-            <div v-if="selectedStep.step_type === 'ai' && aiContent" class="detail-section">
+            <div v-if="selectedStep.stepType === 'ai' && aiContent" class="detail-section">
               <div class="section-title">AI 输出</div>
               <div class="ai-output">
                 <pre>{{ aiContent }}</pre>
-                <span v-if="currentAIStepId === selectedStep.step_id" class="typing-cursor">|</span>
+                <span v-if="currentAIStepId === selectedStep.stepId" class="typing-cursor">|</span>
               </div>
             </div>
 

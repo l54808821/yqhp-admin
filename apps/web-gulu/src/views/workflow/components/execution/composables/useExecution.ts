@@ -146,13 +146,13 @@ export function useExecution(options: UseExecutionOptions) {
 
   // 生成唯一的树节点key
   function generateNodeKey(result: StepResult): string {
-    if (result.parent_id && result.iteration) {
-      return `${result.parent_id}_iter${result.iteration}_${result.step_id}`;
+    if (result.parentId && result.iteration) {
+      return `${result.parentId}_iter${result.iteration}_${result.stepId}`;
     }
-    if (result.parent_id) {
-      return `${result.parent_id}_${result.step_id}`;
+    if (result.parentId) {
+      return `${result.parentId}_${result.stepId}`;
     }
-    return result.step_id;
+    return result.stepId;
   }
 
   // 添加日志
@@ -166,8 +166,8 @@ export function useExecution(options: UseExecutionOptions) {
 
   // 处理 SSE 消息
   function handleSSEMessage(event: SSEEvent) {
-    if (event.session_id && !sessionId.value) {
-      sessionId.value = event.session_id;
+    if (event.sessionId && !sessionId.value) {
+      sessionId.value = event.sessionId;
     }
 
     addLog(`[${event.type}] ${JSON.stringify(event.data || {})}`);
@@ -190,10 +190,10 @@ export function useExecution(options: UseExecutionOptions) {
         break;
       case 'step_skipped':
         handleStepSkipped(event.data as {
-          step_id: string;
-          step_name: string;
-          step_type?: string;
-          parent_id?: string;
+          stepId: string;
+          stepName: string;
+          stepType?: string;
+          parentId?: string;
           iteration?: number;
           reason: string;
         });
@@ -221,34 +221,34 @@ export function useExecution(options: UseExecutionOptions) {
 
   function handleStepStarted(data: StepStartedData) {
     const result: StepResult = {
-      step_id: data.step_id,
-      step_name: data.step_name,
-      step_type: data.step_type,
-      parent_id: data.parent_id,
+      stepId: data.stepId,
+      stepName: data.stepName,
+      stepType: data.stepType,
+      parentId: data.parentId,
       iteration: data.iteration,
       status: 'running',
-      duration_ms: 0,
+      durationMs: 0,
     };
     stepResults.value = [...stepResults.value, result];
     onStepStarted?.(result);
   }
 
   function handleStepSkipped(data: {
-    step_id: string;
-    step_name: string;
-    step_type?: string;
-    parent_id?: string;
+    stepId: string;
+    stepName: string;
+    stepType?: string;
+    parentId?: string;
     iteration?: number;
     reason: string;
   }) {
     const result: StepResult = {
-      step_id: data.step_id,
-      step_name: data.step_name,
-      step_type: data.step_type,
-      parent_id: data.parent_id,
+      stepId: data.stepId,
+      stepName: data.stepName,
+      stepType: data.stepType,
+      parentId: data.parentId,
       iteration: data.iteration,
       status: 'skipped',
-      duration_ms: 0,
+      durationMs: 0,
       error: data.reason,
     };
     stepResults.value = [...stepResults.value, result];
@@ -258,8 +258,8 @@ export function useExecution(options: UseExecutionOptions) {
   function handleStepResult(result: StepResult) {
     const index = stepResults.value.findIndex(
       (r) =>
-        r.step_id === result.step_id &&
-        r.parent_id === result.parent_id &&
+        r.stepId === result.stepId &&
+        r.parentId === result.parentId &&
         r.iteration === result.iteration
     );
 
@@ -279,36 +279,36 @@ export function useExecution(options: UseExecutionOptions) {
 
   function handleWorkflowComplete(data: WorkflowCompletedData) {
     executionSummary.value = {
-      session_id: data.session_id,
-      total_steps: data.total_steps,
-      success_steps: data.success_steps,
-      failed_steps: data.failed_steps,
-      total_duration_ms: data.total_duration_ms,
+      sessionId: data.sessionId,
+      totalSteps: data.totalSteps,
+      successSteps: data.successSteps,
+      failedSteps: data.failedSteps,
+      totalDurationMs: data.totalDurationMs,
       status: data.status as any,
-      step_results: stepResults.value,
-      start_time: '',
-      end_time: '',
+      stepResults: stepResults.value,
+      startTime: '',
+      endTime: '',
     };
     onComplete?.(executionSummary.value);
     sseService?.disconnect();
   }
 
   function handleAIChunk(data: AIChunkData) {
-    currentAIStepId.value = data.step_id;
-    const current = aiContent.value.get(data.step_id) || '';
-    aiContent.value.set(data.step_id, current + data.chunk);
+    currentAIStepId.value = data.stepId;
+    const current = aiContent.value.get(data.stepId) || '';
+    aiContent.value.set(data.stepId, current + data.chunk);
     aiContent.value = new Map(aiContent.value);
   }
 
   function handleAIComplete(data: AICompleteData) {
-    aiContent.value.set(data.step_id, data.content);
+    aiContent.value.set(data.stepId, data.content);
     aiContent.value = new Map(aiContent.value);
     currentAIStepId.value = null;
   }
 
   function handleAIInteraction(data: AIInteractionData) {
     interactionData.value = data;
-    interactionValue.value = data.default_value || '';
+    interactionValue.value = data.defaultValue || '';
     interactionOpen.value = true;
 
     if (data.timeout > 0) {

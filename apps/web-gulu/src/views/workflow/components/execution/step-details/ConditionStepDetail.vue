@@ -83,7 +83,7 @@ function formatDuration(ms: number): string {
           {{ executionStatus.text }}
         </Tag>
         <span class="divider">|</span>
-        <span class="metric">耗时: {{ formatDuration(stepResult.duration_ms || 0) }}</span>
+        <span class="metric">耗时: {{ formatDuration(stepResult.durationMs || 0) }}</span>
       </Space>
     </div>
 
@@ -133,13 +133,13 @@ function formatDuration(ms: number): string {
 
     <!-- 详细信息 -->
     <Descriptions :column="1" size="small" bordered class="detail-desc">
-      <Descriptions.Item label="步骤名称">{{ stepResult.step_name }}</Descriptions.Item>
+      <Descriptions.Item label="步骤名称">{{ stepResult.stepName }}</Descriptions.Item>
       <Descriptions.Item label="步骤ID">
-        <code>{{ stepResult.step_id }}</code>
+        <code>{{ stepResult.stepId }}</code>
       </Descriptions.Item>
       <Descriptions.Item label="步骤类型">condition</Descriptions.Item>
-      <Descriptions.Item v-if="stepResult.parent_id" label="父步骤">
-        <code>{{ stepResult.parent_id }}</code>
+      <Descriptions.Item v-if="stepResult.parentId" label="父步骤">
+        <code>{{ stepResult.parentId }}</code>
       </Descriptions.Item>
       <Descriptions.Item v-if="stepResult.iteration" label="迭代次数">
         第 {{ stepResult.iteration }} 次

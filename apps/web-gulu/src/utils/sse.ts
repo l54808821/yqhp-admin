@@ -27,91 +27,91 @@ export type SSEEventType =
 // timestamp 格式: "2006-01-02 15:04:05.000"
 export interface SSEEvent<T = unknown> {
   type: SSEEventType;
-  session_id: string;
+  sessionId: string;
   timestamp: string;
   data: T;
 }
 
 // 步骤开始数据
 export interface StepStartedData {
-  step_id: string;
-  step_name: string;
-  step_type?: string;
-  parent_id?: string;
+  stepId: string;
+  stepName: string;
+  stepType?: string;
+  parentId?: string;
   iteration?: number;
 }
 
 // 步骤完成数据
 export interface StepCompletedData {
-  step_id: string;
-  step_name: string;
-  step_type?: string;
-  parent_id?: string;
+  stepId: string;
+  stepName: string;
+  stepType?: string;
+  parentId?: string;
   iteration?: number;
   status: string;
-  duration_ms: number;
+  durationMs: number;
   output?: Record<string, unknown>;
 }
 
 // 步骤失败数据
 export interface StepFailedData {
-  step_id: string;
-  step_name: string;
-  step_type?: string;
-  parent_id?: string;
+  stepId: string;
+  stepName: string;
+  stepType?: string;
+  parentId?: string;
   iteration?: number;
   error: string;
   details?: string;
-  duration_ms: number;
+  durationMs: number;
 }
 
 // 步骤跳过数据
 export interface StepSkippedData {
-  step_id: string;
-  step_name: string;
-  step_type?: string;
-  parent_id?: string;
+  stepId: string;
+  stepName: string;
+  stepType?: string;
+  parentId?: string;
   iteration?: number;
   reason: string;
 }
 
 // 进度数据
 export interface ProgressData {
-  current_step: number;
-  total_steps: number;
+  currentStep: number;
+  totalSteps: number;
   percentage: number;
-  step_name: string;
+  stepName: string;
 }
 
 // 工作流完成数据
 export interface WorkflowCompletedData {
-  session_id: string;
-  total_steps: number;
-  success_steps: number;
-  failed_steps: number;
-  total_duration_ms: number;
+  sessionId: string;
+  totalSteps: number;
+  successSteps: number;
+  failedSteps: number;
+  totalDurationMs: number;
   status: string;
 }
 
 // AI 块数据
 export interface AIChunkData {
-  step_id: string;
+  stepId: string;
   chunk: string;
   index: number;
 }
 
 // AI 完成数据
 export interface AICompleteData {
-  step_id: string;
+  stepId: string;
   content: string;
-  prompt_tokens: number;
-  completion_tokens: number;
-  total_tokens: number;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
 }
 
 // AI 错误数据
 export interface AIErrorData {
-  step_id: string;
+  stepId: string;
   error: string;
   details?: string;
 }
@@ -127,11 +127,11 @@ export interface InteractionOption {
 
 // AI 交互数据
 export interface AIInteractionData {
-  step_id: string;
+  stepId: string;
   type: InteractionType;
   prompt: string;
   options?: InteractionOption[];
-  default_value?: string;
+  defaultValue?: string;
   timeout: number;
 }
 
@@ -290,14 +290,14 @@ export class SSEService {
 
       const sseEvent: SSEEvent = {
         type: (eventType || parsed.type) as SSEEventType,
-        session_id: parsed.session_id,
+        sessionId: parsed.sessionId,
         timestamp: parsed.timestamp,
         data: parsed.data,
       };
 
       // 保存会话ID
-      if (sseEvent.session_id && !this.sessionId) {
-        this.sessionId = sseEvent.session_id;
+      if (sseEvent.sessionId && !this.sessionId) {
+        this.sessionId = sseEvent.sessionId;
       }
 
       // 忽略心跳事件
@@ -414,14 +414,14 @@ export class SSEService {
       // 构建 SSE 事件对象
       const sseEvent: SSEEvent = {
         type: eventType || data.type,
-        session_id: data.session_id,
+        sessionId: data.sessionId,
         timestamp: data.timestamp,
         data: data.data,
       };
 
       // 保存会话ID
-      if (sseEvent.session_id && !this.sessionId) {
-        this.sessionId = sseEvent.session_id;
+      if (sseEvent.sessionId && !this.sessionId) {
+        this.sessionId = sseEvent.sessionId;
       }
 
       // 忽略心跳事件
