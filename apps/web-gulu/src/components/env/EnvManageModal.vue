@@ -21,6 +21,8 @@ import {
   Tooltip,
 } from 'ant-design-vue';
 
+import SplitPane from '#/components/SplitPane.vue';
+
 import type { Env } from '#/api/env';
 
 import {
@@ -230,9 +232,16 @@ function getEnvStatusText(env: Env) {
     @cancel="handleClose"
   >
     <Spin :spinning="loading">
-      <div class="env-manage-layout">
-        <!-- 左侧环境列表 -->
-        <div class="env-list-panel">
+      <SplitPane
+        class="env-manage-layout"
+        :default-width="260"
+        :min-width="200"
+        :max-width="400"
+        storage-key="env-manage-panel"
+      >
+        <template #left>
+          <!-- 左侧环境列表 -->
+          <div class="env-list-panel">
           <div class="panel-header">
             <span class="panel-title">环境列表</span>
             <Button type="primary" size="small" @click="handleCreateEnv">
@@ -288,9 +297,11 @@ function getEnvStatusText(env: Env) {
             </div>
           </div>
         </div>
+        </template>
 
-        <!-- 右侧环境详情 -->
-        <div class="env-detail-panel">
+        <template #right>
+          <!-- 右侧环境详情 -->
+          <div class="env-detail-panel">
           <EnvDetailForm
             v-if="selectedEnv"
             :key="selectedEnv.id"
@@ -301,7 +312,8 @@ function getEnvStatusText(env: Env) {
             <Empty description="请选择或创建一个环境" />
           </div>
         </div>
-      </div>
+        </template>
+      </SplitPane>
     </Spin>
 
     <!-- 新建环境弹框 -->
@@ -332,14 +344,11 @@ function getEnvStatusText(env: Env) {
 
 <style scoped>
 .env-manage-layout {
-  display: flex;
   height: calc(90vh - 69px);
-  gap: 12px;
 }
 
 .env-list-panel {
-  width: 260px;
-  min-width: 260px;
+  height: 100%;
   background: #fafafa;
   border-radius: 8px;
   display: flex;
@@ -465,7 +474,7 @@ function getEnvStatusText(env: Env) {
 }
 
 .env-detail-panel {
-  flex: 1;
+  height: 100%;
   background: #fff;
   border-radius: 8px;
   border: 1px solid #f0f0f0;
