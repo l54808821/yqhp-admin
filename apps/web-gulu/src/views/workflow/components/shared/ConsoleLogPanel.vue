@@ -2,16 +2,20 @@
 /**
  * 控制台日志展示组件
  * 统一用于 HTTP 响应和脚本响应的控制台日志展示
+ * 支持处理器日志、变量变更日志、变量快照
  */
 import { reactive } from 'vue';
 
 import { createIconifyIcon } from '@vben/icons';
 import { Tooltip } from 'ant-design-vue';
 
-import type { ConsoleLogEntry } from './types';
+import type { ConsoleLogEntry, VariableSnapshotInfo } from './types';
 
 const CheckCircleIcon = createIconifyIcon('lucide:check-circle');
 const XCircleIcon = createIconifyIcon('lucide:x-circle');
+const VariableIcon = createIconifyIcon('lucide:variable');
+const ChevronDownIcon = createIconifyIcon('lucide:chevron-down');
+const ChevronRightIcon = createIconifyIcon('lucide:chevron-right');
 
 interface Props {
   logs: ConsoleLogEntry[];
@@ -32,14 +36,55 @@ function getProcessorTypeName(type: string): string {
   return names[type] || type;
 }
 
+// 获取变量来源名称
+function getSourceName(source: string): string {
+  const names: Record<string, string> = {
+    'set_variable': '设置变量',
+    'extract_param': '提取参数',
+    'js_script': 'JS脚本',
+    'loop': '循环',
+  };
+  return names[source] || source;
+}
+
 // 格式化处理器输出为 tooltip 内容
 function formatProcessorOutput(output?: Record<string, unknown>): string {
   if (!output) return '';
   return JSON.stringify(output, null, 2);
 }
 
+// 格式化变量值（用于显示）
+function formatValue(value: unknown): string {
+  if (value === undefined) return 'undefined';
+  if (value === null) return 'null';
+  if (typeof value === 'string') {
+    // 字符串超过 50 字符则截断
+    if (value.length > 50) {
+      return `"${value.slice(0, 50)}..."`;
+    }
+    return `"${value}"`;
+  }
+  if (typeof value === 'object') {
+    const str = JSON.stringify(value);
+    if (str.length > 50) {
+      return str.slice(0, 50) + '...';
+    }
+    return str;
+  }
+  return String(value);
+}
+
+// 获取快照变量数量
+function getSnapshotVarCount(snapshot: VariableSnapshotInfo): { env: number; temp: number } {
+  return {
+    env: Object.keys(snapshot.envVars || {}).length,
+    temp: Object.keys(snapshot.tempVars || {}).length,
+  };
+}
+
 // 展开状态管理
 const expandedLogs = reactive<Set<number>>(new Set());
+const expandedSnapshots = reactive<Set<number>>(new Set());
 
 function isLogExpanded(idx: number): boolean {
   return expandedLogs.has(idx);
@@ -50,6 +95,18 @@ function toggleLogExpand(idx: number) {
     expandedLogs.delete(idx);
   } else {
     expandedLogs.add(idx);
+  }
+}
+
+function isSnapshotExpanded(idx: number): boolean {
+  return expandedSnapshots.has(idx);
+}
+
+function toggleSnapshotExpand(idx: number) {
+  if (expandedSnapshots.has(idx)) {
+    expandedSnapshots.delete(idx);
+  } else {
+    expandedSnapshots.add(idx);
   }
 }
 
@@ -81,8 +138,12 @@ function getTruncatedMessage(message?: string): string {
         :key="idx"
         class="console-entry"
         :class="[
-          entry.type === 'processor' ? 'processor-entry' : 'log-entry',
-          entry.type === 'processor' ? (entry.processor?.success ? 'success' : 'failed') : entry.type
+          entry.type === 'processor' ? 'processor-entry' : '',
+          entry.type === 'processor' ? (entry.processor?.success ? 'success' : 'failed') : '',
+          entry.type === 'variable' ? 'variable-entry' : '',
+          entry.type === 'snapshot' ? 'snapshot-entry' : '',
+          ['log', 'warn', 'error'].includes(entry.type) ? 'log-entry' : '',
+          ['log', 'warn', 'error'].includes(entry.type) ? entry.type : ''
         ]"
       >
         <!-- 处理器日志 -->
@@ -104,8 +165,89 @@ function getTruncatedMessage(message?: string): string {
           />
         </template>
 
+        <!-- 变量变更日志 -->
+        <template v-else-if="entry.type === 'variable' && entry.variable">
+          <VariableIcon class="variable-icon" />
+          <span class="scope-tag" :class="entry.variable.scope">
+            {{ entry.variable.scope === 'env' ? '环境' : '临时' }}
+          </span>
+          <span class="variable-name">{{ entry.variable.name }}</span>
+          <span class="variable-arrow">=</span>
+          <Tooltip placement="top">
+            <template #title>
+              <div class="value-tooltip">
+                <div v-if="entry.variable.oldValue !== undefined" class="old-value">
+                  旧值: {{ JSON.stringify(entry.variable.oldValue) }}
+                </div>
+                <div class="new-value">新值: {{ JSON.stringify(entry.variable.newValue) }}</div>
+              </div>
+            </template>
+            <span class="variable-value">{{ formatValue(entry.variable.newValue) }}</span>
+          </Tooltip>
+          <span class="source-tag">{{ getSourceName(entry.variable.source) }}</span>
+        </template>
+
+        <!-- 变量快照 -->
+        <template v-else-if="entry.type === 'snapshot' && entry.snapshot">
+          <div class="snapshot-container">
+            <div class="snapshot-header" @click="toggleSnapshotExpand(idx)">
+              <component
+                :is="isSnapshotExpanded(idx) ? ChevronDownIcon : ChevronRightIcon"
+                class="chevron-icon"
+              />
+              <span class="snapshot-title">变量快照</span>
+              <span class="snapshot-count">
+                环境: {{ getSnapshotVarCount(entry.snapshot).env }} |
+                临时: {{ getSnapshotVarCount(entry.snapshot).temp }}
+              </span>
+            </div>
+            <div v-if="isSnapshotExpanded(idx)" class="snapshot-content">
+              <!-- 环境变量 -->
+              <div
+                v-if="Object.keys(entry.snapshot.envVars || {}).length > 0"
+                class="var-section"
+              >
+                <div class="section-title">环境变量</div>
+                <div
+                  v-for="(val, key) in entry.snapshot.envVars"
+                  :key="String(key)"
+                  class="var-item"
+                >
+                  <span class="var-key">{{ key }}:</span>
+                  <span class="var-value">{{ formatValue(val) }}</span>
+                </div>
+              </div>
+              <!-- 临时变量 -->
+              <div
+                v-if="Object.keys(entry.snapshot.tempVars || {}).length > 0"
+                class="var-section"
+              >
+                <div class="section-title">临时变量</div>
+                <div
+                  v-for="(val, key) in entry.snapshot.tempVars"
+                  :key="String(key)"
+                  class="var-item"
+                >
+                  <span class="var-key">{{ key }}:</span>
+                  <span class="var-value">{{ formatValue(val) }}</span>
+                </div>
+              </div>
+              <!-- 无变量 -->
+              <div
+                v-if="
+                  Object.keys(entry.snapshot.envVars || {}).length === 0 &&
+                  Object.keys(entry.snapshot.tempVars || {}).length === 0
+                "
+                class="no-vars"
+              >
+                暂无变量
+              </div>
+            </div>
+          </div>
+        </template>
+
         <!-- 普通日志 -->
-        <template v-else>
+        <template v-else-if="['log', 'warn', 'error'].includes(entry.type)">
           <span class="log-prefix">[{{ entry.type.toUpperCase() }}]</span>
           <span class="log-message">
             <template v-if="needsCollapse(entry.message) && !isLogExpanded(idx)">
@@ -272,5 +414,162 @@ function getTruncatedMessage(message?: string): string {
   color: hsl(var(--foreground) / 45%);
   padding: 20px;
   font-size: 12px;
+}
+
+/* ========== 变量变更日志样式 ========== */
+.variable-entry {
+  background: hsl(150 60% 50% / 8%);
+}
+
+.variable-icon {
+  width: 14px;
+  height: 14px;
+  color: hsl(150 60% 45%);
+  flex-shrink: 0;
+}
+
+.scope-tag {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.scope-tag.env {
+  background: hsl(200 80% 50% / 20%);
+  color: hsl(200 80% 45%);
+}
+
+.scope-tag.temp {
+  background: hsl(40 80% 50% / 20%);
+  color: hsl(40 80% 40%);
+}
+
+.variable-name {
+  font-weight: 600;
+  color: hsl(var(--foreground) / 90%);
+}
+
+.variable-arrow {
+  color: hsl(var(--foreground) / 50%);
+  margin: 0 2px;
+}
+
+.variable-value {
+  color: hsl(150 60% 40%);
+  cursor: pointer;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.variable-value:hover {
+  color: hsl(150 60% 35%);
+  text-decoration: underline;
+  text-decoration-style: dashed;
+}
+
+.source-tag {
+  font-size: 10px;
+  color: hsl(var(--foreground) / 40%);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.value-tooltip {
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  font-size: 11px;
+}
+
+.value-tooltip .old-value {
+  color: hsl(0 70% 65%);
+  margin-bottom: 4px;
+}
+
+.value-tooltip .new-value {
+  color: hsl(150 70% 60%);
+}
+
+/* ========== 变量快照样式 ========== */
+.snapshot-entry {
+  display: block !important;
+  background: hsl(220 60% 50% / 8%);
+  padding: 0 !important;
+}
+
+.snapshot-container {
+  width: 100%;
+}
+
+.snapshot-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.snapshot-header:hover {
+  background: hsl(var(--accent) / 30%);
+}
+
+.chevron-icon {
+  width: 14px;
+  height: 14px;
+  color: hsl(var(--foreground) / 60%);
+  flex-shrink: 0;
+}
+
+.snapshot-title {
+  font-weight: 500;
+  color: hsl(220 60% 50%);
+}
+
+.snapshot-count {
+  font-size: 11px;
+  color: hsl(var(--foreground) / 50%);
+  margin-left: auto;
+}
+
+.snapshot-content {
+  padding: 0 8px 8px 28px;
+  border-top: 1px solid hsl(var(--border) / 50%);
+}
+
+.var-section {
+  margin-top: 8px;
+}
+
+.section-title {
+  font-size: 11px;
+  font-weight: 500;
+  color: hsl(var(--foreground) / 60%);
+  margin-bottom: 4px;
+}
+
+.var-item {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: 11px;
+}
+
+.var-key {
+  color: hsl(var(--foreground) / 70%);
+  font-weight: 500;
+}
+
+.var-value {
+  color: hsl(150 60% 40%);
+  word-break: break-all;
+}
+
+.no-vars {
+  color: hsl(var(--foreground) / 40%);
+  font-size: 11px;
+  padding: 8px 0;
 }
 </style>

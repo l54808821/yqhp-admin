@@ -4,7 +4,7 @@
  */
 
 // 控制台日志类型
-export type ConsoleLogType = 'log' | 'warn' | 'error' | 'processor';
+export type ConsoleLogType = 'log' | 'warn' | 'error' | 'processor' | 'variable' | 'snapshot';
 
 // 处理器日志详情
 export interface ProcessorLogInfo {
@@ -17,12 +17,29 @@ export interface ProcessorLogInfo {
   output?: Record<string, unknown>;
 }
 
+// 变量变更信息
+export interface VariableChangeInfo {
+  name: string;
+  oldValue?: unknown;
+  newValue: unknown;
+  scope: 'env' | 'temp';
+  source: string; // set_variable | extract_param | js_script | loop
+}
+
+// 变量快照信息
+export interface VariableSnapshotInfo {
+  envVars: Record<string, unknown>;
+  tempVars: Record<string, unknown>;
+}
+
 // 统一的控制台日志条目
 export interface ConsoleLogEntry {
   type: ConsoleLogType;
   message?: string;
   ts?: number;
   processor?: ProcessorLogInfo;
+  variable?: VariableChangeInfo;
+  snapshot?: VariableSnapshotInfo;
 }
 
 // 断言结果
