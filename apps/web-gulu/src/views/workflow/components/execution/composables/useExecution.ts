@@ -324,6 +324,11 @@ export function useExecution(options: UseExecutionOptions) {
 
   function handleError(data: { message: string }) {
     errorMessage.value = data.message;
+    // 服务器返回错误时停止重连
+    reconnecting.value = false;
+    reconnectAttempts.value = maxReconnectAttempts; // 阻止进一步重连
+    loading.value = false;
+    sseService?.disconnect();
   }
 
   // 处理连接断开
@@ -331,16 +336,26 @@ export function useExecution(options: UseExecutionOptions) {
     if (executionSummary.value) return;
 
     disconnected.value = true;
-    errorMessage.value = 'SSE 连接已断开';
 
-    if (reconnectAttempts.value < maxReconnectAttempts && lastSSEUrl) {
+    // 只有在未达到最大重连次数时才自动重连
+    if (reconnectAttempts.value < maxReconnectAttempts && lastSSEUrl && !reconnecting.value) {
       autoReconnect();
+    } else if (reconnectAttempts.value >= maxReconnectAttempts) {
+      errorMessage.value = 'SSE 连接已断开，已达最大重试次数';
+      reconnecting.value = false;
+    } else {
+      errorMessage.value = 'SSE 连接已断开';
     }
   }
 
   // 自动重连
   function autoReconnect() {
     if (reconnecting.value || executionSummary.value) return;
+    if (reconnectAttempts.value >= maxReconnectAttempts) {
+      errorMessage.value = 'SSE 连接已断开，已达最大重试次数';
+      reconnecting.value = false;
+      return;
+    }
 
     reconnecting.value = true;
     reconnectAttempts.value++;
@@ -350,6 +365,8 @@ export function useExecution(options: UseExecutionOptions) {
       if (disconnected.value && !executionSummary.value) {
         sseService?.disconnect();
         connectSSE(lastSSEUrl);
+      } else {
+        reconnecting.value = false;
       }
     }, 2000 * reconnectAttempts.value);
   }
@@ -435,7 +452,7 @@ export function useExecution(options: UseExecutionOptions) {
       const baseUrl = apiUrl.startsWith('http')
         ? apiUrl
         : `${window.location.origin}${apiUrl}`;
-      const url = `${baseUrl}/execute`;
+      const url = `${baseUrl}/executions`;
 
       connectSSE(url, params, token);
     } catch (error: any) {

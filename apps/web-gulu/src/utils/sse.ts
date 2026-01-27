@@ -4,144 +4,25 @@
  * 支持 GET (EventSource) 和 POST (fetch + ReadableStream) 两种方式
  */
 
-// SSE 连接状态
-export type SSEState = 'connecting' | 'connected' | 'disconnected' | 'error';
+// 从 api/debug 导入类型定义，避免重复
+export type {
+  SSEState,
+  SSEEventType,
+  SSEEvent,
+  StepStartedData,
+  StepSkippedData,
+  ProgressData,
+  WorkflowCompletedData,
+  AIChunkData,
+  AICompleteData,
+  AIErrorData,
+  AIInteractionData,
+  InteractionType,
+  InteractionOption,
+  ErrorData,
+} from '#/api/debug';
 
-// SSE 事件类型
-export type SSEEventType =
-  | 'connected'
-  | 'step_started'
-  | 'step_completed'
-  | 'step_failed'
-  | 'step_skipped'
-  | 'progress'
-  | 'workflow_completed'
-  | 'ai_chunk'
-  | 'ai_complete'
-  | 'ai_error'
-  | 'ai_interaction_required'
-  | 'heartbeat'
-  | 'error';
-
-// SSE 事件结构
-// timestamp 格式: "2006-01-02 15:04:05.000"
-export interface SSEEvent<T = unknown> {
-  type: SSEEventType;
-  sessionId: string;
-  timestamp: string;
-  data: T;
-}
-
-// 步骤开始数据
-export interface StepStartedData {
-  stepId: string;
-  stepName: string;
-  stepType?: string;
-  parentId?: string;
-  iteration?: number;
-}
-
-// 步骤完成数据
-export interface StepCompletedData {
-  stepId: string;
-  stepName: string;
-  stepType?: string;
-  parentId?: string;
-  iteration?: number;
-  status: string;
-  durationMs: number;
-  output?: Record<string, unknown>;
-}
-
-// 步骤失败数据
-export interface StepFailedData {
-  stepId: string;
-  stepName: string;
-  stepType?: string;
-  parentId?: string;
-  iteration?: number;
-  error: string;
-  details?: string;
-  durationMs: number;
-}
-
-// 步骤跳过数据
-export interface StepSkippedData {
-  stepId: string;
-  stepName: string;
-  stepType?: string;
-  parentId?: string;
-  iteration?: number;
-  reason: string;
-}
-
-// 进度数据
-export interface ProgressData {
-  currentStep: number;
-  totalSteps: number;
-  percentage: number;
-  stepName: string;
-}
-
-// 工作流完成数据
-export interface WorkflowCompletedData {
-  sessionId: string;
-  totalSteps: number;
-  successSteps: number;
-  failedSteps: number;
-  totalDurationMs: number;
-  status: string;
-}
-
-// AI 块数据
-export interface AIChunkData {
-  stepId: string;
-  chunk: string;
-  index: number;
-}
-
-// AI 完成数据
-export interface AICompleteData {
-  stepId: string;
-  content: string;
-  promptTokens: number;
-  completionTokens: number;
-  totalTokens: number;
-}
-
-// AI 错误数据
-export interface AIErrorData {
-  stepId: string;
-  error: string;
-  details?: string;
-}
-
-// 交互类型
-export type InteractionType = 'confirm' | 'input' | 'select';
-
-// 交互选项
-export interface InteractionOption {
-  value: string;
-  label: string;
-}
-
-// AI 交互数据
-export interface AIInteractionData {
-  stepId: string;
-  type: InteractionType;
-  prompt: string;
-  options?: InteractionOption[];
-  defaultValue?: string;
-  timeout: number;
-}
-
-// 错误数据
-export interface ErrorData {
-  code: string;
-  message: string;
-  details?: string;
-  recoverable: boolean;
-}
+import type { SSEState, SSEEventType, SSEEvent } from '#/api/debug';
 
 // SSE 配置
 export interface SSEConfig {

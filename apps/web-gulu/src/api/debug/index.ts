@@ -98,23 +98,33 @@ export type SSEEventType =
   | 'step_started'
   | 'step_completed'
   | 'step_failed'
+  | 'step_skipped'
   | 'progress'
-  | 'execution_completed'
-  | 'interaction_required'
-  | 'error'
-  | 'heartbeat';
+  | 'workflow_completed'
+  | 'ai_chunk'
+  | 'ai_complete'
+  | 'ai_error'
+  | 'ai_interaction_required'
+  | 'heartbeat'
+  | 'error';
 
-// SSE 事件
-export interface SSEEvent {
-  event: SSEEventType;
-  data: StepResult | ProgressData | DebugSummary | ErrorData | StepStartedData | InteractionData | ConnectedData;
+// SSE 连接状态
+export type SSEState = 'connecting' | 'connected' | 'disconnected' | 'error';
+
+// SSE 事件结构
+export interface SSEEvent<T = unknown> {
+  type: SSEEventType;
+  sessionId: string;
+  timestamp: string;
+  data: T;
 }
 
 // 连接成功数据
 export interface ConnectedData {
   sessionId: string;
-  workflowId: number;
-  mode: ExecutionMode;
+  workflowId?: number;
+  mode?: ExecutionMode;
+  message?: string;
 }
 
 // 步骤开始数据
@@ -126,7 +136,69 @@ export interface StepStartedData {
   iteration?: number;
 }
 
-// 交互请求数据
+// 步骤跳过数据
+export interface StepSkippedData {
+  stepId: string;
+  stepName: string;
+  stepType?: string;
+  parentId?: string;
+  iteration?: number;
+  reason: string;
+}
+
+// 工作流完成数据
+export interface WorkflowCompletedData {
+  sessionId: string;
+  totalSteps: number;
+  successSteps: number;
+  failedSteps: number;
+  totalDurationMs: number;
+  status: string;
+}
+
+// AI 块数据
+export interface AIChunkData {
+  stepId: string;
+  chunk: string;
+  index: number;
+}
+
+// AI 完成数据
+export interface AICompleteData {
+  stepId: string;
+  content: string;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
+// AI 错误数据
+export interface AIErrorData {
+  stepId: string;
+  error: string;
+  details?: string;
+}
+
+// 交互类型
+export type InteractionType = 'confirm' | 'input' | 'select';
+
+// 交互选项
+export interface InteractionOption {
+  value: string;
+  label: string;
+}
+
+// AI 交互数据
+export interface AIInteractionData {
+  stepId: string;
+  type: InteractionType;
+  prompt: string;
+  options?: InteractionOption[];
+  defaultValue?: string;
+  timeout: number;
+}
+
+// 交互请求数据（旧版兼容）
 export interface InteractionData {
   stepId: string;
   stepName: string;
@@ -153,7 +225,7 @@ export interface ErrorData {
  * @param params 执行参数
  */
 export async function runBlockingApi(workflowId: number, params: RunBlockingParams) {
-  return requestClient.post<ExecutionSummary>(`/workflows/${workflowId}/run`, params);
+  return requestClient.post<DebugSummary>(`/workflows/${workflowId}/run`, params);
 }
 
 /**
@@ -161,7 +233,7 @@ export async function runBlockingApi(workflowId: number, params: RunBlockingPara
  * @param sessionId 会话ID
  */
 export async function stopExecutionApi(sessionId: string) {
-  return requestClient.delete(`/executions/${sessionId}/stop`);
+  return requestClient.delete(`/executions/${sessionId}`);
 }
 
 /**
@@ -169,7 +241,7 @@ export async function stopExecutionApi(sessionId: string) {
  * @param sessionId 会话ID
  */
 export async function getExecutionStatusApi(sessionId: string) {
-  return requestClient.get<DebugSession>(`/executions/${sessionId}/status`);
+  return requestClient.get<DebugSession>(`/executions/${sessionId}`);
 }
 
 /**
@@ -178,7 +250,7 @@ export async function getExecutionStatusApi(sessionId: string) {
  * @param params 交互响应
  */
 export async function submitInteractionApi(sessionId: string, params: InteractionResponseParams) {
-  return requestClient.post(`/executions/${sessionId}/interaction`, params);
+  return requestClient.post(`/executions/${sessionId}/interact`, params);
 }
 
 /**
@@ -191,7 +263,7 @@ export function buildSSEUrl(workflowId: number, params: RunStreamParams, token?:
   const apiUrl = import.meta.env.VITE_GLOB_API_URL || '';
   const searchParams = new URLSearchParams();
 
-  searchParams.set('env_id', String(params.env_id));
+  searchParams.set('envId', String(params.envId));
 
   if (params.variables) {
     searchParams.set('variables', JSON.stringify(params.variables));
@@ -199,19 +271,19 @@ export function buildSSEUrl(workflowId: number, params: RunStreamParams, token?:
   if (params.timeout) {
     searchParams.set('timeout', String(params.timeout));
   }
-  if (params.executor_type) {
-    searchParams.set('executor_type', params.executor_type);
+  if (params.executorType) {
+    searchParams.set('executorType', params.executorType);
   }
-  if (params.slave_id) {
-    searchParams.set('slave_id', params.slave_id);
+  if (params.slaveId) {
+    searchParams.set('slaveId', params.slaveId);
   }
   // 添加工作流定义（用于调试未保存的工作流）
   if (params.definition) {
     searchParams.set('definition', params.definition);
   }
   // 添加选中的步骤 ID（用于选择性调试）
-  if (params.selected_steps && params.selected_steps.length > 0) {
-    searchParams.set('selected_steps', JSON.stringify(params.selected_steps));
+  if (params.selectedSteps && params.selectedSteps.length > 0) {
+    searchParams.set('selectedSteps', JSON.stringify(params.selectedSteps));
   }
   // 添加认证 token（EventSource 不支持自定义 headers，需要通过 URL 参数传递）
   if (token) {
@@ -359,7 +431,7 @@ export interface ExecuteResponse {
  * @param params 执行参数
  */
 export async function executeApi(params: ExecuteParams): Promise<ExecuteResponse> {
-  return requestClient.post<ExecuteResponse>('/execute', params);
+  return requestClient.post<ExecuteResponse>('/executions', params);
 }
 
 /**
@@ -419,7 +491,7 @@ export function executeWithSSE(
   const baseUrl = apiUrl.startsWith('http')
     ? apiUrl
     : `${window.location.origin}${apiUrl}`;
-  const url = `${baseUrl}/execute`;
+  const url = `${baseUrl}/executions`;
 
   let abortController: AbortController | null = new AbortController();
 
