@@ -1,6 +1,5 @@
 export * from './core';
 export * from './database-config';
-export * from './domain';
 export * from './env';
 export * from './execution';
 export * from './executor';
@@ -8,5 +7,4 @@ export * from './mq-config';
 export * from './project';
 export * from './system';
 export * from './types';
-export * from './variable';
 export * from './workflow';

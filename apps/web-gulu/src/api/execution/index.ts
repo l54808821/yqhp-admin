@@ -56,47 +56,47 @@ export interface ExecutionLog {
  * 创建执行
  */
 export async function createExecutionApi(params: CreateExecutionParams) {
-  return requestClient.post<Execution>('/executions', params);
+  return requestClient.post<Execution>('/execution-records', params);
 }
 
 /**
  * 获取执行记录列表
  */
 export async function getExecutionListApi(params?: ExecutionListParams) {
-  return requestClient.get<PageResult<Execution>>('/executions', { params });
+  return requestClient.get<PageResult<Execution>>('/execution-records', { params });
 }
 
 /**
  * 获取执行详情
  */
 export async function getExecutionApi(id: number) {
-  return requestClient.get<Execution>(`/executions/${id}`);
+  return requestClient.get<Execution>(`/execution-records/${id}`);
 }
 
 /**
  * 获取执行日志
  */
 export async function getExecutionLogsApi(id: number) {
-  return requestClient.get<ExecutionLog[]>(`/executions/${id}/logs`);
+  return requestClient.get<ExecutionLog[]>(`/execution-records/${id}/logs`);
 }
 
 /**
  * 停止执行
  */
 export async function stopExecutionApi(id: number) {
-  return requestClient.delete(`/executions/${id}`);
+  return requestClient.delete(`/execution-records/${id}`);
 }
 
 /**
  * 暂停执行
  */
 export async function pauseExecutionApi(id: number) {
-  return requestClient.post(`/executions/${id}/pause`);
+  return requestClient.post(`/execution-records/${id}/pause`);
 }
 
 /**
  * 恢复执行
  */
 export async function resumeExecutionApi(id: number) {
-  return requestClient.post(`/executions/${id}/resume`);
+  return requestClient.post(`/execution-records/${id}/resume`);
 }

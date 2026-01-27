@@ -16,16 +16,24 @@ import {
   Input,
   InputNumber,
   message,
+  Modal,
   Popconfirm,
+  Select,
   Switch,
   Table,
   Tabs,
   Tag,
 } from 'ant-design-vue';
 
-import type { Env } from '#/api/env';
+import type { DomainItem, Env, VarItem } from '#/api/env';
 
-import { updateEnvApi } from '#/api/env';
+import {
+  getDomainsApi,
+  getVarsApi,
+  updateDomainsApi,
+  updateEnvApi,
+  updateVarsApi,
+} from '#/api/env';
 
 interface Props {
   env: Env;
@@ -38,6 +46,8 @@ const emit = defineEmits<{
 }>();
 
 const saving = ref(false);
+const loadingDomains = ref(false);
+const loadingVars = ref(false);
 const activeTab = ref('basic');
 const formData = ref({
   name: '',
@@ -46,9 +56,11 @@ const formData = ref({
 });
 
 // 域名配置
-const domains = ref<{ code: string; url: string; description?: string }[]>([]);
+const domains = ref<DomainItem[]>([]);
+const domainsVersion = ref(0);
 // 变量配置
-const variables = ref<{ key: string; value: string; description?: string }[]>([]);
+const variables = ref<VarItem[]>([]);
+const varsVersion = ref(0);
 // 数据库配置
 const databases = ref<{ code: string; host: string; port: number; database: string; username: string; description?: string }[]>([]);
 // MQ配置
@@ -56,17 +68,16 @@ const mqConfigs = ref<{ code: string; host: string; port: number; username: stri
 
 watch(
   () => props.env,
-  (env) => {
+  async (env) => {
     if (env) {
       formData.value = {
         name: env.name,
         description: env.description || '',
         status: env.status,
       };
-      // TODO: 从后端加载配置数据
-      // 这里暂时使用空数据
-      domains.value = [];
-      variables.value = [];
+      // 加载域名和变量配置
+      await Promise.all([loadDomains(), loadVars()]);
+      // 数据库和 MQ 配置暂时使用空数据
       databases.value = [];
       mqConfigs.value = [];
     }
@@ -74,36 +85,134 @@ watch(
   { immediate: true },
 );
 
+// 加载域名配置
+async function loadDomains() {
+  try {
+    loadingDomains.value = true;
+    const res = await getDomainsApi(props.env.id);
+    domains.value = res.domains || [];
+    domainsVersion.value = res.version;
+  } catch {
+    message.error('加载域名配置失败');
+  } finally {
+    loadingDomains.value = false;
+  }
+}
+
+// 加载变量配置
+async function loadVars() {
+  try {
+    loadingVars.value = true;
+    const res = await getVarsApi(props.env.id);
+    variables.value = res.vars || [];
+    varsVersion.value = res.version;
+  } catch {
+    message.error('加载变量配置失败');
+  } finally {
+    loadingVars.value = false;
+  }
+}
+
 async function handleSave() {
   try {
     saving.value = true;
-    await updateEnvApi(props.env.id, {
-      name: formData.value.name,
-      description: formData.value.description,
-      status: formData.value.status,
-    });
-    message.success('保存成功');
-    emit('updated');
+    
+    // 根据当前 Tab 决定保存哪些内容
+    if (activeTab.value === 'basic') {
+      // 保存基本信息
+      await updateEnvApi(props.env.id, {
+        name: formData.value.name,
+        description: formData.value.description,
+        status: formData.value.status,
+      });
+      message.success('基本信息保存成功');
+      emit('updated');
+    } else if (activeTab.value === 'domains') {
+      // 保存域名配置
+      await saveDomains();
+    } else if (activeTab.value === 'variables') {
+      // 保存变量配置
+      await saveVars();
+    } else {
+      message.info('该配置暂不支持保存');
+    }
   } catch {
-    message.error('保存失败');
+    // 错误已在具体方法中处理
   } finally {
     saving.value = false;
   }
 }
 
+// 保存域名配置
+async function saveDomains() {
+  try {
+    const res = await updateDomainsApi(props.env.id, {
+      version: domainsVersion.value,
+      domains: domains.value,
+    });
+    domains.value = res.domains || [];
+    domainsVersion.value = res.version;
+    message.success('域名配置保存成功');
+  } catch (error: any) {
+    if (error?.response?.status === 409) {
+      // 版本冲突
+      Modal.confirm({
+        title: '版本冲突',
+        content: '域名配置已被其他人修改，是否刷新获取最新数据？',
+        okText: '刷新',
+        cancelText: '取消',
+        onOk: loadDomains,
+      });
+    } else {
+      message.error('域名配置保存失败');
+    }
+    throw error;
+  }
+}
+
+// 保存变量配置
+async function saveVars() {
+  try {
+    const res = await updateVarsApi(props.env.id, {
+      version: varsVersion.value,
+      vars: variables.value,
+    });
+    variables.value = res.vars || [];
+    varsVersion.value = res.version;
+    message.success('变量配置保存成功');
+  } catch (error: any) {
+    if (error?.response?.status === 409) {
+      // 版本冲突
+      Modal.confirm({
+        title: '版本冲突',
+        content: '变量配置已被其他人修改，是否刷新获取最新数据？',
+        okText: '刷新',
+        cancelText: '取消',
+        onOk: loadVars,
+      });
+    } else {
+      message.error('变量配置保存失败');
+    }
+    throw error;
+  }
+}
+
 // 域名表格列
 const domainColumns = [
-  { title: '标识代码', dataIndex: 'code', key: 'code', width: 150 },
-  { title: 'URL 地址', dataIndex: 'url', key: 'url' },
-  { title: '备注', dataIndex: 'description', key: 'description', width: 150 },
+  { title: '标识代码', dataIndex: 'code', key: 'code', width: 120 },
+  { title: '名称', dataIndex: 'name', key: 'name', width: 120 },
+  { title: 'URL 地址', dataIndex: 'base_url', key: 'base_url' },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
   { title: '操作', key: 'action', width: 80, align: 'center' as const },
 ];
 
 // 变量表格列
 const variableColumns = [
-  { title: '变量名', dataIndex: 'key', key: 'key', width: 180 },
+  { title: '变量名', dataIndex: 'key', key: 'key', width: 150 },
+  { title: '名称', dataIndex: 'name', key: 'name', width: 120 },
   { title: '变量值', dataIndex: 'value', key: 'value' },
-  { title: '备注', dataIndex: 'description', key: 'description', width: 150 },
+  { title: '类型', dataIndex: 'type', key: 'type', width: 90 },
+  { title: '敏感', dataIndex: 'is_sensitive', key: 'is_sensitive', width: 70 },
   { title: '操作', key: 'action', width: 80, align: 'center' as const },
 ];
 
@@ -128,7 +237,15 @@ const mqColumns = [
 ];
 
 function addDomain() {
-  domains.value.push({ code: '', url: '', description: '' });
+  domains.value.push({ 
+    code: '', 
+    name: '', 
+    base_url: '', 
+    headers: [],
+    description: '',
+    sort: domains.value.length,
+    status: 1,
+  });
 }
 
 function removeDomain(index: number) {
@@ -136,7 +253,14 @@ function removeDomain(index: number) {
 }
 
 function addVariable() {
-  variables.value.push({ key: '', value: '', description: '' });
+  variables.value.push({ 
+    key: '', 
+    name: '',
+    value: '', 
+    type: 'string',
+    is_sensitive: false,
+    description: '',
+  });
 }
 
 function removeVariable(index: number) {
@@ -239,6 +363,7 @@ function removeMqConfig(index: number) {
             :columns="domainColumns"
             :data-source="domains"
             :pagination="false"
+            :loading="loadingDomains"
             size="middle"
             :scroll="{ y: 320 }"
             row-key="code"
@@ -247,11 +372,18 @@ function removeMqConfig(index: number) {
               <template v-if="column.key === 'code'">
                 <Input v-model:value="record.code" placeholder="如：api" />
               </template>
-              <template v-else-if="column.key === 'url'">
-                <Input v-model:value="record.url" placeholder="如：https://api.example.com" />
+              <template v-else-if="column.key === 'name'">
+                <Input v-model:value="record.name" placeholder="如：主域名" />
               </template>
-              <template v-else-if="column.key === 'description'">
-                <Input v-model:value="record.description" placeholder="备注" />
+              <template v-else-if="column.key === 'base_url'">
+                <Input v-model:value="record.base_url" placeholder="如：https://api.example.com" />
+              </template>
+              <template v-else-if="column.key === 'status'">
+                <Switch
+                  :checked="record.status === 1"
+                  size="small"
+                  @change="(checked: any) => record.status = checked ? 1 : 0"
+                />
               </template>
               <template v-else-if="column.key === 'action'">
                 <Popconfirm title="确定删除？" @confirm="removeDomain(index)">
@@ -293,19 +425,40 @@ function removeMqConfig(index: number) {
             :columns="variableColumns"
             :data-source="variables"
             :pagination="false"
+            :loading="loadingVars"
             size="middle"
             :scroll="{ y: 320 }"
             row-key="key"
           >
             <template #bodyCell="{ column, record, index }">
               <template v-if="column.key === 'key'">
-                <Input v-model:value="record.key" placeholder="变量名" />
+                <Input v-model:value="record.key" placeholder="如：API_KEY" />
+              </template>
+              <template v-else-if="column.key === 'name'">
+                <Input v-model:value="record.name" placeholder="如：接口密钥" />
               </template>
               <template v-else-if="column.key === 'value'">
-                <Input v-model:value="record.value" placeholder="变量值" />
+                <Input.Password
+                  v-if="record.is_sensitive"
+                  v-model:value="record.value"
+                  placeholder="敏感变量值"
+                />
+                <Input v-else v-model:value="record.value" placeholder="变量值" />
               </template>
-              <template v-else-if="column.key === 'description'">
-                <Input v-model:value="record.description" placeholder="备注" />
+              <template v-else-if="column.key === 'type'">
+                <Select v-model:value="record.type" size="small" style="width: 100%">
+                  <Select.Option value="string">字符串</Select.Option>
+                  <Select.Option value="number">数字</Select.Option>
+                  <Select.Option value="boolean">布尔</Select.Option>
+                  <Select.Option value="json">JSON</Select.Option>
+                </Select>
+              </template>
+              <template v-else-if="column.key === 'is_sensitive'">
+                <Switch
+                  :checked="record.is_sensitive"
+                  size="small"
+                  @change="(checked: any) => record.is_sensitive = !!checked"
+                />
               </template>
               <template v-else-if="column.key === 'action'">
                 <Popconfirm title="确定删除？" @confirm="removeVariable(index)">
