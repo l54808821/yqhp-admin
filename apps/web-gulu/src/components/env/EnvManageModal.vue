@@ -304,7 +304,6 @@ function getEnvStatusText(env: Env) {
           <div class="env-detail-panel">
           <EnvDetailForm
             v-if="selectedEnv"
-            :key="selectedEnv.id"
             :env="selectedEnv"
             @updated="handleEnvUpdated"
           />

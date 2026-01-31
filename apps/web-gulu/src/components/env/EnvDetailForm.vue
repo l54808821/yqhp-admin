@@ -67,6 +67,9 @@ watch(
   () => props.env,
   async (env) => {
     if (env) {
+      // 关闭可能打开的弹窗
+      addModalVisible.value = false;
+      
       formData.value = {
         name: env.name,
         description: env.description || '',
