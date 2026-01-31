@@ -146,8 +146,7 @@ async function saveConfigs(configs: ConfigItem[]) {
 
 // 域名表格列
 const domainColumns = [
-  { title: '标识', dataIndex: 'key', key: 'key', width: 120 },
-  { title: '名称', dataIndex: 'name', key: 'name', width: 120 },
+  { title: '名称', dataIndex: 'name', key: 'name', width: 150 },
   { title: 'URL 地址', dataIndex: 'base_url', key: 'base_url' },
   { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
   { title: '操作', key: 'action', width: 80, align: 'center' as const },
@@ -155,8 +154,7 @@ const domainColumns = [
 
 // 变量表格列
 const variableColumns = [
-  { title: '变量名', dataIndex: 'key', key: 'key', width: 150 },
-  { title: '名称', dataIndex: 'name', key: 'name', width: 120 },
+  { title: '名称', dataIndex: 'name', key: 'name', width: 150 },
   { title: '变量值', dataIndex: 'value', key: 'value' },
   { title: '类型', dataIndex: 'var_type', key: 'var_type', width: 90 },
   { title: '敏感', dataIndex: 'is_sensitive', key: 'is_sensitive', width: 70 },
@@ -165,7 +163,7 @@ const variableColumns = [
 
 // 数据库表格列
 const databaseColumns = [
-  { title: '标识', dataIndex: 'key', key: 'key', width: 120 },
+  { title: '名称', dataIndex: 'name', key: 'name', width: 150 },
   { title: '主机地址', dataIndex: 'host', key: 'host', width: 160 },
   { title: '端口', dataIndex: 'port', key: 'port', width: 80 },
   { title: '数据库名', dataIndex: 'database', key: 'database', width: 140 },
@@ -175,7 +173,7 @@ const databaseColumns = [
 
 // MQ表格列
 const mqColumns = [
-  { title: '标识', dataIndex: 'key', key: 'key', width: 120 },
+  { title: '名称', dataIndex: 'name', key: 'name', width: 150 },
   { title: '主机地址', dataIndex: 'host', key: 'host', width: 160 },
   { title: '端口', dataIndex: 'port', key: 'port', width: 80 },
   { title: 'VHost', dataIndex: 'vhost', key: 'vhost', width: 100 },
@@ -186,7 +184,7 @@ const mqColumns = [
 // 添加配置弹窗状态
 const addModalVisible = ref(false);
 const addModalType = ref<ConfigType>('domain');
-const addModalForm = ref({ key: '', name: '' });
+const addModalForm = ref({ name: '' });
 const addModalLoading = ref(false);
 
 const typeLabels: Record<ConfigType, string> = {
@@ -199,14 +197,14 @@ const typeLabels: Record<ConfigType, string> = {
 // 打开添加配置弹窗
 function openAddModal(type: ConfigType) {
   addModalType.value = type;
-  addModalForm.value = { key: '', name: '' };
+  addModalForm.value = { name: '' };
   addModalVisible.value = true;
 }
 
 // 确认添加配置
 async function confirmAddConfig() {
-  if (!addModalForm.value.key || !addModalForm.value.name) {
-    message.error('请填写完整信息');
+  if (!addModalForm.value.name) {
+    message.error('请填写名称');
     return;
   }
   
@@ -214,7 +212,6 @@ async function confirmAddConfig() {
     addModalLoading.value = true;
     await createConfigDefinitionApi(projectId.value, {
       type: addModalType.value,
-      key: addModalForm.value.key,
       name: addModalForm.value.name,
       status: 1,
     });
@@ -380,10 +377,7 @@ function setDbField(config: any, field: string, value: any) {
             row-key="code"
           >
             <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'key'">
-                <span>{{ record.key }}</span>
-              </template>
-              <template v-else-if="column.key === 'name'">
+              <template v-if="column.key === 'name'">
                 <Input 
                   :value="record.name" 
                   @blur="(e: any) => updateDefinition(record, 'name', e.target.value)"
@@ -450,10 +444,7 @@ function setDbField(config: any, field: string, value: any) {
             row-key="code"
           >
             <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'key'">
-                <span>{{ record.key }}</span>
-              </template>
-              <template v-else-if="column.key === 'name'">
+              <template v-if="column.key === 'name'">
                 <Input 
                   :value="record.name" 
                   @blur="(e: any) => updateDefinition(record, 'name', e.target.value)"
@@ -530,8 +521,12 @@ function setDbField(config: any, field: string, value: any) {
             row-key="code"
           >
             <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'key'">
-                <span>{{ record.key }}</span>
+              <template v-if="column.key === 'name'">
+                <Input 
+                  :value="record.name" 
+                  @blur="(e: any) => updateDefinition(record, 'name', e.target.value)"
+                  @pressEnter="(e: any) => updateDefinition(record, 'name', e.target.value)"
+                />
               </template>
               <template v-else-if="column.key === 'host'">
                 <Input 
@@ -609,8 +604,12 @@ function setDbField(config: any, field: string, value: any) {
             row-key="code"
           >
             <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'key'">
-                <span>{{ record.key }}</span>
+              <template v-if="column.key === 'name'">
+                <Input 
+                  :value="record.name" 
+                  @blur="(e: any) => updateDefinition(record, 'name', e.target.value)"
+                  @pressEnter="(e: any) => updateDefinition(record, 'name', e.target.value)"
+                />
               </template>
               <template v-else-if="column.key === 'host'">
                 <Input 
@@ -669,12 +668,6 @@ function setDbField(config: any, field: string, value: any) {
       @ok="confirmAddConfig"
     >
       <Form layout="vertical" style="margin-top: 16px;">
-        <Form.Item label="标识（唯一）" required>
-          <Input 
-            v-model:value="addModalForm.key" 
-            :placeholder="addModalType === 'variable' ? '如：API_KEY' : '如：main'" 
-          />
-        </Form.Item>
         <Form.Item label="名称" required>
           <Input 
             v-model:value="addModalForm.name" 

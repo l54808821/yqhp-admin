@@ -71,7 +71,7 @@ export interface ConfigDefinition {
 
 export interface CreateConfigDefinitionParams {
   type: ConfigType;
-  key: string;
+  key?: string; // 可选，后端自动生成
   name: string;
   description?: string;
   extra?: Record<string, any>;
