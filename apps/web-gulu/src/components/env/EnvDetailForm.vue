@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 
 import { createIconifyIcon, Plus } from '@vben/icons';
 
@@ -18,21 +18,21 @@ import {
   message,
   Modal,
   Popconfirm,
-  Select,
   Switch,
   Table,
   Tabs,
   Tag,
 } from 'ant-design-vue';
 
-import type { DomainItem, Env, VarItem } from '#/api/env';
+import type { ConfigItem, ConfigType, Env } from '#/api/env';
 
 import {
-  getDomainsApi,
-  getVarsApi,
-  updateDomainsApi,
+  batchUpdateConfigValuesApi,
+  createConfigDefinitionApi,
+  deleteConfigDefinitionApi,
+  getConfigsApi,
+  updateConfigDefinitionApi,
   updateEnvApi,
-  updateVarsApi,
 } from '#/api/env';
 
 interface Props {
@@ -46,8 +46,7 @@ const emit = defineEmits<{
 }>();
 
 const saving = ref(false);
-const loadingDomains = ref(false);
-const loadingVars = ref(false);
+const loading = ref(false);
 const activeTab = ref('basic');
 const formData = ref({
   name: '',
@@ -55,16 +54,14 @@ const formData = ref({
   status: 1,
 });
 
-// 域名配置
-const domains = ref<DomainItem[]>([]);
-const domainsVersion = ref(0);
-// 变量配置
-const variables = ref<VarItem[]>([]);
-const varsVersion = ref(0);
-// 数据库配置
-const databases = ref<{ code: string; host: string; port: number; database: string; username: string; description?: string }[]>([]);
-// MQ配置
-const mqConfigs = ref<{ code: string; host: string; port: number; username: string; vhost?: string; description?: string }[]>([]);
+// 各类型配置
+const domainConfigs = ref<ConfigItem[]>([]);
+const variableConfigs = ref<ConfigItem[]>([]);
+const databaseConfigs = ref<ConfigItem[]>([]);
+const mqConfigs = ref<ConfigItem[]>([]);
+
+// 当前环境的项目ID
+const projectId = computed(() => props.env?.project_id);
 
 watch(
   () => props.env,
@@ -75,41 +72,32 @@ watch(
         description: env.description || '',
         status: env.status,
       };
-      // 加载域名和变量配置
-      await Promise.all([loadDomains(), loadVars()]);
-      // 数据库和 MQ 配置暂时使用空数据
-      databases.value = [];
-      mqConfigs.value = [];
+      // 加载所有配置
+      await loadConfigs();
     }
   },
   { immediate: true },
 );
 
-// 加载域名配置
-async function loadDomains() {
+// 加载配置
+async function loadConfigs() {
   try {
-    loadingDomains.value = true;
-    const res = await getDomainsApi(props.env.id);
-    domains.value = res.domains || [];
-    domainsVersion.value = res.version;
+    loading.value = true;
+    // 并行加载各类型配置
+    const [domains, variables, databases, mqs] = await Promise.all([
+      getConfigsApi(props.env.id, 'domain'),
+      getConfigsApi(props.env.id, 'variable'),
+      getConfigsApi(props.env.id, 'database'),
+      getConfigsApi(props.env.id, 'mq'),
+    ]);
+    domainConfigs.value = domains || [];
+    variableConfigs.value = variables || [];
+    databaseConfigs.value = databases || [];
+    mqConfigs.value = mqs || [];
   } catch {
-    message.error('加载域名配置失败');
+    message.error('加载配置失败');
   } finally {
-    loadingDomains.value = false;
-  }
-}
-
-// 加载变量配置
-async function loadVars() {
-  try {
-    loadingVars.value = true;
-    const res = await getVarsApi(props.env.id);
-    variables.value = res.vars || [];
-    varsVersion.value = res.version;
-  } catch {
-    message.error('加载变量配置失败');
-  } finally {
-    loadingVars.value = false;
+    loading.value = false;
   }
 }
 
@@ -119,7 +107,6 @@ async function handleSave() {
     
     // 根据当前 Tab 决定保存哪些内容
     if (activeTab.value === 'basic') {
-      // 保存基本信息
       await updateEnvApi(props.env.id, {
         name: formData.value.name,
         description: formData.value.description,
@@ -128,78 +115,38 @@ async function handleSave() {
       message.success('基本信息保存成功');
       emit('updated');
     } else if (activeTab.value === 'domains') {
-      // 保存域名配置
-      await saveDomains();
+      await saveConfigs(domainConfigs.value);
+      message.success('域名配置保存成功');
     } else if (activeTab.value === 'variables') {
-      // 保存变量配置
-      await saveVars();
-    } else {
-      message.info('该配置暂不支持保存');
+      await saveConfigs(variableConfigs.value);
+      message.success('变量配置保存成功');
+    } else if (activeTab.value === 'databases') {
+      await saveConfigs(databaseConfigs.value);
+      message.success('数据库配置保存成功');
+    } else if (activeTab.value === 'mq') {
+      await saveConfigs(mqConfigs.value);
+      message.success('MQ配置保存成功');
     }
-  } catch {
-    // 错误已在具体方法中处理
+  } catch (error) {
+    console.error('保存失败:', error);
   } finally {
     saving.value = false;
   }
 }
 
-// 保存域名配置
-async function saveDomains() {
-  try {
-    const res = await updateDomainsApi(props.env.id, {
-      version: domainsVersion.value,
-      domains: domains.value,
-    });
-    domains.value = res.domains || [];
-    domainsVersion.value = res.version;
-    message.success('域名配置保存成功');
-  } catch (error: any) {
-    if (error?.response?.status === 409) {
-      // 版本冲突
-      Modal.confirm({
-        title: '版本冲突',
-        content: '域名配置已被其他人修改，是否刷新获取最新数据？',
-        okText: '刷新',
-        cancelText: '取消',
-        onOk: loadDomains,
-      });
-    } else {
-      message.error('域名配置保存失败');
-    }
-    throw error;
-  }
-}
-
-// 保存变量配置
-async function saveVars() {
-  try {
-    const res = await updateVarsApi(props.env.id, {
-      version: varsVersion.value,
-      vars: variables.value,
-    });
-    variables.value = res.vars || [];
-    varsVersion.value = res.version;
-    message.success('变量配置保存成功');
-  } catch (error: any) {
-    if (error?.response?.status === 409) {
-      // 版本冲突
-      Modal.confirm({
-        title: '版本冲突',
-        content: '变量配置已被其他人修改，是否刷新获取最新数据？',
-        okText: '刷新',
-        cancelText: '取消',
-        onOk: loadVars,
-      });
-    } else {
-      message.error('变量配置保存失败');
-    }
-    throw error;
-  }
+// 保存配置（批量更新值）
+async function saveConfigs(configs: ConfigItem[]) {
+  const items = configs.map((config) => ({
+    code: config.code,
+    value: config.value || {},
+  }));
+  
+  await batchUpdateConfigValuesApi(props.env.id, { items });
 }
 
 // 域名表格列
 const domainColumns = [
-  { title: '标识代码', dataIndex: 'code', key: 'code', width: 120 },
+  { title: '标识', dataIndex: 'key', key: 'key', width: 120 },
   { title: '名称', dataIndex: 'name', key: 'name', width: 120 },
   { title: 'URL 地址', dataIndex: 'base_url', key: 'base_url' },
   { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
@@ -211,14 +158,14 @@ const variableColumns = [
   { title: '变量名', dataIndex: 'key', key: 'key', width: 150 },
   { title: '名称', dataIndex: 'name', key: 'name', width: 120 },
   { title: '变量值', dataIndex: 'value', key: 'value' },
-  { title: '类型', dataIndex: 'type', key: 'type', width: 90 },
+  { title: '类型', dataIndex: 'var_type', key: 'var_type', width: 90 },
   { title: '敏感', dataIndex: 'is_sensitive', key: 'is_sensitive', width: 70 },
   { title: '操作', key: 'action', width: 80, align: 'center' as const },
 ];
 
 // 数据库表格列
 const databaseColumns = [
-  { title: '标识代码', dataIndex: 'code', key: 'code', width: 120 },
+  { title: '标识', dataIndex: 'key', key: 'key', width: 120 },
   { title: '主机地址', dataIndex: 'host', key: 'host', width: 160 },
   { title: '端口', dataIndex: 'port', key: 'port', width: 80 },
   { title: '数据库名', dataIndex: 'database', key: 'database', width: 140 },
@@ -228,7 +175,7 @@ const databaseColumns = [
 
 // MQ表格列
 const mqColumns = [
-  { title: '标识代码', dataIndex: 'code', key: 'code', width: 120 },
+  { title: '标识', dataIndex: 'key', key: 'key', width: 120 },
   { title: '主机地址', dataIndex: 'host', key: 'host', width: 160 },
   { title: '端口', dataIndex: 'port', key: 'port', width: 80 },
   { title: 'VHost', dataIndex: 'vhost', key: 'vhost', width: 100 },
@@ -236,51 +183,115 @@ const mqColumns = [
   { title: '操作', key: 'action', width: 80, align: 'center' as const },
 ];
 
-function addDomain() {
-  domains.value.push({ 
-    code: '', 
-    name: '', 
-    base_url: '', 
-    headers: [],
-    description: '',
-    sort: domains.value.length,
-    status: 1,
-  });
+// 添加配置弹窗状态
+const addModalVisible = ref(false);
+const addModalType = ref<ConfigType>('domain');
+const addModalForm = ref({ key: '', name: '' });
+const addModalLoading = ref(false);
+
+const typeLabels: Record<ConfigType, string> = {
+  domain: '域名',
+  variable: '变量',
+  database: '数据库',
+  mq: 'MQ',
+};
+
+// 打开添加配置弹窗
+function openAddModal(type: ConfigType) {
+  addModalType.value = type;
+  addModalForm.value = { key: '', name: '' };
+  addModalVisible.value = true;
 }
 
-function removeDomain(index: number) {
-  domains.value.splice(index, 1);
+// 确认添加配置
+async function confirmAddConfig() {
+  if (!addModalForm.value.key || !addModalForm.value.name) {
+    message.error('请填写完整信息');
+    return;
+  }
+  
+  try {
+    addModalLoading.value = true;
+    await createConfigDefinitionApi(projectId.value, {
+      type: addModalType.value,
+      key: addModalForm.value.key,
+      name: addModalForm.value.name,
+      status: 1,
+    });
+    message.success('添加成功');
+    addModalVisible.value = false;
+    await loadConfigs();
+  } catch (error: any) {
+    message.error(error?.message || '添加失败');
+  } finally {
+    addModalLoading.value = false;
+  }
 }
 
-function addVariable() {
-  variables.value.push({ 
-    key: '', 
-    name: '',
-    value: '', 
-    type: 'string',
-    is_sensitive: false,
-    description: '',
-  });
+// 删除配置定义
+async function removeConfig(config: any) {
+  try {
+    await deleteConfigDefinitionApi(projectId.value, config.code);
+    message.success('删除成功');
+    await loadConfigs();
+  } catch (error: any) {
+    message.error(error?.message || '删除失败');
+  }
 }
 
-function removeVariable(index: number) {
-  variables.value.splice(index, 1);
+// 修改配置定义（名称等）
+async function updateDefinition(config: any, field: string, value: any) {
+  try {
+    await updateConfigDefinitionApi(projectId.value, config.code, {
+      [field]: value,
+    });
+    // 不需要重新加载，因为是本地修改
+  } catch (error: any) {
+    message.error(error?.message || '更新失败');
+    await loadConfigs(); // 恢复原值
+  }
 }
 
-function addDatabase() {
-  databases.value.push({ code: '', host: '', port: 3306, database: '', username: '', description: '' });
+// 获取域名 base_url
+function getDomainBaseUrl(config: any): string {
+  return config?.value?.base_url || '';
 }
 
-function removeDatabase(index: number) {
-  databases.value.splice(index, 1);
+// 设置域名 base_url
+function setDomainBaseUrl(config: any, value: string) {
+  if (!config.value) config.value = {};
+  config.value.base_url = value;
 }
 
-function addMqConfig() {
-  mqConfigs.value.push({ code: '', host: '', port: 5672, username: '', vhost: '/', description: '' });
+// 获取变量值
+function getVariableValue(config: any): string {
+  return config?.value?.value || '';
 }
 
-function removeMqConfig(index: number) {
-  mqConfigs.value.splice(index, 1);
+// 设置变量值
+function setVariableValue(config: any, value: string) {
+  if (!config.value) config.value = {};
+  config.value.value = value;
+}
+
+// 获取变量类型
+function getVarType(config: any): string {
+  return config?.extra?.var_type || 'string';
+}
+
+// 判断是否敏感
+function isSensitive(config: any): boolean {
+  return config?.extra?.is_sensitive || false;
+}
+
+// 获取数据库/MQ字段
+function getDbField(config: any, field: string): any {
+  return config?.value?.[field] || '';
+}
+
+function setDbField(config: any, field: string, value: any) {
+  if (!config.value) config.value = {};
+  config.value[field] = value;
 }
 </script>
 
@@ -347,46 +358,54 @@ function removeMqConfig(index: number) {
           <span class="tab-label">
             <Globe class="size-4" />
             <span>域名配置</span>
-            <Tag v-if="domains.length > 0" class="tab-count">{{ domains.length }}</Tag>
+            <Tag v-if="domainConfigs.length > 0" class="tab-count">{{ domainConfigs.length }}</Tag>
           </span>
         </template>
         <div class="tab-content">
           <div class="config-toolbar">
-            <Button type="primary" @click="addDomain">
+            <Button type="primary" @click="openAddModal('domain')">
               <template #icon><Plus class="size-4" /></template>
               添加域名
             </Button>
-            <span class="toolbar-hint">配置此环境下的服务域名地址</span>
+            <span class="toolbar-hint">配置此环境下的服务域名地址（域名定义是项目级别的，所有环境共享）</span>
           </div>
           <Table
-            v-if="domains.length > 0"
+            v-if="domainConfigs.length > 0"
             :columns="domainColumns"
-            :data-source="domains"
+            :data-source="domainConfigs"
             :pagination="false"
-            :loading="loadingDomains"
+            :loading="loading"
             size="middle"
             :scroll="{ y: 320 }"
             row-key="code"
           >
-            <template #bodyCell="{ column, record, index }">
-              <template v-if="column.key === 'code'">
-                <Input v-model:value="record.code" placeholder="如：api" />
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'key'">
+                <span>{{ record.key }}</span>
               </template>
               <template v-else-if="column.key === 'name'">
-                <Input v-model:value="record.name" placeholder="如：主域名" />
+                <Input 
+                  :value="record.name" 
+                  @blur="(e: any) => updateDefinition(record, 'name', e.target.value)"
+                  @pressEnter="(e: any) => updateDefinition(record, 'name', e.target.value)"
+                />
               </template>
               <template v-else-if="column.key === 'base_url'">
-                <Input v-model:value="record.base_url" placeholder="如：https://api.example.com" />
+                <Input 
+                  :value="getDomainBaseUrl(record)" 
+                  placeholder="如：https://api.example.com"
+                  @input="(e: any) => setDomainBaseUrl(record, e.target.value)"
+                />
               </template>
               <template v-else-if="column.key === 'status'">
                 <Switch
                   :checked="record.status === 1"
                   size="small"
-                  @change="(checked: any) => record.status = checked ? 1 : 0"
+                  @change="(checked: any) => updateDefinition(record, 'status', checked ? 1 : 0)"
                 />
               </template>
               <template v-else-if="column.key === 'action'">
-                <Popconfirm title="确定删除？" @confirm="removeDomain(index)">
+                <Popconfirm title="确定删除？删除后所有环境的该配置都会被删除" @confirm="removeConfig(record)">
                   <Button type="text" size="small" danger>
                     <Trash2 class="size-4" />
                   </Button>
@@ -395,7 +414,7 @@ function removeMqConfig(index: number) {
             </template>
           </Table>
           <Empty v-else description="暂无域名配置" class="empty-state">
-            <Button type="primary" @click="addDomain">
+            <Button type="primary" @click="openAddModal('domain')">
               <template #icon><Plus class="size-4" /></template>
               添加第一个域名
             </Button>
@@ -409,59 +428,64 @@ function removeMqConfig(index: number) {
           <span class="tab-label">
             <Variable class="size-4" />
             <span>变量配置</span>
-            <Tag v-if="variables.length > 0" class="tab-count">{{ variables.length }}</Tag>
+            <Tag v-if="variableConfigs.length > 0" class="tab-count">{{ variableConfigs.length }}</Tag>
           </span>
         </template>
         <div class="tab-content">
           <div class="config-toolbar">
-            <Button type="primary" @click="addVariable">
+            <Button type="primary" @click="openAddModal('variable')">
               <template #icon><Plus class="size-4" /></template>
               添加变量
             </Button>
             <span class="toolbar-hint">配置此环境下的全局变量，可在测试用例中引用</span>
           </div>
           <Table
-            v-if="variables.length > 0"
+            v-if="variableConfigs.length > 0"
             :columns="variableColumns"
-            :data-source="variables"
+            :data-source="variableConfigs"
             :pagination="false"
-            :loading="loadingVars"
+            :loading="loading"
             size="middle"
             :scroll="{ y: 320 }"
-            row-key="key"
+            row-key="code"
           >
-            <template #bodyCell="{ column, record, index }">
+            <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'key'">
-                <Input v-model:value="record.key" placeholder="如：API_KEY" />
+                <span>{{ record.key }}</span>
               </template>
               <template v-else-if="column.key === 'name'">
-                <Input v-model:value="record.name" placeholder="如：接口密钥" />
+                <Input 
+                  :value="record.name" 
+                  @blur="(e: any) => updateDefinition(record, 'name', e.target.value)"
+                  @pressEnter="(e: any) => updateDefinition(record, 'name', e.target.value)"
+                />
               </template>
               <template v-else-if="column.key === 'value'">
                 <Input.Password
-                  v-if="record.is_sensitive"
-                  v-model:value="record.value"
+                  v-if="isSensitive(record)"
+                  :value="getVariableValue(record)"
                   placeholder="敏感变量值"
+                  @input="(e: any) => setVariableValue(record, e.target.value)"
                 />
-                <Input v-else v-model:value="record.value" placeholder="变量值" />
+                <Input 
+                  v-else 
+                  :value="getVariableValue(record)" 
+                  placeholder="变量值"
+                  @input="(e: any) => setVariableValue(record, e.target.value)"
+                />
               </template>
-              <template v-else-if="column.key === 'type'">
-                <Select v-model:value="record.type" size="small" style="width: 100%">
-                  <Select.Option value="string">字符串</Select.Option>
-                  <Select.Option value="number">数字</Select.Option>
-                  <Select.Option value="boolean">布尔</Select.Option>
-                  <Select.Option value="json">JSON</Select.Option>
-                </Select>
+              <template v-else-if="column.key === 'var_type'">
+                <Tag>{{ getVarType(record) }}</Tag>
               </template>
               <template v-else-if="column.key === 'is_sensitive'">
                 <Switch
-                  :checked="record.is_sensitive"
+                  :checked="isSensitive(record)"
                   size="small"
-                  @change="(checked: any) => record.is_sensitive = !!checked"
+                  disabled
                 />
               </template>
               <template v-else-if="column.key === 'action'">
-                <Popconfirm title="确定删除？" @confirm="removeVariable(index)">
+                <Popconfirm title="确定删除？删除后所有环境的该配置都会被删除" @confirm="removeConfig(record)">
                   <Button type="text" size="small" danger>
                     <Trash2 class="size-4" />
                   </Button>
@@ -470,7 +494,7 @@ function removeMqConfig(index: number) {
             </template>
           </Table>
           <Empty v-else description="暂无变量配置" class="empty-state">
-            <Button type="primary" @click="addVariable">
+            <Button type="primary" @click="openAddModal('variable')">
               <template #icon><Plus class="size-4" /></template>
               添加第一个变量
             </Button>
@@ -484,44 +508,63 @@ function removeMqConfig(index: number) {
           <span class="tab-label">
             <Database class="size-4" />
             <span>数据库</span>
-            <Tag v-if="databases.length > 0" class="tab-count">{{ databases.length }}</Tag>
+            <Tag v-if="databaseConfigs.length > 0" class="tab-count">{{ databaseConfigs.length }}</Tag>
           </span>
         </template>
         <div class="tab-content">
           <div class="config-toolbar">
-            <Button type="primary" @click="addDatabase">
+            <Button type="primary" @click="openAddModal('database')">
               <template #icon><Plus class="size-4" /></template>
               添加数据库
             </Button>
             <span class="toolbar-hint">配置此环境下的数据库连接信息</span>
           </div>
           <Table
-            v-if="databases.length > 0"
+            v-if="databaseConfigs.length > 0"
             :columns="databaseColumns"
-            :data-source="databases"
+            :data-source="databaseConfigs"
             :pagination="false"
+            :loading="loading"
             size="middle"
             :scroll="{ y: 320 }"
             row-key="code"
           >
-            <template #bodyCell="{ column, record, index }">
-              <template v-if="column.key === 'code'">
-                <Input v-model:value="record.code" placeholder="标识" />
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'key'">
+                <span>{{ record.key }}</span>
               </template>
               <template v-else-if="column.key === 'host'">
-                <Input v-model:value="record.host" placeholder="主机地址" />
+                <Input 
+                  :value="getDbField(record, 'host')" 
+                  placeholder="主机地址"
+                  @input="(e: any) => setDbField(record, 'host', e.target.value)"
+                />
               </template>
               <template v-else-if="column.key === 'port'">
-                <InputNumber v-model:value="record.port" :min="1" :max="65535" style="width: 100%" />
+                <InputNumber 
+                  :value="getDbField(record, 'port') || 3306" 
+                  :min="1" 
+                  :max="65535" 
+                  style="width: 100%"
+                  @change="(val: any) => setDbField(record, 'port', val)"
+                />
               </template>
               <template v-else-if="column.key === 'database'">
-                <Input v-model:value="record.database" placeholder="数据库名" />
+                <Input 
+                  :value="getDbField(record, 'database')" 
+                  placeholder="数据库名"
+                  @input="(e: any) => setDbField(record, 'database', e.target.value)"
+                />
               </template>
               <template v-else-if="column.key === 'username'">
-                <Input v-model:value="record.username" placeholder="用户名" />
+                <Input 
+                  :value="getDbField(record, 'username')" 
+                  placeholder="用户名"
+                  @input="(e: any) => setDbField(record, 'username', e.target.value)"
+                />
               </template>
               <template v-else-if="column.key === 'action'">
-                <Popconfirm title="确定删除？" @confirm="removeDatabase(index)">
+                <Popconfirm title="确定删除？删除后所有环境的该配置都会被删除" @confirm="removeConfig(record)">
                   <Button type="text" size="small" danger>
                     <Trash2 class="size-4" />
                   </Button>
@@ -530,7 +573,7 @@ function removeMqConfig(index: number) {
             </template>
           </Table>
           <Empty v-else description="暂无数据库配置" class="empty-state">
-            <Button type="primary" @click="addDatabase">
+            <Button type="primary" @click="openAddModal('database')">
               <template #icon><Plus class="size-4" /></template>
               添加第一个数据库
             </Button>
@@ -549,7 +592,7 @@ function removeMqConfig(index: number) {
         </template>
         <div class="tab-content">
           <div class="config-toolbar">
-            <Button type="primary" @click="addMqConfig">
+            <Button type="primary" @click="openAddModal('mq')">
               <template #icon><Plus class="size-4" /></template>
               添加 MQ
             </Button>
@@ -560,28 +603,47 @@ function removeMqConfig(index: number) {
             :columns="mqColumns"
             :data-source="mqConfigs"
             :pagination="false"
+            :loading="loading"
             size="middle"
             :scroll="{ y: 320 }"
             row-key="code"
           >
-            <template #bodyCell="{ column, record, index }">
-              <template v-if="column.key === 'code'">
-                <Input v-model:value="record.code" placeholder="标识" />
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'key'">
+                <span>{{ record.key }}</span>
               </template>
               <template v-else-if="column.key === 'host'">
-                <Input v-model:value="record.host" placeholder="主机地址" />
+                <Input 
+                  :value="getDbField(record, 'host')" 
+                  placeholder="主机地址"
+                  @input="(e: any) => setDbField(record, 'host', e.target.value)"
+                />
               </template>
               <template v-else-if="column.key === 'port'">
-                <InputNumber v-model:value="record.port" :min="1" :max="65535" style="width: 100%" />
+                <InputNumber 
+                  :value="getDbField(record, 'port') || 5672" 
+                  :min="1" 
+                  :max="65535" 
+                  style="width: 100%"
+                  @change="(val: any) => setDbField(record, 'port', val)"
+                />
               </template>
               <template v-else-if="column.key === 'vhost'">
-                <Input v-model:value="record.vhost" placeholder="/" />
+                <Input 
+                  :value="getDbField(record, 'vhost') || '/'" 
+                  placeholder="/"
+                  @input="(e: any) => setDbField(record, 'vhost', e.target.value)"
+                />
               </template>
               <template v-else-if="column.key === 'username'">
-                <Input v-model:value="record.username" placeholder="用户名" />
+                <Input 
+                  :value="getDbField(record, 'username')" 
+                  placeholder="用户名"
+                  @input="(e: any) => setDbField(record, 'username', e.target.value)"
+                />
               </template>
               <template v-else-if="column.key === 'action'">
-                <Popconfirm title="确定删除？" @confirm="removeMqConfig(index)">
+                <Popconfirm title="确定删除？删除后所有环境的该配置都会被删除" @confirm="removeConfig(record)">
                   <Button type="text" size="small" danger>
                     <Trash2 class="size-4" />
                   </Button>
@@ -590,7 +652,7 @@ function removeMqConfig(index: number) {
             </template>
           </Table>
           <Empty v-else description="暂无 MQ 配置" class="empty-state">
-            <Button type="primary" @click="addMqConfig">
+            <Button type="primary" @click="openAddModal('mq')">
               <template #icon><Plus class="size-4" /></template>
               添加第一个 MQ
             </Button>
@@ -598,6 +660,29 @@ function removeMqConfig(index: number) {
         </div>
       </Tabs.TabPane>
     </Tabs>
+    
+    <!-- 添加配置弹窗 -->
+    <Modal
+      v-model:open="addModalVisible"
+      :title="`添加${typeLabels[addModalType]}`"
+      :confirm-loading="addModalLoading"
+      @ok="confirmAddConfig"
+    >
+      <Form layout="vertical" style="margin-top: 16px;">
+        <Form.Item label="标识（唯一）" required>
+          <Input 
+            v-model:value="addModalForm.key" 
+            :placeholder="addModalType === 'variable' ? '如：API_KEY' : '如：main'" 
+          />
+        </Form.Item>
+        <Form.Item label="名称" required>
+          <Input 
+            v-model:value="addModalForm.name" 
+            :placeholder="addModalType === 'variable' ? '如：接口密钥' : '如：主服务'" 
+          />
+        </Form.Item>
+      </Form>
+    </Modal>
   </div>
 </template>
 

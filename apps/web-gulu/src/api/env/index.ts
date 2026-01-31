@@ -47,78 +47,111 @@ export interface UpdateEnvSortParams {
   position: 'before' | 'after';
 }
 
-// ==================== 域名配置相关类型 ====================
+// ==================== 配置定义相关类型 ====================
 
-export interface DomainHeader {
-  key: string;
-  value: string;
-}
+export type ConfigType = 'domain' | 'variable' | 'database' | 'mq';
 
 /**
- * 域名配置项（存储在环境的 domains 字段中）
+ * 配置定义（项目级别）
  */
-export interface DomainItem {
+export interface ConfigDefinition {
+  id: number;
+  project_id: number;
+  type: ConfigType;
   code: string;
+  key: string;
   name: string;
-  base_url: string;
-  headers?: DomainHeader[];
   description?: string;
+  extra?: Record<string, any>;
   sort?: number;
   status: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
-export interface GetDomainsResponse {
-  version: number;
-  domains: DomainItem[];
+export interface CreateConfigDefinitionParams {
+  type: ConfigType;
+  key: string;
+  name: string;
+  description?: string;
+  extra?: Record<string, any>;
+  sort?: number;
+  status?: number;
 }
 
-export interface UpdateDomainsRequest {
-  version: number;
-  domains: DomainItem[];
+export interface UpdateConfigDefinitionParams {
+  key?: string;
+  name?: string;
+  description?: string;
+  extra?: Record<string, any>;
+  sort?: number;
+  status?: number;
 }
 
-export interface UpdateDomainsResponse {
-  version: number;
-  domains: DomainItem[];
-}
-
-// ==================== 变量配置相关类型 ====================
+// ==================== 配置值相关类型 ====================
 
 /**
- * 变量配置项（存储在环境的 vars 字段中）
+ * 配置项（包含定义和值）
  */
-export interface VarItem {
+export interface ConfigItem {
+  code: string;
   key: string;
   name: string;
-  value: string;
-  type: 'string' | 'number' | 'boolean' | 'json';
-  is_sensitive: boolean;
   description?: string;
+  type: ConfigType;
+  extra?: Record<string, any>;
+  sort?: number;
+  status: number;
+  value?: Record<string, any>;
 }
 
-export interface GetVarsResponse {
-  version: number;
-  vars: VarItem[];
+export interface UpdateConfigValueParams {
+  value: Record<string, any>;
 }
 
-export interface UpdateVarsRequest {
-  version: number;
-  vars: VarItem[];
+export interface BatchUpdateConfigValuesParams {
+  items: Array<{
+    code: string;
+    value: Record<string, any>;
+  }>;
 }
 
-export interface UpdateVarsResponse {
-  version: number;
-  vars: VarItem[];
+// ==================== 域名配置值类型 ====================
+
+export interface DomainValue {
+  base_url: string;
+  headers?: Array<{ key: string; value: string }>;
 }
 
-export interface VarExportItem {
-  name: string;
-  key: string;
+// ==================== 变量配置值类型 ====================
+
+export interface VariableValue {
   value: string;
-  type: string;
-  is_sensitive: boolean;
-  description: string;
 }
+
+// ==================== 数据库配置值类型 ====================
+
+export interface DatabaseValue {
+  host: string;
+  port: number;
+  database: string;
+  username: string;
+  password: string;
+  options?: string;
+}
+
+// ==================== MQ配置值类型 ====================
+
+export interface MQValue {
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+  vhost?: string;
+  options?: string;
+}
+
+// ==================== 环境 API ====================
 
 /**
  * 创建环境
@@ -176,63 +209,102 @@ export async function updateEnvSortApi(params: UpdateEnvSortParams) {
   return requestClient.put('/envs/sort', params);
 }
 
-// ==================== 域名配置 API ====================
+// ==================== 配置定义 API ====================
 
 /**
- * 获取环境的域名配置
- * @param envId 环境ID
+ * 获取项目的配置定义列表
+ * @param projectId 项目ID
+ * @param type 配置类型（可选）
  */
-export async function getDomainsApi(envId: number) {
-  return requestClient.get<GetDomainsResponse>(`/envs/${envId}/domains`);
+export async function getConfigDefinitionsApi(
+  projectId: number,
+  type?: ConfigType,
+) {
+  const params = type ? { type } : undefined;
+  return requestClient.get<ConfigDefinition[]>(
+    `/projects/${projectId}/config-definitions`,
+    { params },
+  );
 }
 
 /**
- * 更新环境的域名配置（带乐观锁）
- * @param envId 环境ID
- * @param params 更新参数（包含版本号和域名列表）
+ * 创建配置定义
+ * @param projectId 项目ID
+ * @param params 创建参数
  */
-export async function updateDomainsApi(
-  envId: number,
-  params: UpdateDomainsRequest,
+export async function createConfigDefinitionApi(
+  projectId: number,
+  params: CreateConfigDefinitionParams,
 ) {
-  return requestClient.put<UpdateDomainsResponse>(
-    `/envs/${envId}/domains`,
+  return requestClient.post<ConfigDefinition>(
+    `/projects/${projectId}/config-definitions`,
     params,
   );
 }
 
-// ==================== 变量配置 API ====================
-
 /**
- * 获取环境的变量配置
- * @param envId 环境ID
+ * 更新配置定义
+ * @param projectId 项目ID
+ * @param code 配置code
+ * @param params 更新参数
  */
-export async function getVarsApi(envId: number) {
-  return requestClient.get<GetVarsResponse>(`/envs/${envId}/vars`);
+export async function updateConfigDefinitionApi(
+  projectId: number,
+  code: string,
+  params: UpdateConfigDefinitionParams,
+) {
+  return requestClient.put<ConfigDefinition>(
+    `/projects/${projectId}/config-definitions/${code}`,
+    params,
+  );
 }
 
 /**
- * 更新环境的变量配置（带乐观锁）
- * @param envId 环境ID
- * @param params 更新参数（包含版本号和变量列表）
+ * 删除配置定义
+ * @param projectId 项目ID
+ * @param code 配置code
  */
-export async function updateVarsApi(envId: number, params: UpdateVarsRequest) {
-  return requestClient.put<UpdateVarsResponse>(`/envs/${envId}/vars`, params);
+export async function deleteConfigDefinitionApi(
+  projectId: number,
+  code: string,
+) {
+  return requestClient.delete(`/projects/${projectId}/config-definitions/${code}`);
+}
+
+// ==================== 配置值 API ====================
+
+/**
+ * 获取环境的配置列表
+ * @param envId 环境ID
+ * @param type 配置类型（可选）
+ */
+export async function getConfigsApi(envId: number, type?: ConfigType) {
+  const params = type ? { type } : undefined;
+  return requestClient.get<ConfigItem[]>(`/envs/${envId}/configs`, { params });
 }
 
 /**
- * 导出变量
+ * 更新单个配置的值
  * @param envId 环境ID
+ * @param code 配置code
+ * @param params 更新参数
  */
-export async function exportVarsApi(envId: number) {
-  return requestClient.get<VarExportItem[]>(`/envs/${envId}/vars/export`);
+export async function updateConfigValueApi(
+  envId: number,
+  code: string,
+  params: UpdateConfigValueParams,
+) {
+  return requestClient.put(`/envs/${envId}/configs/${code}`, params);
 }
 
 /**
- * 导入变量
+ * 批量更新配置值
  * @param envId 环境ID
- * @param items 变量列表
+ * @param params 批量更新参数
  */
-export async function importVarsApi(envId: number, items: VarExportItem[]) {
-  return requestClient.post(`/envs/${envId}/vars/import`, { items });
+export async function batchUpdateConfigValuesApi(
+  envId: number,
+  params: BatchUpdateConfigValuesParams,
+) {
+  return requestClient.put(`/envs/${envId}/configs`, params);
 }
