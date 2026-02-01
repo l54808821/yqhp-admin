@@ -404,7 +404,9 @@ function isLastEmptyRow(index: number): boolean {
           </Dropdown>
           <Popconfirm
             title="确定删除此参数？"
+            placement="topRight"
             :disabled="disabled || isLastEmptyRow(index)"
+            :overlay-style="{ minWidth: '180px' }"
             @confirm="removeParam(index)"
           >
             <Tooltip title="删除">
