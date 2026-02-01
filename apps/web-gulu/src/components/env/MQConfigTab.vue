@@ -23,7 +23,6 @@ import {
   createConfigDefinitionApi,
   deleteConfigDefinitionApi,
   getConfigsApi,
-  updateConfigDefinitionApi,
 } from '#/api/env';
 
 const Trash2 = createIconifyIcon('lucide:trash-2');
@@ -106,6 +105,11 @@ function setField(config: any, field: string, value: any) {
   config.value[field] = value;
 }
 
+// 设置名称（本地更新）
+function setName(config: any, value: string) {
+  config.name = value;
+}
+
 // 打开添加弹窗
 function openAddModal() {
   addModalForm.value = { name: '', mqType: 'rabbitmq' };
@@ -139,18 +143,6 @@ async function confirmAdd() {
   }
 }
 
-// 更新配置定义
-async function updateDefinition(config: any, field: string, value: any) {
-  try {
-    await updateConfigDefinitionApi(props.projectId, config.code, {
-      [field]: value,
-    });
-  } catch (error: any) {
-    message.error(error?.message || '更新失败');
-    await loadConfigs();
-  }
-}
-
 // 删除配置
 async function removeConfig(config: any) {
   try {
@@ -165,11 +157,11 @@ async function removeConfig(config: any) {
 // 保存配置值
 async function saveConfigs() {
   try {
-    const values = configs.value.map((c) => ({
+    const items = configs.value.map((c) => ({
       code: c.code,
       value: c.value || {},
     }));
-    await batchUpdateConfigValuesApi(props.envId, { values });
+    await batchUpdateConfigValuesApi(props.envId, { items });
     message.success('保存成功');
     emit('updated');
   } catch (error: any) {
@@ -208,8 +200,7 @@ defineExpose({
         <template v-if="column.key === 'name'">
           <Input 
             :value="record.name" 
-            @blur="(e: any) => updateDefinition(record, 'name', e.target.value)"
-            @pressEnter="(e: any) => updateDefinition(record, 'name', e.target.value)"
+            @input="(e: any) => setName(record, e.target.value)"
           />
         </template>
         <template v-else-if="column.key === 'mq_type'">

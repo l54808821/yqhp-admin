@@ -59,7 +59,6 @@ export interface ConfigDefinition {
   project_id: number;
   type: ConfigType;
   code: string;
-  key: string;
   name: string;
   description?: string;
   extra?: Record<string, any>;
@@ -71,7 +70,6 @@ export interface ConfigDefinition {
 
 export interface CreateConfigDefinitionParams {
   type: ConfigType;
-  key?: string; // 可选，后端自动生成
   name: string;
   description?: string;
   extra?: Record<string, any>;
@@ -80,7 +78,6 @@ export interface CreateConfigDefinitionParams {
 }
 
 export interface UpdateConfigDefinitionParams {
-  key?: string;
   name?: string;
   description?: string;
   extra?: Record<string, any>;
@@ -95,7 +92,6 @@ export interface UpdateConfigDefinitionParams {
  */
 export interface ConfigItem {
   code: string;
-  key: string;
   name: string;
   description?: string;
   type: ConfigType;
@@ -115,6 +111,11 @@ export interface BatchUpdateConfigValuesParams {
     value: Record<string, any>;
   }>;
 }
+
+export type BatchUpdateConfigValuesItem = {
+  code: string;
+  value: Record<string, any>;
+};
 
 // ==================== 域名配置值类型 ====================
 

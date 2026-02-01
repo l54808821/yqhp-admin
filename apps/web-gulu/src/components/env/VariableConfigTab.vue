@@ -24,7 +24,6 @@ import {
   createConfigDefinitionApi,
   deleteConfigDefinitionApi,
   getConfigsApi,
-  updateConfigDefinitionApi,
 } from '#/api/env';
 
 const Trash2 = createIconifyIcon('lucide:trash-2');
@@ -42,6 +41,7 @@ const emit = defineEmits<{
 
 const loading = ref(false);
 const configs = ref<ConfigItem[]>([]);
+const originalConfigs = ref<ConfigItem[]>([]); // 用于记录原始数据，判断名称是否修改
 
 // 添加弹窗状态
 const addModalVisible = ref(false);
@@ -84,6 +84,8 @@ async function loadConfigs() {
     loading.value = true;
     const data = await getConfigsApi(props.envId, 'variable');
     configs.value = data || [];
+    // 深拷贝保存原始数据
+    originalConfigs.value = JSON.parse(JSON.stringify(data || []));
   } catch {
     message.error('加载变量配置失败');
   } finally {
@@ -110,6 +112,11 @@ function getVarType(config: any): string {
 // 判断是否敏感
 function isSensitive(config: any): boolean {
   return config?.extra?.is_sensitive || false;
+}
+
+// 设置名称（本地更新）
+function setName(config: any, value: string) {
+  config.name = value;
 }
 
 // 打开添加弹窗
@@ -146,18 +153,6 @@ async function confirmAdd() {
   }
 }
 
-// 更新配置定义
-async function updateDefinition(config: any, field: string, value: any) {
-  try {
-    await updateConfigDefinitionApi(props.projectId, config.code, {
-      [field]: value,
-    });
-  } catch (error: any) {
-    message.error(error?.message || '更新失败');
-    await loadConfigs();
-  }
-}
-
 // 删除配置
 async function removeConfig(config: any) {
   try {
@@ -169,14 +164,19 @@ async function removeConfig(config: any) {
   }
 }
 
-// 保存配置值
+// 保存配置值（包含名称变更）
 async function saveConfigs() {
   try {
-    const values = configs.value.map((c) => ({
+    // 保存配置值
+    const items = configs.value.map((c) => ({
       code: c.code,
       value: c.value || {},
     }));
-    await batchUpdateConfigValuesApi(props.envId, { values });
+    await batchUpdateConfigValuesApi(props.envId, { items });
+    
+    // 更新原始数据
+    originalConfigs.value = JSON.parse(JSON.stringify(configs.value));
+    
     message.success('保存成功');
     emit('updated');
   } catch (error: any) {
@@ -215,8 +215,7 @@ defineExpose({
         <template v-if="column.key === 'name'">
           <Input 
             :value="record.name" 
-            @blur="(e: any) => updateDefinition(record, 'name', e.target.value)"
-            @pressEnter="(e: any) => updateDefinition(record, 'name', e.target.value)"
+            @input="(e: any) => setName(record, e.target.value)"
           />
         </template>
         <template v-else-if="column.key === 'value'">
