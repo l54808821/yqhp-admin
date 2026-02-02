@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import type Sortable from 'sortablejs';
+
+import { nextTick, onUnmounted, ref, watch } from 'vue';
 
 import { createIconifyIcon, Plus } from '@vben/icons';
 
@@ -24,9 +26,11 @@ import {
   createConfigDefinitionApi,
   deleteConfigDefinitionApi,
   getConfigsApi,
+  updateConfigDefinitionSortApi,
 } from '#/api/env';
 
 const Trash2 = createIconifyIcon('lucide:trash-2');
+const GripVertical = createIconifyIcon('lucide:grip-vertical');
 
 interface Props {
   envId: number;
@@ -42,6 +46,8 @@ const emit = defineEmits<{
 const loading = ref(false);
 const configs = ref<ConfigItem[]>([]);
 const originalConfigs = ref<ConfigItem[]>([]); // 用于记录原始数据，判断名称是否修改
+const tableRef = ref<HTMLElement | null>(null);
+let sortableInstance: Sortable | null = null;
 
 // 添加弹窗状态
 const addModalVisible = ref(false);
@@ -62,6 +68,7 @@ const varTypeOptions = [
 
 // 表格列定义
 const columns = [
+  { title: '', key: 'drag', width: 40, align: 'center' as const },
   { title: '名称', dataIndex: 'name', key: 'name', width: 150 },
   { title: '变量值', dataIndex: 'value', key: 'value' },
   { title: '类型', dataIndex: 'var_type', key: 'var_type', width: 90 },
@@ -86,12 +93,80 @@ async function loadConfigs() {
     configs.value = data || [];
     // 深拷贝保存原始数据
     originalConfigs.value = JSON.parse(JSON.stringify(data || []));
+    // 初始化拖拽排序
+    await nextTick();
+    initSortable();
   } catch {
     message.error('加载变量配置失败');
   } finally {
     loading.value = false;
   }
 }
+
+// 初始化拖拽排序
+async function initSortable() {
+  if (sortableInstance) {
+    sortableInstance.destroy();
+    sortableInstance = null;
+  }
+
+  // 获取表格的 tbody 元素
+  const tbody = tableRef.value?.querySelector('.ant-table-tbody');
+  if (!tbody) return;
+
+  const SortableModule = await import('sortablejs');
+  const SortableClass = SortableModule.default;
+
+  sortableInstance = SortableClass.create(tbody as HTMLElement, {
+    animation: 200,
+    handle: '.drag-handle',
+    ghostClass: 'row-ghost',
+    chosenClass: 'row-chosen',
+    onEnd: handleSortEnd,
+  });
+}
+
+// 处理排序结束
+async function handleSortEnd(event: { oldIndex?: number; newIndex?: number }) {
+  const { oldIndex, newIndex } = event;
+  if (oldIndex === undefined || newIndex === undefined || oldIndex === newIndex) {
+    return;
+  }
+
+  const draggedConfig = configs.value[oldIndex];
+  if (!draggedConfig) return;
+
+  // 计算目标配置和位置
+  let targetConfig: ConfigItem;
+  let position: 'before' | 'after';
+
+  if (newIndex > oldIndex) {
+    targetConfig = configs.value[newIndex]!;
+    position = 'after';
+  } else {
+    targetConfig = configs.value[newIndex]!;
+    position = 'before';
+  }
+
+  try {
+    await updateConfigDefinitionSortApi(props.projectId, 'variable', {
+      code: draggedConfig.code,
+      target_code: targetConfig.code,
+      position,
+    });
+    await loadConfigs();
+  } catch {
+    message.error('排序更新失败');
+    await loadConfigs();
+  }
+}
+
+onUnmounted(() => {
+  if (sortableInstance) {
+    sortableInstance.destroy();
+    sortableInstance = null;
+  }
+});
 
 // 获取变量值
 function getVariableValue(config: any): string {
@@ -201,18 +276,21 @@ defineExpose({
       <span class="toolbar-hint">配置此环境下的全局变量，可在测试用例中引用</span>
     </div>
     
-    <Table
-      v-if="configs.length > 0"
-      :columns="columns"
-      :data-source="configs"
-      :pagination="false"
-      :loading="loading"
-      size="middle"
-      :scroll="{ y: 320 }"
-      row-key="code"
-    >
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'name'">
+    <div v-if="configs.length > 0" ref="tableRef">
+      <Table
+        :columns="columns"
+        :data-source="configs"
+        :pagination="false"
+        :loading="loading"
+        size="middle"
+        :scroll="{ y: 320 }"
+        row-key="code"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'drag'">
+            <GripVertical class="drag-handle size-4 cursor-move text-gray-400" />
+          </template>
+          <template v-else-if="column.key === 'name'">
           <Input 
             :value="record.name" 
             @input="(e: any) => setName(record, e.target.value)"
@@ -251,6 +329,7 @@ defineExpose({
         </template>
       </template>
     </Table>
+    </div>
     
     <Empty v-else description="暂无变量配置" class="empty-state">
       <Button type="primary" @click="openAddModal">
@@ -313,5 +392,24 @@ defineExpose({
   margin-left: 8px;
   font-size: 12px;
   color: #999;
+}
+
+/* 拖拽样式 */
+.drag-handle {
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+
+.drag-handle:hover {
+  opacity: 1;
+}
+
+:deep(.row-ghost) {
+  opacity: 0.5;
+  background: #e6f7ff;
+}
+
+:deep(.row-chosen) {
+  background: #f0f0f0;
 }
 </style>

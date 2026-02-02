@@ -272,6 +272,32 @@ export async function deleteConfigDefinitionApi(
   return requestClient.delete(`/projects/${projectId}/config-definitions/${code}`);
 }
 
+/**
+ * 更新配置定义排序参数
+ */
+export interface UpdateConfigDefinitionSortParams {
+  code: string;
+  target_code: string;
+  position: 'before' | 'after';
+}
+
+/**
+ * 更新配置定义排序
+ * @param projectId 项目ID
+ * @param type 配置类型
+ * @param params 排序参数
+ */
+export async function updateConfigDefinitionSortApi(
+  projectId: number,
+  type: ConfigType,
+  params: UpdateConfigDefinitionSortParams,
+) {
+  return requestClient.put(
+    `/projects/${projectId}/config-definitions/sort?type=${type}`,
+    params,
+  );
+}
+
 // ==================== 配置值 API ====================
 
 /**
