@@ -266,6 +266,16 @@ async function handleConfirm() {
     return;
   }
 
+  // 检查名称是否重复（编辑时排除自身）
+  const trimmedName = modalForm.value.name.trim();
+  const duplicate = configs.value.some(
+    (c) => c.name === trimmedName && c.code !== editingCode.value,
+  );
+  if (duplicate) {
+    message.warning('已存在同名数据库配置，请使用不同的名称');
+    return;
+  }
+
   try {
     modalLoading.value = true;
 

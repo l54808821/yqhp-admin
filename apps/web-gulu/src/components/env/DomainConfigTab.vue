@@ -176,6 +176,15 @@ async function confirmAdd() {
     message.error('请填写名称');
     return;
   }
+
+  // 检查名称是否重复
+  const duplicate = configs.value.some(
+    (c) => c.name === addModalForm.value.name.trim(),
+  );
+  if (duplicate) {
+    message.warning('已存在同名域名配置，请使用不同的名称');
+    return;
+  }
   
   try {
     addModalLoading.value = true;
