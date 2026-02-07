@@ -17,6 +17,7 @@ import {
   message,
   Modal,
   Popconfirm,
+  Select,
   Spin,
   Tooltip,
 } from 'ant-design-vue';
@@ -26,6 +27,7 @@ import SplitPane from '#/components/SplitPane.vue';
 import type { Env } from '#/api/env';
 
 import {
+  copyEnvApi,
   createEnvApi,
   deleteEnvApi,
   getEnvsByProjectApi,
@@ -50,7 +52,7 @@ const loading = ref(false);
 const envs = ref<Env[]>([]);
 const selectedEnv = ref<Env | null>(null);
 const createModalVisible = ref(false);
-const newEnvForm = ref({ name: '', description: '' });
+const newEnvForm = ref({ name: '', description: '', copyFromEnvId: undefined as number | undefined });
 const envListRef = ref<HTMLElement | null>(null);
 let sortableInstance: Sortable | null = null;
 
@@ -166,7 +168,7 @@ function handleSelectEnv(env: Env) {
 }
 
 function handleCreateEnv() {
-  newEnvForm.value = { name: '', description: '' };
+  newEnvForm.value = { name: '', description: '', copyFromEnvId: undefined };
   createModalVisible.value = true;
 }
 
@@ -177,12 +179,24 @@ async function handleConfirmCreate() {
   }
 
   try {
-    const newEnv = await createEnvApi({
-      project_id: props.projectId,
-      name: newEnvForm.value.name,
-      description: newEnvForm.value.description,
-    });
-    message.success('创建成功');
+    let newEnv;
+
+    if (newEnvForm.value.copyFromEnvId) {
+      // 从已有环境复制
+      newEnv = await copyEnvApi(newEnvForm.value.copyFromEnvId, {
+        name: newEnvForm.value.name,
+      });
+      message.success('复制创建成功');
+    } else {
+      // 普通创建
+      newEnv = await createEnvApi({
+        project_id: props.projectId,
+        name: newEnvForm.value.name,
+        description: newEnvForm.value.description,
+      });
+      message.success('创建成功');
+    }
+
     createModalVisible.value = false;
     await loadEnvs();
     selectedEnv.value = newEnv;
@@ -335,6 +349,15 @@ function getEnvStatusText(env: Env) {
             placeholder="环境描述（可选）"
             :rows="2"
           />
+        </Form.Item>
+        <Form.Item label="从已有环境复制配置">
+          <Select
+            v-model:value="newEnvForm.copyFromEnvId"
+            placeholder="不复制，创建空白环境"
+            allow-clear
+            :options="envs.map(e => ({ label: e.name, value: e.id }))"
+          />
+          <div class="form-hint">选择后将复制该环境的所有配置（域名、变量、数据库、MQ 等）</div>
         </Form.Item>
       </Form>
     </Modal>

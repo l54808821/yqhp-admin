@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import type Sortable from 'sortablejs';
 
-import { nextTick, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 
 import { createIconifyIcon, Plus } from '@vben/icons';
 
 import {
   Button,
+  Divider,
   Empty,
   Form,
   Input,
@@ -15,21 +16,24 @@ import {
   Modal,
   Popconfirm,
   Select,
-  Table,
+  Spin,
+  Tag,
 } from 'ant-design-vue';
 
 import type { ConfigItem } from '#/api/env';
 
 import {
-  batchUpdateConfigValuesApi,
   createConfigDefinitionApi,
   deleteConfigDefinitionApi,
   getConfigsApi,
+  updateConfigDefinitionApi,
   updateConfigDefinitionSortApi,
+  updateConfigValueApi,
 } from '#/api/env';
 
 const Trash2 = createIconifyIcon('lucide:trash-2');
 const GripVertical = createIconifyIcon('lucide:grip-vertical');
+const Pencil = createIconifyIcon('lucide:pencil');
 
 interface Props {
   envId: number;
@@ -44,16 +48,25 @@ const emit = defineEmits<{
 
 const loading = ref(false);
 const configs = ref<ConfigItem[]>([]);
-const tableRef = ref<HTMLElement | null>(null);
+const cardListRef = ref<HTMLElement | null>(null);
 let sortableInstance: Sortable | null = null;
 
-// 添加弹窗状态
-const addModalVisible = ref(false);
-const addModalForm = ref({ 
-  name: '', 
+// 弹窗状态
+const modalVisible = ref(false);
+const modalMode = ref<'add' | 'edit'>('add');
+const modalLoading = ref(false);
+const editingCode = ref('');
+
+const modalForm = ref({
+  name: '',
   mqType: 'rabbitmq',
+  host: '',
+  port: 5672,
+  vhost: '/',
+  username: '',
+  password: '',
+  options: '',
 });
-const addModalLoading = ref(false);
 
 // MQ 类型选项
 const mqTypeOptions = [
@@ -62,23 +75,23 @@ const mqTypeOptions = [
   { label: 'RocketMQ', value: 'rocketmq' },
 ];
 
-// 表格列定义
-const columns = [
-  { title: '', key: 'drag', width: 40, align: 'center' as const },
-  { title: '名称', dataIndex: 'name', key: 'name', width: 120 },
-  { title: '类型', dataIndex: 'mq_type', key: 'mq_type', width: 90 },
-  { title: '主机地址', dataIndex: 'host', key: 'host', width: 160 },
-  { title: '端口', dataIndex: 'port', key: 'port', width: 80 },
-  { title: 'VHost', dataIndex: 'vhost', key: 'vhost', width: 100 },
-  { title: '用户名', dataIndex: 'username', key: 'username', width: 100 },
-  { title: '操作', key: 'action', width: 80, align: 'center' as const },
-];
+// 默认端口映射
+const defaultPorts: Record<string, number> = {
+  rabbitmq: 5672,
+  kafka: 9092,
+  rocketmq: 9876,
+};
+
+// 是否显示 VHost 字段（仅 RabbitMQ）
+const showVHostField = computed(() => {
+  return modalForm.value.mqType === 'rabbitmq';
+});
 
 // 监听环境变化，重新加载数据
 watch(
   () => props.envId,
   async () => {
-    addModalVisible.value = false;
+    modalVisible.value = false;
     await loadConfigs();
   },
   { immediate: true },
@@ -105,17 +118,17 @@ async function initSortable() {
     sortableInstance = null;
   }
 
-  const tbody = tableRef.value?.querySelector('.ant-table-tbody');
-  if (!tbody) return;
+  if (!cardListRef.value) return;
 
   const SortableModule = await import('sortablejs');
   const SortableClass = SortableModule.default;
 
-  sortableInstance = SortableClass.create(tbody as HTMLElement, {
+  sortableInstance = SortableClass.create(cardListRef.value, {
     animation: 200,
     handle: '.drag-handle',
-    ghostClass: 'row-ghost',
-    chosenClass: 'row-chosen',
+    ghostClass: 'card-ghost',
+    chosenClass: 'card-chosen',
+    dragClass: 'card-drag',
     onEnd: handleSortEnd,
   });
 }
@@ -123,23 +136,19 @@ async function initSortable() {
 // 处理排序结束
 async function handleSortEnd(event: { oldIndex?: number; newIndex?: number }) {
   const { oldIndex, newIndex } = event;
-  if (oldIndex === undefined || newIndex === undefined || oldIndex === newIndex) {
+  if (
+    oldIndex === undefined ||
+    newIndex === undefined ||
+    oldIndex === newIndex
+  ) {
     return;
   }
 
   const draggedConfig = configs.value[oldIndex];
   if (!draggedConfig) return;
 
-  let targetConfig: ConfigItem;
-  let position: 'before' | 'after';
-
-  if (newIndex > oldIndex) {
-    targetConfig = configs.value[newIndex]!;
-    position = 'after';
-  } else {
-    targetConfig = configs.value[newIndex]!;
-    position = 'before';
-  }
+  const targetConfig = configs.value[newIndex]!;
+  const position = newIndex > oldIndex ? 'after' : 'before';
 
   try {
     await updateConfigDefinitionSortApi(props.projectId, 'mq', {
@@ -161,62 +170,159 @@ onUnmounted(() => {
   }
 });
 
-// 获取 MQ 类型
-function getMqType(config: any): string {
-  return config?.extra?.mq_type || 'rabbitmq';
+// ==================== 展示辅助 ====================
+
+// 获取连接摘要
+function getConnectionSummary(config: ConfigItem): string {
+  const host = config?.value?.host || '';
+  const port = config?.value?.port || '';
+  const username = config?.value?.username || '';
+  const vhost = config?.value?.vhost || '';
+
+  if (!host) return '未配置连接信息';
+
+  let summary = '';
+  if (username) summary += `${username}@`;
+  summary += host;
+  if (port) summary += `:${port}`;
+  if (vhost && vhost !== '/') summary += `/${vhost}`;
+
+  return summary;
 }
 
-// 获取字段值
-function getField(config: any, field: string): any {
-  return config?.value?.[field] || '';
+// 获取 MQ 类型标签颜色
+function getMqTypeColor(mqType: string): string {
+  const colors: Record<string, string> = {
+    rabbitmq: 'orange',
+    kafka: 'purple',
+    rocketmq: 'volcano',
+  };
+  return colors[mqType] || 'default';
 }
 
-// 设置字段值
-function setField(config: any, field: string, value: any) {
-  if (!config.value) config.value = {};
-  config.value[field] = value;
+// 获取 MQ 类型显示名称
+function getMqTypeLabel(mqType: string): string {
+  const labels: Record<string, string> = {
+    rabbitmq: 'RabbitMQ',
+    kafka: 'Kafka',
+    rocketmq: 'RocketMQ',
+  };
+  return labels[mqType] || mqType;
 }
 
-// 设置名称（本地更新）
-function setName(config: any, value: string) {
-  config.name = value;
-}
+// ==================== 弹窗操作 ====================
 
-// 打开添加弹窗
+// 打开新增弹窗
 function openAddModal() {
-  addModalForm.value = { name: '', mqType: 'rabbitmq' };
-  addModalVisible.value = true;
+  modalMode.value = 'add';
+  editingCode.value = '';
+  modalForm.value = {
+    name: '',
+    mqType: 'rabbitmq',
+    host: '',
+    port: 5672,
+    vhost: '/',
+    username: '',
+    password: '',
+    options: '',
+  };
+  modalVisible.value = true;
 }
 
-// 确认添加
-async function confirmAdd() {
-  if (!addModalForm.value.name) {
-    message.error('请填写名称');
+// 打开编辑弹窗
+function openEditModal(config: ConfigItem) {
+  modalMode.value = 'edit';
+  editingCode.value = config.code;
+  const mqType = config?.extra?.mq_type || 'rabbitmq';
+  modalForm.value = {
+    name: config.name,
+    mqType,
+    host: config?.value?.host || '',
+    port: config?.value?.port || defaultPorts[mqType] || 5672,
+    vhost: config?.value?.vhost || '/',
+    username: config?.value?.username || '',
+    password: config?.value?.password || '',
+    options: config?.value?.options || '',
+  };
+  modalVisible.value = true;
+}
+
+// 切换 MQ 类型时自动更新默认端口（仅新增模式）
+function handleMqTypeChange(value: any) {
+  const mqType = String(value);
+  if (modalMode.value === 'add') {
+    modalForm.value.port = defaultPorts[mqType] || 5672;
+    // RabbitMQ 默认 vhost
+    if (mqType === 'rabbitmq') {
+      modalForm.value.vhost = '/';
+    } else {
+      modalForm.value.vhost = '';
+    }
+  }
+}
+
+// 确认保存
+async function handleConfirm() {
+  if (!modalForm.value.name.trim()) {
+    message.warning('请输入名称');
     return;
   }
-  
+
   try {
-    addModalLoading.value = true;
-    await createConfigDefinitionApi(props.projectId, {
-      type: 'mq',
-      name: addModalForm.value.name,
-      status: 1,
-      extra: {
-        mq_type: addModalForm.value.mqType,
-      },
-    });
-    message.success('添加成功');
-    addModalVisible.value = false;
+    modalLoading.value = true;
+
+    const configValue = {
+      host: modalForm.value.host,
+      port: modalForm.value.port,
+      vhost: modalForm.value.vhost,
+      username: modalForm.value.username,
+      password: modalForm.value.password,
+      options: modalForm.value.options,
+    };
+
+    if (modalMode.value === 'add') {
+      // 新增：创建 definition + 设置初始值
+      const definition = await createConfigDefinitionApi(props.projectId, {
+        type: 'mq',
+        name: modalForm.value.name,
+        status: 1,
+        extra: { mq_type: modalForm.value.mqType },
+      });
+
+      // 设置当前环境的初始配置值
+      await updateConfigValueApi(props.envId, definition.code, {
+        value: configValue,
+      });
+
+      message.success('添加成功');
+    } else {
+      // 编辑：更新 definition + 更新配置值
+      await updateConfigDefinitionApi(props.projectId, editingCode.value, {
+        name: modalForm.value.name,
+      });
+
+      await updateConfigValueApi(props.envId, editingCode.value, {
+        value: configValue,
+      });
+
+      message.success('保存成功');
+    }
+
+    modalVisible.value = false;
     await loadConfigs();
+    emit('updated');
   } catch (error: any) {
-    message.error(error?.message || '添加失败');
+    message.error(
+      error?.message ||
+        (modalMode.value === 'add' ? '添加失败' : '保存失败'),
+    );
   } finally {
-    addModalLoading.value = false;
+    modalLoading.value = false;
   }
 }
 
 // 删除配置
-async function removeConfig(config: any) {
+async function removeConfig(config: ConfigItem) {
   try {
     await deleteConfigDefinitionApi(props.projectId, config.code);
     message.success('删除成功');
@@ -226,24 +332,9 @@ async function removeConfig(config: any) {
   }
 }
 
-// 保存配置值
-async function saveConfigs() {
-  try {
-    const items = configs.value.map((c) => ({
-      code: c.code,
-      value: c.value || {},
-    }));
-    await batchUpdateConfigValuesApi(props.envId, { items });
-    message.success('保存成功');
-    emit('updated');
-  } catch (error: any) {
-    message.error(error?.message || '保存失败');
-  }
-}
-
-// 暴露给父组件的方法
+// 暴露给父组件的方法（保持兼容，MQ 配置已改为即时保存）
 defineExpose({
-  saveConfigs,
+  saveConfigs: () => Promise.resolve(),
   loadConfigs,
 });
 </script>
@@ -255,98 +346,118 @@ defineExpose({
         <template #icon><Plus class="size-4" /></template>
         添加 MQ
       </Button>
-      <span class="toolbar-hint">配置此环境下的消息队列连接信息</span>
+      <span class="toolbar-hint">配置此环境下的消息队列连接信息，点击卡片可编辑</span>
     </div>
-    
-    <div v-if="configs.length > 0" ref="tableRef">
-      <Table
-        :columns="columns"
-        :data-source="configs"
-        :pagination="false"
-        :loading="loading"
-        size="middle"
-        :scroll="{ y: 320 }"
-        row-key="code"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'drag'">
-            <GripVertical class="drag-handle size-4 cursor-move text-gray-400" />
-          </template>
-          <template v-else-if="column.key === 'name'">
-            <Input 
-              :value="record.name" 
-              @input="(e: any) => setName(record, e.target.value)"
-            />
-          </template>
-        <template v-else-if="column.key === 'mq_type'">
-          <span>{{ getMqType(record) }}</span>
-        </template>
-        <template v-else-if="column.key === 'host'">
-          <Input 
-            :value="getField(record, 'host')" 
-            placeholder="主机地址"
-            @input="(e: any) => setField(record, 'host', e.target.value)"
-          />
-        </template>
-        <template v-else-if="column.key === 'port'">
-          <InputNumber 
-            :value="getField(record, 'port') || 5672" 
-            :min="1" 
-            :max="65535" 
-            style="width: 100%"
-            @change="(val: any) => setField(record, 'port', val)"
-          />
-        </template>
-        <template v-else-if="column.key === 'vhost'">
-          <Input 
-            :value="getField(record, 'vhost') || '/'" 
-            placeholder="/"
-            @input="(e: any) => setField(record, 'vhost', e.target.value)"
-          />
-        </template>
-        <template v-else-if="column.key === 'username'">
-          <Input 
-            :value="getField(record, 'username')" 
-            placeholder="用户名"
-            @input="(e: any) => setField(record, 'username', e.target.value)"
-          />
-        </template>
-        <template v-else-if="column.key === 'action'">
-          <Popconfirm title="确定删除？删除后所有环境的该配置都会被删除" @confirm="removeConfig(record)">
-            <Button type="text" size="small" danger>
-              <Trash2 class="size-4" />
+
+    <Spin :spinning="loading">
+      <div v-if="configs.length > 0" ref="cardListRef" class="config-card-list">
+        <div
+          v-for="config in configs"
+          :key="config.code"
+          class="config-card"
+          @click="openEditModal(config)"
+        >
+          <div class="drag-handle" @click.stop>
+            <GripVertical class="size-4 text-gray-400" />
+          </div>
+          <div class="card-body">
+            <div class="card-header">
+              <span class="card-name">{{ config.name }}</span>
+              <Tag :color="getMqTypeColor(config?.extra?.mq_type || 'rabbitmq')" class="card-tag">
+                {{ getMqTypeLabel(config?.extra?.mq_type || 'rabbitmq') }}
+              </Tag>
+            </div>
+            <div class="card-summary">{{ getConnectionSummary(config) }}</div>
+          </div>
+          <div class="card-actions" @click.stop>
+            <Button type="text" size="small" @click="openEditModal(config)">
+              <Pencil class="size-4 text-gray-500" />
             </Button>
-          </Popconfirm>
-        </template>
-      </template>
-    </Table>
-    </div>
-    
-    <Empty v-else description="暂无 MQ 配置" class="empty-state">
-      <Button type="primary" @click="openAddModal">
-        <template #icon><Plus class="size-4" /></template>
-        添加第一个 MQ
-      </Button>
-    </Empty>
-    
-    <!-- 添加弹窗 -->
+            <Popconfirm
+              title="确定删除？删除后所有环境的该配置都会被删除"
+              @confirm="removeConfig(config)"
+            >
+              <Button type="text" size="small" danger>
+                <Trash2 class="size-4" />
+              </Button>
+            </Popconfirm>
+          </div>
+        </div>
+      </div>
+
+      <Empty v-else description="暂无 MQ 配置" class="empty-state">
+        <Button type="primary" @click="openAddModal">
+          <template #icon><Plus class="size-4" /></template>
+          添加第一个 MQ
+        </Button>
+      </Empty>
+    </Spin>
+
+    <!-- 新增/编辑弹窗 -->
     <Modal
-      v-model:open="addModalVisible"
-      title="添加 MQ"
-      :confirm-loading="addModalLoading"
-      @ok="confirmAdd"
+      v-model:open="modalVisible"
+      :title="modalMode === 'add' ? '添加 MQ' : '编辑 MQ'"
+      :confirm-loading="modalLoading"
+      :width="520"
+      @ok="handleConfirm"
     >
-      <Form layout="vertical" style="margin-top: 16px;">
+      <Form layout="vertical" class="modal-form">
         <Form.Item label="名称" required>
-          <Input 
-            v-model:value="addModalForm.name" 
-            placeholder="如：主消息队列" 
+          <Input
+            v-model:value="modalForm.name"
+            placeholder="如：主消息队列、事件总线"
           />
         </Form.Item>
         <Form.Item label="MQ 类型">
           <Select
-            v-model:value="addModalForm.mqType"
+            v-model:value="modalForm.mqType"
             :options="mqTypeOptions"
+            :disabled="modalMode === 'edit'"
+            @change="handleMqTypeChange"
+          />
+        </Form.Item>
+        <Divider style="margin: 16px 0 12px">连接信息</Divider>
+        <div class="form-row">
+          <Form.Item label="主机地址" class="flex-1">
+            <Input
+              v-model:value="modalForm.host"
+              placeholder="如：192.168.1.100"
+            />
+          </Form.Item>
+          <Form.Item label="端口" class="port-field">
+            <InputNumber
+              v-model:value="modalForm.port"
+              :min="1"
+              :max="65535"
+              style="width: 100%"
+            />
+          </Form.Item>
+        </div>
+        <Form.Item v-if="showVHostField" label="VHost">
+          <Input
+            v-model:value="modalForm.vhost"
+            placeholder="如：/"
+          />
+        </Form.Item>
+        <div class="form-row">
+          <Form.Item label="用户名" class="flex-1">
+            <Input
+              v-model:value="modalForm.username"
+              placeholder="用户名"
+            />
+          </Form.Item>
+          <Form.Item label="密码" class="flex-1">
+            <Input.Password
+              v-model:value="modalForm.password"
+              placeholder="密码"
+            />
+          </Form.Item>
+        </div>
+        <Form.Item label="额外选项">
+          <Input.TextArea
+            v-model:value="modalForm.options"
+            placeholder="额外连接参数"
+            :rows="2"
           />
         </Form.Item>
       </Form>
@@ -363,7 +474,7 @@ defineExpose({
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .toolbar-hint {
@@ -371,26 +482,120 @@ defineExpose({
   color: #999;
 }
 
-.empty-state {
-  padding: 60px 0;
+.config-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-/* 拖拽样式 */
-.drag-handle {
-  opacity: 0.5;
-  transition: opacity 0.2s;
+.config-card {
+  display: flex;
+  align-items: center;
+  padding: 12px 14px;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.drag-handle:hover {
+.config-card:hover {
+  background: #f5f5f5;
+  border-color: #d9d9d9;
+}
+
+.config-card:hover .card-actions {
   opacity: 1;
 }
 
-:deep(.row-ghost) {
+.config-card:hover .drag-handle {
+  opacity: 1;
+}
+
+.drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.card-name {
+  font-weight: 500;
+  font-size: 14px;
+  color: #1f1f1f;
+}
+
+.card-tag {
+  margin-right: 0;
+}
+
+.card-summary {
+  font-size: 12px;
+  color: #999;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  flex-shrink: 0;
+}
+
+.card-ghost {
   opacity: 0.5;
   background: #e6f7ff;
 }
 
-:deep(.row-chosen) {
-  background: #f0f0f0;
+.card-chosen {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.card-drag {
+  opacity: 0.9;
+}
+
+.empty-state {
+  padding: 60px 0;
+}
+
+.modal-form {
+  padding-top: 12px;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+.port-field {
+  width: 120px;
 }
 </style>

@@ -7,6 +7,7 @@ import { Database, Globe } from '#/components/icons';
 
 const Settings = createIconifyIcon('lucide:settings');
 const Variable = createIconifyIcon('lucide:variable');
+const MessageSquare = createIconifyIcon('lucide:message-square');
 
 import {
   Badge,
@@ -16,7 +17,6 @@ import {
   message,
   Switch,
   Tabs,
-  Tag,
 } from 'ant-design-vue';
 
 import type { Env } from '#/api/env';
@@ -54,6 +54,11 @@ const mqTabRef = ref<InstanceType<typeof MQConfigTab>>();
 
 // 当前环境的项目ID
 const projectId = computed(() => props.env?.project_id);
+
+// 是否显示顶部保存按钮（数据库和 MQ Tab 已改为弹窗内即时保存，不需要顶部保存按钮）
+const showSaveButton = computed(() => {
+  return !['databases', 'mq'].includes(activeTab.value);
+});
 
 watch(
   () => props.env,
@@ -106,7 +111,7 @@ async function handleSave() {
           :text="props.env.status === 1 ? '启用' : '禁用'" 
         />
       </div>
-      <Button type="primary" :loading="saving" @click="handleSave">
+      <Button v-if="showSaveButton" type="primary" :loading="saving" @click="handleSave">
         保存配置
       </Button>
     </div>
@@ -206,7 +211,7 @@ async function handleSave() {
       <Tabs.TabPane key="mq">
         <template #tab>
           <span class="tab-label">
-            <Database class="size-4" />
+            <MessageSquare class="size-4" />
             <span>MQ 配置</span>
           </span>
         </template>
