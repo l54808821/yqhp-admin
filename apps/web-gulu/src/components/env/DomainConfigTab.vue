@@ -25,6 +25,7 @@ import {
   deleteConfigDefinitionApi,
   getConfigsApi,
   updateConfigDefinitionSortApi,
+  updateConfigValueApi,
 } from '#/api/env';
 
 const Trash2 = createIconifyIcon('lucide:trash-2');
@@ -48,7 +49,7 @@ let sortableInstance: Sortable | null = null;
 
 // 添加弹窗状态
 const addModalVisible = ref(false);
-const addModalForm = ref({ name: '' });
+const addModalForm = ref({ name: '', baseUrl: '' });
 const addModalLoading = ref(false);
 
 // 表格列定义
@@ -165,7 +166,7 @@ function setName(config: any, value: string) {
 
 // 打开添加弹窗
 function openAddModal() {
-  addModalForm.value = { name: '' };
+  addModalForm.value = { name: '', baseUrl: '' };
   addModalVisible.value = true;
 }
 
@@ -178,11 +179,24 @@ async function confirmAdd() {
   
   try {
     addModalLoading.value = true;
-    await createConfigDefinitionApi(props.projectId, {
+
+    // 创建配置定义
+    const definition = await createConfigDefinitionApi(props.projectId, {
       type: 'domain',
       name: addModalForm.value.name,
       status: 1,
     });
+
+    // 如果填写了 URL，立即设置当前环境的配置值
+    if (addModalForm.value.baseUrl) {
+      await updateConfigValueApi(props.envId, definition.code, {
+        value: {
+          base_url: addModalForm.value.baseUrl,
+          headers: [],
+        },
+      });
+    }
+
     message.success('添加成功');
     addModalVisible.value = false;
     await loadConfigs();
@@ -300,6 +314,12 @@ defineExpose({
           <Input 
             v-model:value="addModalForm.name" 
             placeholder="如：主服务" 
+          />
+        </Form.Item>
+        <Form.Item label="URL 地址">
+          <Input 
+            v-model:value="addModalForm.baseUrl" 
+            placeholder="如：https://api.example.com" 
           />
         </Form.Item>
       </Form>

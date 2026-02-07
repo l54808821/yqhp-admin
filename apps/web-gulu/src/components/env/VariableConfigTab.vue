@@ -27,6 +27,7 @@ import {
   deleteConfigDefinitionApi,
   getConfigsApi,
   updateConfigDefinitionSortApi,
+  updateConfigValueApi,
 } from '#/api/env';
 
 const Trash2 = createIconifyIcon('lucide:trash-2');
@@ -55,6 +56,7 @@ const addModalForm = ref({
   name: '', 
   varType: 'string',
   isSensitive: false,
+  value: '',
 });
 const addModalLoading = ref(false);
 
@@ -196,7 +198,7 @@ function setName(config: any, value: string) {
 
 // 打开添加弹窗
 function openAddModal() {
-  addModalForm.value = { name: '', varType: 'string', isSensitive: false };
+  addModalForm.value = { name: '', varType: 'string', isSensitive: false, value: '' };
   addModalVisible.value = true;
 }
 
@@ -209,7 +211,9 @@ async function confirmAdd() {
   
   try {
     addModalLoading.value = true;
-    await createConfigDefinitionApi(props.projectId, {
+
+    // 创建配置定义
+    const definition = await createConfigDefinitionApi(props.projectId, {
       type: 'variable',
       name: addModalForm.value.name,
       status: 1,
@@ -218,6 +222,16 @@ async function confirmAdd() {
         is_sensitive: addModalForm.value.isSensitive,
       },
     });
+
+    // 如果填写了变量值，立即设置当前环境的配置值
+    if (addModalForm.value.value) {
+      await updateConfigValueApi(props.envId, definition.code, {
+        value: {
+          value: addModalForm.value.value,
+        },
+      });
+    }
+
     message.success('添加成功');
     addModalVisible.value = false;
     await loadConfigs();
@@ -350,6 +364,18 @@ defineExpose({
           <Input 
             v-model:value="addModalForm.name" 
             placeholder="如：接口密钥" 
+          />
+        </Form.Item>
+        <Form.Item label="变量值">
+          <Input.Password
+            v-if="addModalForm.isSensitive"
+            v-model:value="addModalForm.value"
+            placeholder="输入敏感变量值"
+          />
+          <Input
+            v-else
+            v-model:value="addModalForm.value"
+            placeholder="输入变量值"
           />
         </Form.Item>
         <Form.Item label="类型">
