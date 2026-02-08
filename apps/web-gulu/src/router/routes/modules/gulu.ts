@@ -99,6 +99,37 @@ const routes: RouteRecordRaw[] = [
       },
     ],
   },
+  // AI 模型管理
+  {
+    meta: {
+      icon: 'lucide:brain',
+      order: 40,
+      title: 'AI 模型管理',
+    },
+    name: 'AiModelManagement',
+    path: '/project/:projectId/ai-model',
+    component: BasicLayout,
+    children: [
+      {
+        name: 'AiModelIndex',
+        path: '',
+        component: () => import('#/views/ai-model/index.vue'),
+        meta: {
+          hideInMenu: true,
+          title: 'AI 模型管理',
+        },
+      },
+      {
+        name: 'AiModelChat',
+        path: ':modelId/chat',
+        component: () => import('#/views/ai-model/chat.vue'),
+        meta: {
+          hideInMenu: true,
+          title: '在线体验',
+        },
+      },
+    ],
+  },
 ];
 
 export default routes;

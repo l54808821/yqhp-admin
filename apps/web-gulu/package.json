@@ -43,6 +43,7 @@
     "@vueuse/core": "catalog:",
     "ant-design-vue": "catalog:",
     "dayjs": "catalog:",
+    "marked": "^15.0.7",
     "monaco-editor": "^0.50.0",
     "pinia": "catalog:",
     "sortablejs": "catalog:",
