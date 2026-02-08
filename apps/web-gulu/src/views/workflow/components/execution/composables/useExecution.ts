@@ -288,6 +288,8 @@ export function useExecution(options: UseExecutionOptions) {
       stepResults: stepResults.value,
       startTime: '',
       endTime: '',
+      variables: data.variables,
+      envVariables: data.envVariables,
     };
     onComplete?.(executionSummary.value);
     sseService?.disconnect();

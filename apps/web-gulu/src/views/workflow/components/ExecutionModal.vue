@@ -8,6 +8,7 @@ import type { Workflow } from '#/api/workflow';
 import type { StepNode } from '../editor/WorkflowTreeEditor.vue';
 
 import { useProjectStore } from '#/store/project';
+import { useDebugContext } from './execution/composables/useDebugContext';
 import ExecutionPanel from './execution/ExecutionPanel.vue';
 
 interface Props {
@@ -28,6 +29,7 @@ const emit = defineEmits<{
 }>();
 
 const projectStore = useProjectStore();
+const debugContext = useDebugContext();
 const executionPanelRef = ref<InstanceType<typeof ExecutionPanel> | null>(null);
 
 watch(
@@ -53,6 +55,20 @@ function handleClose() {
 }
 
 function handleExecutionComplete(summary: DebugSummary) {
+  // 保存调试上下文（缓存变量和执行结果，用于单步快速调试）
+  if (props.workflow) {
+    debugContext.saveContext(
+      props.workflow.id,
+      summary.variables || {},
+      projectStore.currentEnvId || 0,
+      summary,
+      summary.envVariables,
+    );
+    if (summary.variables && Object.keys(summary.variables).length > 0) {
+      message.info('调试上下文已缓存，可在单步调试中使用');
+    }
+  }
+
   emit('complete', summary);
   if (summary.status === 'success' || summary.status === 'completed') {
     message.success('执行完成');

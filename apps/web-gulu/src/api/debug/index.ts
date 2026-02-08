@@ -90,6 +90,8 @@ export interface DebugSummary {
   stepResults: StepResult[];
   startTime: string;
   endTime: string;
+  variables?: Record<string, unknown>; // 执行完成后的最终变量（调试上下文缓存用）
+  envVariables?: Record<string, unknown>; // 环境变量（从环境配置加载）
 }
 
 // SSE 事件类型
@@ -154,6 +156,8 @@ export interface WorkflowCompletedData {
   failedSteps: number;
   totalDurationMs: number;
   status: string;
+  variables?: Record<string, unknown>; // 执行完成后的最终变量（调试上下文缓存用）
+  envVariables?: Record<string, unknown>; // 环境变量（从环境配置加载）
 }
 
 // AI 块数据
@@ -423,6 +427,8 @@ export interface ExecuteResponse {
   startTime?: string;
   endTime?: string;
   steps?: StepExecutionResult[]; // 步骤执行详情
+  variables?: Record<string, unknown>; // 执行完成后的最终变量（调试上下文缓存用）
+  envVariables?: Record<string, unknown>; // 环境变量（从环境配置加载）
 }
 
 /**
@@ -467,6 +473,8 @@ export interface WorkflowCompletedResult {
   successSteps: number;
   failedSteps: number;
   durationMs: number;
+  variables?: Record<string, unknown>; // 执行完成后的最终变量（调试上下文缓存用）
+  envVariables?: Record<string, unknown>; // 环境变量（从环境配置加载）
 }
 
 /**

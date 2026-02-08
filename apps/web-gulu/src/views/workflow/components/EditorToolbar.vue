@@ -5,6 +5,7 @@ import { createIconifyIcon } from '@vben/icons';
 import { Button, Input, Space, Tag, Tooltip } from 'ant-design-vue';
 
 import type { Workflow } from '#/api/workflow';
+import { useDebugContext } from './execution/composables/useDebugContext';
 
 // 创建图标
 const Undo = createIconifyIcon('lucide:undo-2');
@@ -34,6 +35,12 @@ const emit = defineEmits<{
   (e: 'debug'): void;
   (e: 'rename', name: string): void;
 }>();
+
+// 调试上下文
+const debugContext = useDebugContext();
+const hasDebugCtx = computed(() => {
+  return !!props.workflow?.id && debugContext.hasContext(props.workflow.id);
+});
 
 // 名称编辑状态
 const isEditingName = ref(false);
@@ -147,9 +154,10 @@ const workflowTypeColor = computed(() => {
           保存
         </Button>
         <Tooltip title="调试工作流（在 Master 上执行）">
-          <Button type="default" @click="emit('debug')">
+          <Button type="default" class="debug-btn" @click="emit('debug')">
             <template #icon><Bug class="size-4" /></template>
             调试
+            <span v-if="hasDebugCtx" class="debug-ctx-badge" />
           </Button>
         </Tooltip>
         <Tooltip v-if="canExecute" title="执行工作流（在 Slave 上执行）">
@@ -216,5 +224,20 @@ const workflowTypeColor = computed(() => {
 .toolbar-right {
   display: flex;
   align-items: center;
+}
+
+.debug-btn {
+  position: relative;
+}
+
+.debug-ctx-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #52c41a;
+  box-shadow: 0 0 4px #52c41a80;
 }
 </style>

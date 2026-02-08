@@ -17,6 +17,7 @@ import type { StepNode } from '../editor/WorkflowTreeEditor.vue';
 import ExecutionModal from './ExecutionModal.vue';
 import EditorToolbar from './EditorToolbar.vue';
 import ExecuteModal from './ExecuteModal.vue';
+import DebugContextBar from './DebugContextBar.vue';
 
 interface Props {
   workflowId: number;
@@ -624,6 +625,7 @@ async function handleRename(newName: string) {
             <PropertyPanel
               :node="selectedNode"
               :env-id="projectStore.currentEnvId"
+              :workflow-id="workflow?.id"
               @update="handleNodeUpdate"
               @close="handleClosePropertyPanel"
               @delete="handleNodeDelete"
@@ -661,6 +663,9 @@ async function handleRename(newName: string) {
       :persist="false"
       @complete="handleDebugComplete"
     />
+
+    <!-- 调试上下文悬浮栏 -->
+    <DebugContextBar v-if="workflow" :workflow-id="workflow.id" />
   </div>
 </template>
 

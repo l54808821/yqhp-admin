@@ -17,6 +17,7 @@ import {
 import type { HttpStepNode, ParamItem, KeywordConfig } from '../../types';
 import { createHttpConfig, HTTP_METHOD_COLORS } from '../../types';
 import { executeApi } from '#/api/debug';
+import { useDebugContext } from '../../../components/execution/composables/useDebugContext';
 
 // 子组件
 import ParamTable from '../../components/ParamTable.vue';
@@ -35,6 +36,7 @@ const GripHorizontalIcon = createIconifyIcon('lucide:grip-horizontal');
 interface Props {
   node: HttpStepNode;
   envId?: number;
+  workflowId?: number;
 }
 
 const props = defineProps<Props>();
@@ -42,6 +44,10 @@ const props = defineProps<Props>();
 const emit = defineEmits<{
   (e: 'update', node: HttpStepNode): void;
 }>();
+
+// 调试上下文
+const debugContext = useDebugContext();
+const hasDebugCtx = computed(() => !!props.workflowId && debugContext.hasContext(props.workflowId));
 
 // 本地数据
 const localNode = ref<HttpStepNode | null>(null);
@@ -198,6 +204,11 @@ async function handleSend() {
   isDebugging.value = true;
   // 不清空 debugResponse，保持响应区域高度稳定
 
+  // 获取调试上下文缓存的变量
+  const cachedVariables = props.workflowId
+    ? debugContext.getVariables(props.workflowId)
+    : undefined;
+
   try {
     const response = await executeApi({
       step: {
@@ -220,6 +231,7 @@ async function handleSend() {
           config: p.config,
         })),
       },
+      variables: cachedVariables as Record<string, unknown> | undefined,
       envId: props.envId || 0,
       mode: 'debug',
       stream: false,
@@ -355,6 +367,9 @@ const postProcessorsCount = computed(() => {
           @change="(e: any) => updateUrl(e.target.value)"
         />
 
+        <Tooltip v-if="hasDebugCtx" title="使用调试上下文变量">
+          <span class="debug-ctx-dot" />
+        </Tooltip>
         <Button
           type="primary"
           class="send-btn"
@@ -572,6 +587,16 @@ const postProcessorsCount = computed(() => {
 .url-input :deep(.ant-input) {
   background: transparent;
   font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+}
+
+.debug-ctx-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #52c41a;
+  box-shadow: 0 0 4px #52c41a80;
+  flex-shrink: 0;
 }
 
 .send-btn {

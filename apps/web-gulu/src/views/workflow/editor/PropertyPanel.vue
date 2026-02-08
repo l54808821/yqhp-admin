@@ -9,6 +9,7 @@ import { getNodeTypeConfig } from './node-types';
 const props = defineProps<{
   node: any;
   envId?: number;
+  workflowId?: number;
 }>();
 
 const emit = defineEmits<{
@@ -108,6 +109,7 @@ function handleDelete(node: any) {
           :is="propertyComponent"
           :node="localNode"
           :env-id="envId"
+          :workflow-id="workflowId"
           class="http-panel-wrapper"
           @update="handleUpdate"
         />
@@ -130,6 +132,7 @@ function handleDelete(node: any) {
           :is="propertyComponent"
           :node="localNode"
           :env-id="envId"
+          :workflow-id="workflowId"
           class="script-panel-wrapper"
           @update="handleUpdate"
         />

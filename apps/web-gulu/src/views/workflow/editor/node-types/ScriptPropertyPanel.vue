@@ -3,11 +3,11 @@
  * 脚本属性面板
  * 编辑器 + 调试响应（使用共享组件）
  */
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useDebounceFn } from '@vueuse/core';
 
 import { createIconifyIcon } from '@vben/icons';
-import { Button, Select, Spin, message } from 'ant-design-vue';
+import { Button, Select, Spin, Tooltip, message } from 'ant-design-vue';
 
 import { executeApi } from '#/api/debug';
 import { ScriptEditor } from '#/components/code-editor';
@@ -16,6 +16,7 @@ import {
   ScriptResponsePanel,
   type ScriptResponseData,
 } from '../../components/shared';
+import { useDebugContext } from '../../components/execution/composables/useDebugContext';
 
 // 图标
 const PlayIcon = createIconifyIcon('lucide:play');
@@ -37,6 +38,7 @@ interface ScriptStepNode {
 interface Props {
   node: ScriptStepNode;
   envId?: number;
+  workflowId?: number;
 }
 
 const props = defineProps<Props>();
@@ -44,6 +46,10 @@ const props = defineProps<Props>();
 const emit = defineEmits<{
   (e: 'update', node: ScriptStepNode): void;
 }>();
+
+// 调试上下文
+const debugContext = useDebugContext();
+const hasDebugCtx = computed(() => !!props.workflowId && debugContext.hasContext(props.workflowId));
 
 // 本地数据
 const localNode = ref<ScriptStepNode | null>(null);
@@ -109,6 +115,11 @@ async function handleRun() {
   isDebugging.value = true;
   // 不清空 debugResponse，保持响应区域高度稳定
 
+  // 获取调试上下文缓存的变量
+  const cachedVariables = props.workflowId
+    ? debugContext.getVariables(props.workflowId)
+    : undefined;
+
   try {
     const response = await executeApi({
       step: {
@@ -121,6 +132,7 @@ async function handleRun() {
           timeout: localNode.value.config?.timeout || 60,
         },
       },
+      variables: cachedVariables as Record<string, unknown> | undefined,
       envId: props.envId || 0,
       mode: 'debug',
       stream: false,
@@ -208,6 +220,9 @@ function stopDrag() {
           @change="updateLanguage"
         />
         <div class="toolbar-spacer" />
+        <Tooltip v-if="hasDebugCtx" title="使用调试上下文变量">
+          <span class="debug-ctx-dot" />
+        </Tooltip>
         <Button
           type="primary"
           size="small"
@@ -288,6 +303,16 @@ function stopDrag() {
 
 .toolbar-spacer {
   flex: 1;
+}
+
+.debug-ctx-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #52c41a;
+  box-shadow: 0 0 4px #52c41a80;
+  flex-shrink: 0;
 }
 
 .editor-wrapper {
