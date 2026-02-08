@@ -55,7 +55,7 @@ const searchParams = ref<AiModelListParams>({
   page: 1,
   pageSize: 12,
   name: undefined,
-  provider: undefined,
+  provider: [],
   status: undefined,
 });
 
@@ -179,7 +179,7 @@ function handleReset() {
     page: 1,
     pageSize: 12,
     name: undefined,
-    provider: undefined,
+    provider: [],
     status: undefined,
   };
   loadData();
@@ -409,18 +409,22 @@ onMounted(() => {
               placeholder="搜索模型名称"
               allow-clear
               @press-enter="handleSearch"
+              @change="handleSearch"
             />
           </Col>
-          <Col :span="4">
+          <Col :span="6">
             <Select
               v-model:value="searchParams.provider"
               placeholder="选择厂商"
+              mode="multiple"
+              :max-tag-count="2"
               allow-clear
               :options="searchProviderOptions"
               style="width: 100%"
+              @change="handleSearch"
             />
           </Col>
-          <Col :span="4">
+          <Col :span="3">
             <Select
               v-model:value="searchParams.status"
               placeholder="状态"
@@ -430,12 +434,12 @@ onMounted(() => {
                 { label: '启用', value: 1 },
                 { label: '禁用', value: 0 },
               ]"
+              @change="handleSearch"
             />
           </Col>
-          <Col :span="10" style="text-align: right">
+          <Col :span="9" style="text-align: right">
             <Space>
               <Button @click="handleReset">重置</Button>
-              <Button type="primary" @click="handleSearch">搜索</Button>
               <Button type="primary" @click="handleAdd">新增模型</Button>
             </Space>
           </Col>
@@ -531,20 +535,20 @@ onMounted(() => {
                       {{ tag }}
                     </Tag>
                   </div>
-                </div>
 
-                <!-- 卡片底部操作 -->
-                <template #actions>
-                  <Tooltip title="在线体验">
-                    <span @click="handleChat(model)">对话</span>
-                  </Tooltip>
-                  <Tooltip title="编辑">
-                    <span @click="handleEdit(model)">编辑</span>
-                  </Tooltip>
-                  <Popconfirm title="确定删除此模型？" @confirm="handleDelete(model.id)">
-                    <span class="text-red-500">删除</span>
-                  </Popconfirm>
-                </template>
+                  <!-- 悬浮操作层 -->
+                  <div class="model-card__overlay" @click.stop>
+                    <Button type="primary" size="small" @click="handleChat(model)">
+                      对话体验
+                    </Button>
+                    <Button size="small" @click="handleEdit(model)">
+                      编辑
+                    </Button>
+                    <Popconfirm title="确定删除此模型？" @confirm="handleDelete(model.id)">
+                      <Button size="small" danger>删除</Button>
+                    </Popconfirm>
+                  </div>
+                </div>
               </Card>
             </Col>
           </Row>
@@ -754,6 +758,15 @@ onMounted(() => {
   cursor: default;
 }
 
+.model-card :deep(.ant-card-head) {
+  min-height: auto;
+  padding: 8px 12px;
+}
+
+.model-card :deep(.ant-card-body) {
+  padding: 8px 12px 12px;
+}
+
 .model-card:hover {
   box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
 }
@@ -790,6 +803,7 @@ onMounted(() => {
 }
 
 .model-card__body {
+  position: relative;
   cursor: pointer;
 }
 
@@ -820,5 +834,28 @@ onMounted(() => {
 
 .model-card__tags :deep(.ant-tag) {
   margin: 0;
+}
+
+/* 悬浮操作层 */
+.model-card__overlay {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0;
+  background: rgb(255 255 255 / 92%);
+  border-top: 1px solid rgb(0 0 0 / 6%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+
+.model-card__body:hover .model-card__overlay {
+  opacity: 1;
+  pointer-events: auto;
 }
 </style>

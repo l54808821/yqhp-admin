@@ -213,7 +213,7 @@ export interface AiModelListParams {
   page?: number;
   pageSize?: number;
   name?: string;
-  provider?: string;
+  provider?: string | string[];
   status?: number;
 }
 
@@ -241,7 +241,12 @@ export async function createAiModelApi(params: CreateAiModelParams) {
  * 获取 AI 模型列表
  */
 export async function getAiModelListApi(params?: AiModelListParams) {
-  return requestClient.get<PageResult<AiModel>>('/ai-models', { params });
+  // 将 provider 数组转为逗号分隔字符串
+  const query = params ? { ...params } : {};
+  if (Array.isArray(query.provider)) {
+    query.provider = query.provider.length > 0 ? query.provider.join(',') : undefined;
+  }
+  return requestClient.get<PageResult<AiModel>>('/ai-models', { params: query });
 }
 
 /**
