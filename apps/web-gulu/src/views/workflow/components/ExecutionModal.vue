@@ -64,9 +64,6 @@ function handleExecutionComplete(summary: DebugSummary) {
       summary,
       summary.envVariables,
     );
-    if (summary.variables && Object.keys(summary.variables).length > 0) {
-      message.info('调试上下文已缓存，可在单步调试中使用');
-    }
   }
 
   emit('complete', summary);

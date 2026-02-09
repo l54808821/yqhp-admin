@@ -17,7 +17,7 @@ import type { StepNode } from '../editor/WorkflowTreeEditor.vue';
 import ExecutionModal from './ExecutionModal.vue';
 import EditorToolbar from './EditorToolbar.vue';
 import ExecuteModal from './ExecuteModal.vue';
-import DebugContextBar from './DebugContextBar.vue';
+import DebugContextDrawer from './DebugContextDrawer.vue';
 
 interface Props {
   workflowId: number;
@@ -40,6 +40,7 @@ const workflow = ref<Workflow | null>(null);
 const selectedNode = ref<StepNode | null>(null);
 const executeModalOpen = ref(false);
 const debugModalOpen = ref(false);
+const debugContextDrawerOpen = ref(false);
 const showPropertyPanel = ref(false);
 const workflowDefinition = ref<{ name: string; steps: StepNode[] }>({ name: '', steps: [] });
 const historyStack = ref<string[]>([]);
@@ -567,6 +568,10 @@ function handleDebugComplete() {
   // 调试完成后的处理
 }
 
+function handleViewDebugContext() {
+  debugContextDrawerOpen.value = true;
+}
+
 // 处理重命名
 async function handleRename(newName: string) {
   if (!workflow.value) return;
@@ -597,6 +602,7 @@ async function handleRename(newName: string) {
       @redo="redo"
       @execute="handleExecute"
       @debug="handleDebug"
+      @view-debug-context="handleViewDebugContext"
       @rename="handleRename"
     />
     <div class="editor-main">
@@ -664,8 +670,12 @@ async function handleRename(newName: string) {
       @complete="handleDebugComplete"
     />
 
-    <!-- 调试上下文悬浮栏 -->
-    <DebugContextBar v-if="workflow" :workflow-id="workflow.id" />
+    <!-- 调试结果抽屉（查看缓存的执行结果和变量） -->
+    <DebugContextDrawer
+      v-if="workflow"
+      v-model:open="debugContextDrawerOpen"
+      :workflow-id="workflow.id"
+    />
   </div>
 </template>
 

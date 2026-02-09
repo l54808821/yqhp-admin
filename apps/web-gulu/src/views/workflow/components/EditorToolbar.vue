@@ -33,6 +33,7 @@ const emit = defineEmits<{
   (e: 'redo'): void;
   (e: 'execute'): void;
   (e: 'debug'): void;
+  (e: 'viewDebugContext'): void;
   (e: 'rename', name: string): void;
 }>();
 
@@ -160,6 +161,12 @@ const workflowTypeColor = computed(() => {
             <span v-if="hasDebugCtx" class="debug-ctx-badge" />
           </Button>
         </Tooltip>
+        <Tooltip v-if="hasDebugCtx" title="查看调试结果和缓存变量">
+          <Button type="default" class="debug-ctx-btn" @click="emit('viewDebugContext')">
+            <template #icon><Bug class="size-4" /></template>
+            调试结果
+          </Button>
+        </Tooltip>
         <Tooltip v-if="canExecute" title="执行工作流（在 Slave 上执行）">
           <Button type="primary" ghost @click="emit('execute')">
             <template #icon><Play class="size-4" /></template>
@@ -239,5 +246,15 @@ const workflowTypeColor = computed(() => {
   border-radius: 50%;
   background: #52c41a;
   box-shadow: 0 0 4px #52c41a80;
+}
+
+.debug-ctx-btn {
+  color: #52c41a;
+  border-color: #52c41a;
+}
+
+.debug-ctx-btn:hover {
+  color: #73d13d;
+  border-color: #73d13d;
 }
 </style>
