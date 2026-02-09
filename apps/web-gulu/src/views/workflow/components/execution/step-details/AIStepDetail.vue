@@ -8,8 +8,6 @@ import { computed } from 'vue';
 import { createIconifyIcon } from '@vben/icons';
 import {
   Alert,
-  Descriptions,
-  Space,
   Tag,
   Tooltip,
 } from 'ant-design-vue';
@@ -18,10 +16,7 @@ import type { StepResult } from '#/api/debug';
 
 // 图标
 const SparklesIcon = createIconifyIcon('lucide:sparkles');
-const CoinsIcon = createIconifyIcon('lucide:coins');
 const MessageSquareIcon = createIconifyIcon('lucide:message-square');
-const BrainIcon = createIconifyIcon('lucide:brain');
-const ClockIcon = createIconifyIcon('lucide:clock');
 
 // AI 输出类型定义
 interface AIOutput {
@@ -101,36 +96,42 @@ const tokenStats = computed(() => {
 
 // 格式化时长
 function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms} ms`;
-  return `${(ms / 1000).toFixed(2)} s`;
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(2)}s`;
 }
 </script>
 
 <template>
   <div class="ai-step-detail">
-    <!-- 状态栏 -->
+    <!-- 状态栏：状态 + 耗时 + 模型 + 结束原因 + Token -->
     <div class="status-bar">
-      <Space>
+      <div class="status-left">
         <Tag :color="executionStatus.color" class="status-tag">
           {{ executionStatus.text }}
         </Tag>
-        <span class="divider">|</span>
-        <span class="metric">
-          <ClockIcon class="metric-icon" />
-          {{ formatDuration(stepResult.durationMs || 0) }}
-        </span>
+        <span class="meta-sep">·</span>
+        <span class="meta-text">{{ formatDuration(stepResult.durationMs || 0) }}</span>
         <template v-if="aiOutput?.model">
-          <span class="divider">|</span>
-          <span class="metric">
-            <BrainIcon class="metric-icon" />
-            {{ aiOutput.model }}
-          </span>
+          <span class="meta-sep">·</span>
+          <span class="meta-text">{{ aiOutput.model }}</span>
         </template>
         <template v-if="finishReasonLabel">
-          <span class="divider">|</span>
-          <Tag size="small" color="default">{{ finishReasonLabel }}</Tag>
+          <span class="meta-sep">·</span>
+          <span class="meta-text muted">{{ finishReasonLabel }}</span>
         </template>
-      </Space>
+      </div>
+      <div v-if="tokenStats" class="status-right">
+        <Tooltip title="Prompt / Completion / Total">
+          <span class="token-inline">
+            <span class="token-num">{{ tokenStats.prompt }}</span>
+            <span class="token-op">+</span>
+            <span class="token-num">{{ tokenStats.completion }}</span>
+            <span class="token-op">=</span>
+            <span class="token-num total">{{ tokenStats.total }}</span>
+            <span class="token-label">tokens</span>
+          </span>
+        </Tooltip>
+      </div>
     </div>
 
     <!-- 错误信息 -->
@@ -140,36 +141,6 @@ function formatDuration(ms: number): string {
       :message="stepResult.error"
       class="error-alert"
     />
-
-    <!-- Token 用量卡片 -->
-    <div v-if="tokenStats" class="token-card">
-      <div class="token-header">
-        <CoinsIcon class="token-header-icon" />
-        <span>Token 用量</span>
-      </div>
-      <div class="token-stats">
-        <Tooltip title="输入 Token 数（发送给 AI 的 Prompt）">
-          <div class="token-stat">
-            <div class="token-stat-value">{{ tokenStats.prompt.toLocaleString() }}</div>
-            <div class="token-stat-label">Prompt</div>
-          </div>
-        </Tooltip>
-        <div class="token-divider">+</div>
-        <Tooltip title="输出 Token 数（AI 生成的回复）">
-          <div class="token-stat">
-            <div class="token-stat-value">{{ tokenStats.completion.toLocaleString() }}</div>
-            <div class="token-stat-label">Completion</div>
-          </div>
-        </Tooltip>
-        <div class="token-divider">=</div>
-        <Tooltip title="总 Token 数">
-          <div class="token-stat total">
-            <div class="token-stat-value">{{ tokenStats.total.toLocaleString() }}</div>
-            <div class="token-stat-label">Total</div>
-          </div>
-        </Tooltip>
-      </div>
-    </div>
 
     <!-- AI 回复内容 -->
     <div class="content-section">
@@ -189,26 +160,6 @@ function formatDuration(ms: number): string {
         {{ stepResult.status === 'running' ? '等待 AI 回复...' : '无回复内容' }}
       </div>
     </div>
-
-    <!-- 详细信息 -->
-    <Descriptions :column="1" size="small" bordered class="detail-desc">
-      <Descriptions.Item label="步骤名称">{{ stepResult.stepName }}</Descriptions.Item>
-      <Descriptions.Item label="步骤ID">
-        <code>{{ stepResult.stepId }}</code>
-      </Descriptions.Item>
-      <Descriptions.Item label="步骤类型">
-        <Tag color="blue" size="small">
-          <SparklesIcon class="type-icon" />
-          AI
-        </Tag>
-      </Descriptions.Item>
-      <Descriptions.Item v-if="stepResult.parentId" label="父步骤">
-        <code>{{ stepResult.parentId }}</code>
-      </Descriptions.Item>
-      <Descriptions.Item v-if="stepResult.iteration" label="迭代次数">
-        第 {{ stepResult.iteration }} 次
-      </Descriptions.Item>
-    </Descriptions>
   </div>
 </template>
 
@@ -216,125 +167,88 @@ function formatDuration(ms: number): string {
 .ai-step-detail {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   height: 100%;
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 /* 状态栏 */
 .status-bar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
   background: hsl(var(--accent) / 50%);
   border-radius: 4px;
   flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.status-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .status-tag {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
+  margin: 0;
 }
 
-.divider {
-  color: hsl(var(--border));
+.meta-sep {
+  color: hsl(var(--foreground) / 20%);
+  font-size: 12px;
 }
 
-.metric {
+.meta-text {
+  font-size: 12px;
+  color: hsl(var(--foreground) / 60%);
+}
+
+.meta-text.muted {
+  color: hsl(var(--foreground) / 40%);
+}
+
+.status-right {
+  flex-shrink: 0;
+}
+
+.token-inline {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   font-size: 12px;
-  color: hsl(var(--foreground) / 65%);
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  color: hsl(var(--foreground) / 55%);
+  cursor: default;
 }
 
-.metric-icon {
-  width: 14px;
-  height: 14px;
+.token-num {
+  color: hsl(var(--foreground) / 70%);
+}
+
+.token-num.total {
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.token-op {
+  color: hsl(var(--foreground) / 30%);
+}
+
+.token-label {
+  font-size: 11px;
+  color: hsl(var(--foreground) / 40%);
+  margin-left: 2px;
 }
 
 .error-alert {
   margin: 0;
   flex-shrink: 0;
-}
-
-/* Token 用量卡片 */
-.token-card {
-  background: hsl(var(--card));
-  border: 1px solid hsl(var(--border));
-  border-radius: 8px;
-  padding: 12px 16px;
-  flex-shrink: 0;
-}
-
-.token-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  color: hsl(var(--foreground) / 70%);
-  margin-bottom: 12px;
-}
-
-.token-header-icon {
-  width: 16px;
-  height: 16px;
-  color: #faad14;
-}
-
-.token-stats {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-}
-
-.token-stat {
-  text-align: center;
-  padding: 8px 16px;
-  background: hsl(var(--accent) / 50%);
-  border-radius: 6px;
-  min-width: 80px;
-  cursor: default;
-  transition: background 0.2s;
-}
-
-.token-stat:hover {
-  background: hsl(var(--accent) / 80%);
-}
-
-.token-stat.total {
-  background: hsl(var(--primary) / 10%);
-}
-
-.token-stat.total:hover {
-  background: hsl(var(--primary) / 18%);
-}
-
-.token-stat-value {
-  font-size: 18px;
-  font-weight: 600;
-  color: hsl(var(--foreground));
-  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
-}
-
-.token-stat.total .token-stat-value {
-  color: hsl(var(--primary));
-}
-
-.token-stat-label {
-  font-size: 11px;
-  color: hsl(var(--foreground) / 50%);
-  margin-top: 2px;
-}
-
-.token-divider {
-  font-size: 16px;
-  color: hsl(var(--foreground) / 30%);
-  font-weight: 300;
 }
 
 /* AI 回复内容 */
@@ -353,17 +267,17 @@ function formatDuration(ms: number): string {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 10px 16px;
-  font-size: 13px;
+  padding: 8px 12px;
+  font-size: 12px;
   font-weight: 500;
-  color: hsl(var(--foreground) / 70%);
+  color: hsl(var(--foreground) / 60%);
   border-bottom: 1px solid hsl(var(--border));
   flex-shrink: 0;
 }
 
 .content-header-icon {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   color: #1677ff;
 }
 
@@ -391,7 +305,7 @@ function formatDuration(ms: number): string {
 .content-body {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 12px 16px;
 }
 
 .content-text {
@@ -423,24 +337,5 @@ function formatDuration(ms: number): string {
   color: hsl(var(--foreground) / 35%);
   font-size: 13px;
   padding: 32px;
-}
-
-/* 详细信息 */
-.detail-desc {
-  flex-shrink: 0;
-}
-
-.detail-desc code {
-  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
-  font-size: 12px;
-  background: hsl(var(--accent) / 50%);
-  padding: 2px 6px;
-  border-radius: 3px;
-}
-
-.type-icon {
-  width: 12px;
-  height: 12px;
-  margin-right: 2px;
 }
 </style>
