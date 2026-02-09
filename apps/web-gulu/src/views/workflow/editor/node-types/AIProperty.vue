@@ -48,6 +48,7 @@ interface AIConfig {
   interaction_options: string[];
   interaction_timeout: number;
   interaction_default: string;
+  timeout: number;
 }
 
 interface AIStepNode {
@@ -129,6 +130,7 @@ watch(
           interaction_options: [],
           interaction_timeout: 300,
           interaction_default: '',
+          timeout: 300,
         };
       }
       // 同步交互选项文本
@@ -261,6 +263,7 @@ async function handleRun() {
           temperature: localNode.value.config.temperature,
           max_tokens: localNode.value.config.max_tokens,
           top_p: localNode.value.config.top_p,
+          timeout: localNode.value.config.timeout || 0,
           streaming: false, // 单步调试使用非流式
           interactive: false, // 单步调试不启用交互
         },
@@ -270,7 +273,7 @@ async function handleRun() {
       mode: 'debug',
       stream: false,
       persist: false,
-    }, 120_000); // AI 调用超时 120 秒
+    }, ((localNode.value.config.timeout || 300) + 30) * 1000); // HTTP 超时 = AI 超时 + 30s 缓冲
 
     const stepResult = response.steps?.[0];
     if (stepResult) {
@@ -465,6 +468,22 @@ onMounted(() => {
                   <span class="model-info-value model-desc">{{ selectedModel.description }}</span>
                 </div>
               </div>
+
+              <!-- 超时时间 -->
+              <Form.Item label="超时时间（秒）" style="margin-top: 16px">
+                <InputNumber
+                  v-model:value="localNode.config.timeout"
+                  :min="0"
+                  :max="3600"
+                  :step="30"
+                  placeholder="默认 300 秒"
+                  style="width: 100%"
+                  @change="emitUpdate"
+                />
+                <div class="param-hint">
+                  AI 调用的最大等待时间。设为 0 则使用系统默认值（5 分钟）。
+                </div>
+              </Form.Item>
             </Form>
           </Tabs.TabPane>
 

@@ -8,6 +8,7 @@ import { computed } from 'vue';
 import { createIconifyIcon } from '@vben/icons';
 import {
   Alert,
+  Tabs,
   Tag,
   Tooltip,
 } from 'ant-design-vue';
@@ -15,8 +16,10 @@ import {
 import type { StepResult } from '#/api/debug';
 
 // 图标
-const SparklesIcon = createIconifyIcon('lucide:sparkles');
 const MessageSquareIcon = createIconifyIcon('lucide:message-square');
+
+// 图标 - 输入
+const SendIcon = createIconifyIcon('lucide:send');
 
 // AI 输出类型定义
 interface AIOutput {
@@ -26,6 +29,8 @@ interface AIOutput {
   total_tokens?: number;
   model?: string;
   finish_reason?: string;
+  system_prompt?: string;
+  prompt?: string;
 }
 
 interface Props {
@@ -142,23 +147,54 @@ function formatDuration(ms: number): string {
       class="error-alert"
     />
 
-    <!-- AI 回复内容 -->
+    <!-- 内容区域（Tabs 切换回复和输入） -->
     <div class="content-section">
-      <div class="content-header">
-        <MessageSquareIcon class="content-header-icon" />
-        <span>AI 回复</span>
-        <span v-if="isStreaming" class="streaming-badge">
-          <SparklesIcon class="streaming-icon" />
-          生成中...
-        </span>
-      </div>
-      <div class="content-body" v-if="displayContent">
-        <pre class="content-text">{{ displayContent }}</pre>
-        <span v-if="isStreaming" class="typing-cursor">|</span>
-      </div>
-      <div v-else class="content-empty">
-        {{ stepResult.status === 'running' ? '等待 AI 回复...' : '无回复内容' }}
-      </div>
+      <Tabs size="small" class="content-tabs" default-active-key="response">
+        <!-- AI 回复 -->
+        <Tabs.TabPane key="response">
+          <template #tab>
+            <span class="tab-label">
+              <MessageSquareIcon class="tab-icon" />
+              AI 回复
+              <span v-if="isStreaming" class="streaming-dot" />
+            </span>
+          </template>
+          <div class="tab-content">
+            <div class="content-body" v-if="displayContent">
+              <pre class="content-text">{{ displayContent }}</pre>
+              <span v-if="isStreaming" class="typing-cursor">|</span>
+            </div>
+            <div v-else class="content-empty">
+              {{ stepResult.status === 'running' ? '等待 AI 回复...' : '无回复内容' }}
+            </div>
+          </div>
+        </Tabs.TabPane>
+
+        <!-- 输入提示词 -->
+        <Tabs.TabPane key="input">
+          <template #tab>
+            <span class="tab-label">
+              <SendIcon class="tab-icon" />
+              输入
+            </span>
+          </template>
+          <div class="tab-content">
+            <div class="content-body" v-if="aiOutput?.system_prompt || aiOutput?.prompt">
+              <div v-if="aiOutput?.system_prompt" class="prompt-block">
+                <div class="prompt-label">System Prompt</div>
+                <pre class="prompt-text">{{ aiOutput.system_prompt }}</pre>
+              </div>
+              <div v-if="aiOutput?.prompt" class="prompt-block">
+                <div class="prompt-label">User Prompt</div>
+                <pre class="prompt-text">{{ aiOutput.prompt }}</pre>
+              </div>
+            </div>
+            <div v-else class="content-empty">
+              {{ stepResult.status === 'running' ? '执行完成后可查看' : '无输入数据' }}
+            </div>
+          </div>
+        </Tabs.TabPane>
+      </Tabs>
     </div>
   </div>
 </template>
@@ -251,7 +287,7 @@ function formatDuration(ms: number): string {
   flex-shrink: 0;
 }
 
-/* AI 回复内容 */
+/* 内容区域 */
 .content-section {
   flex: 1;
   min-height: 0;
@@ -263,47 +299,69 @@ function formatDuration(ms: number): string {
   overflow: hidden;
 }
 
-.content-header {
+.content-tabs {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  color: hsl(var(--foreground) / 60%);
-  border-bottom: 1px solid hsl(var(--border));
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.content-tabs :deep(.ant-tabs-nav) {
+  margin: 0;
+  padding: 0 12px;
   flex-shrink: 0;
 }
 
-.content-header-icon {
-  width: 14px;
-  height: 14px;
-  color: #1677ff;
+.content-tabs :deep(.ant-tabs-content-holder) {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.streaming-badge {
+.content-tabs :deep(.ant-tabs-content) {
+  height: 100%;
+}
+
+.content-tabs :deep(.ant-tabs-tabpane) {
+  height: 100%;
+  overflow: hidden;
+}
+
+.tab-label {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  margin-left: auto;
   font-size: 12px;
-  color: #1677ff;
-  font-weight: 400;
 }
 
-.streaming-icon {
-  width: 14px;
-  height: 14px;
+.tab-icon {
+  width: 13px;
+  height: 13px;
+}
+
+.streaming-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #1677ff;
   animation: pulse 1.5s ease-in-out infinite;
 }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  50% { opacity: 0.3; }
+}
+
+.tab-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
 }
 
 .content-body {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 12px 16px;
 }
@@ -337,5 +395,36 @@ function formatDuration(ms: number): string {
   color: hsl(var(--foreground) / 35%);
   font-size: 13px;
   padding: 32px;
+}
+
+/* 输入提示词 */
+.prompt-block {
+  margin-bottom: 16px;
+}
+
+.prompt-block:last-child {
+  margin-bottom: 0;
+}
+
+.prompt-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: hsl(var(--foreground) / 45%);
+  margin-bottom: 6px;
+}
+
+.prompt-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13px;
+  line-height: 1.6;
+  color: hsl(var(--foreground));
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: hsl(var(--accent) / 40%);
+  padding: 10px 12px;
+  border-radius: 6px;
 }
 </style>

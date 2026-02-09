@@ -105,6 +105,7 @@ export const nodeTypeRegistry: Record<string, NodeTypeConfig> = {
         interaction_options: [],
         interaction_timeout: 300,
         interaction_default: '',
+        timeout: 300,
       },
     }),
     getDescription: (node) => {
