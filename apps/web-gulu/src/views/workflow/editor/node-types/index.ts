@@ -91,14 +91,13 @@ export const nodeTypeRegistry: Record<string, NodeTypeConfig> = {
     propertyComponent: AIProperty,
     defaultConfig: () => ({
       config: {
-        provider: 'openai',
-        model: 'gpt-4o',
-        api_key: '',
-        base_url: '',
+        ai_model_id: null,
+        ai_model_name: '',
         system_prompt: '',
         prompt: '',
         temperature: 0.7,
         max_tokens: 2000,
+        top_p: 1,
         streaming: true,
         interactive: false,
         interaction_type: 'confirm',
@@ -111,9 +110,7 @@ export const nodeTypeRegistry: Record<string, NodeTypeConfig> = {
     getDescription: (node) => {
       const config = node.config;
       if (!config) return '';
-      const provider = config.provider || 'openai';
-      const model = config.model || '';
-      return `${provider}/${model}`;
+      return config.ai_model_name || '未选择模型';
     },
   },
   condition: {

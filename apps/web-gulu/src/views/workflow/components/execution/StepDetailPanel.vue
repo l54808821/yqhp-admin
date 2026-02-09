@@ -3,6 +3,7 @@ import { createIconifyIcon } from '@vben/icons';
 import { Alert, Card, Descriptions, Tag } from 'ant-design-vue';
 import type { StepResult, TreeNode } from './types';
 
+import AIStepDetail from './step-details/AIStepDetail.vue';
 import HttpStepDetail from './step-details/HttpStepDetail.vue';
 import ScriptStepDetail from './step-details/ScriptStepDetail.vue';
 import ConditionStepDetail from './step-details/ConditionStepDetail.vue';
@@ -93,6 +94,14 @@ function formatDuration(ms?: number) {
             :step-result="selectedStep"
           />
 
+          <!-- AI 步骤使用专用组件 -->
+          <AIStepDetail
+            v-else-if="selectedStep.stepType === 'ai'"
+            :step-result="selectedStep"
+            :ai-content="aiContent"
+            :current-a-i-step-id="currentAIStepId"
+          />
+
           <!-- 其他步骤类型使用通用展示 -->
           <template v-else>
             <Descriptions :column="1" size="small" bordered>
@@ -122,15 +131,6 @@ function formatDuration(ms?: number) {
             <div v-if="selectedStep.error" class="detail-section">
               <div class="section-title">错误信息</div>
               <Alert type="error" :message="selectedStep.error" />
-            </div>
-
-            <!-- AI 输出内容 -->
-            <div v-if="selectedStep.stepType === 'ai' && aiContent" class="detail-section">
-              <div class="section-title">AI 输出</div>
-              <div class="ai-output">
-                <pre>{{ aiContent }}</pre>
-                <span v-if="currentAIStepId === selectedStep.stepId" class="typing-cursor">|</span>
-              </div>
             </div>
 
             <!-- 输出数据 -->
@@ -242,37 +242,6 @@ function formatDuration(ms?: number) {
   font-size: 12px;
   overflow: auto;
   max-height: 200px;
-}
-
-.ai-output {
-  background: #f0f7ff;
-  padding: 12px;
-  border-radius: 4px;
-  font-size: 13px;
-  white-space: pre-wrap;
-  word-break: break-word;
-  max-height: 300px;
-  overflow: auto;
-}
-
-.ai-output pre {
-  margin: 0;
-  font-family: inherit;
-}
-
-.typing-cursor {
-  animation: blink 1s infinite;
-}
-
-@keyframes blink {
-  0%,
-  50% {
-    opacity: 1;
-  }
-  51%,
-  100% {
-    opacity: 0;
-  }
 }
 
 .step-logs {
