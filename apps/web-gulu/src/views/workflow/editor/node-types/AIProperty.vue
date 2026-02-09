@@ -741,7 +741,15 @@ onMounted(() => {
 }
 
 .config-form {
-  padding-top: 8px;
+  padding-top: 0;
+}
+
+.config-content :deep(.ant-tabs-nav) {
+  margin-bottom: 8px;
+}
+
+.config-content :deep(.ant-tabs-content) {
+  padding-top: 0;
 }
 
 /* 模型选项样式 */
