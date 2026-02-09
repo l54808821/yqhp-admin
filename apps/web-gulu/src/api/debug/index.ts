@@ -435,9 +435,10 @@ export interface ExecuteResponse {
  * 统一执行接口（支持单步和流程执行，阻塞模式）
  * 返回统一的 ExecuteResponse 格式，包含步骤详情
  * @param params 执行参数
+ * @param requestTimeout 请求超时时间（毫秒），默认使用全局配置
  */
-export async function executeApi(params: ExecuteParams): Promise<ExecuteResponse> {
-  return requestClient.post<ExecuteResponse>('/executions', params);
+export async function executeApi(params: ExecuteParams, requestTimeout?: number): Promise<ExecuteResponse> {
+  return requestClient.post<ExecuteResponse>('/executions', params, requestTimeout ? { timeout: requestTimeout } : undefined);
 }
 
 /**

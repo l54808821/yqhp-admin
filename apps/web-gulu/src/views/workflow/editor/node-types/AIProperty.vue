@@ -120,7 +120,7 @@ watch(
           system_prompt: '',
           prompt: '',
           temperature: 0.7,
-          max_tokens: 2000,
+          max_tokens: 4096,
           top_p: 1,
           streaming: true,
           interactive: false,
@@ -270,7 +270,7 @@ async function handleRun() {
       mode: 'debug',
       stream: false,
       persist: false,
-    });
+    }, 120_000); // AI 调用超时 120 秒
 
     const stepResult = response.steps?.[0];
     if (stepResult) {

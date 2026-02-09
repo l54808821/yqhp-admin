@@ -96,7 +96,7 @@ export const nodeTypeRegistry: Record<string, NodeTypeConfig> = {
         system_prompt: '',
         prompt: '',
         temperature: 0.7,
-        max_tokens: 2000,
+        max_tokens: 4096,
         top_p: 1,
         streaming: true,
         interactive: false,
