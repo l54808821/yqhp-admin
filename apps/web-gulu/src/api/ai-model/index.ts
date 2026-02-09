@@ -142,6 +142,19 @@ export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
       { model_id: 'gpt-4o-mini', name: 'GPT-4o Mini', context_length: 131072, capability_tags: ['对话', 'Tools', '视觉'] },
     ],
   },
+  '硅基流动': {
+    name: '硅基流动',
+    api_base_url: 'https://api.siliconflow.cn/v1',
+    require_api_key: true,
+    models: [
+      { model_id: 'deepseek-ai/DeepSeek-V3', name: 'DeepSeek-V3', context_length: 65536, capability_tags: ['对话', 'Tools', 'Coder'], description: 'DeepSeek-V3 on SiliconFlow' },
+      { model_id: 'deepseek-ai/DeepSeek-R1', name: 'DeepSeek-R1', context_length: 65536, capability_tags: ['对话', '推理', 'Math', 'Coder'], description: 'DeepSeek-R1 推理模型' },
+      { model_id: 'Qwen/Qwen2.5-72B-Instruct', name: 'Qwen2.5-72B', param_size: '72B', context_length: 131072, capability_tags: ['对话', 'Tools', 'Coder'], description: '通义千问 2.5 72B' },
+      { model_id: 'Qwen/Qwen2.5-7B-Instruct', name: 'Qwen2.5-7B', param_size: '7B', context_length: 131072, capability_tags: ['对话', 'Tools'], description: '通义千问 2.5 7B' },
+      { model_id: 'THUDM/glm-4-9b-chat', name: 'GLM-4-9B', param_size: '9B', context_length: 131072, capability_tags: ['对话', 'Tools'], description: 'GLM-4 开源版' },
+      { model_id: 'meta-llama/Meta-Llama-3.1-8B-Instruct', name: 'Llama-3.1-8B', param_size: '8B', context_length: 131072, capability_tags: ['对话', 'Tools'], description: 'Meta Llama 3.1 8B' },
+    ],
+  },
   '自定义': {
     name: '自定义',
     api_base_url: '',

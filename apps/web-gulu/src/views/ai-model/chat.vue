@@ -96,13 +96,14 @@ async function handleSend() {
   scrollToBottom();
 
   // 添加 AI 消息占位
-  const aiMsg: DisplayMessage = {
+  messages.value.push({
     id: generateId(),
     role: 'assistant',
     content: '',
     loading: true,
-  };
-  messages.value.push(aiMsg);
+  });
+  // 获取响应式代理引用（直接用原始对象修改不会触发 Vue 更新）
+  const aiMsg = messages.value[messages.value.length - 1]!;
   scrollToBottom();
 
   // 构建消息历史
@@ -352,7 +353,8 @@ onUnmounted(() => {
 .chat-page {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
+  overflow: hidden;
   background: var(--ant-color-bg-layout, #f5f5f5);
 }
 
