@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, toRef } from 'vue';
 
 import type { ExecutionSummary, WorkflowDefinition } from './types';
 import { useExecution } from './composables/useExecution';
@@ -68,25 +68,13 @@ const selectedStepAIContent = computed(() => {
   return execution.aiContent.value.get(stepTree.selectedStep.value.stepId) || null;
 });
 
-// 监听 visible 变化
-watch(
-  () => props.visible,
-  (visible) => {
-    if (!visible) {
-      execution.cleanup();
-      stepTree.resetSelection();
-    }
-  }
-);
-
 // 组件卸载时清理
 onBeforeUnmount(() => {
   execution.cleanup();
 });
 
-// 关闭面板
+// 关闭面板（仅关闭 UI，不中断执行）
 function handleClose() {
-  execution.cleanup();
   emit('close');
 }
 
@@ -94,6 +82,7 @@ function handleClose() {
 defineExpose({
   startExecution: execution.start,
   stopExecution: execution.stop,
+  cleanup: execution.cleanup,
   // 兼容旧接口
   startDebug: execution.start,
   stopDebug: execution.stop,

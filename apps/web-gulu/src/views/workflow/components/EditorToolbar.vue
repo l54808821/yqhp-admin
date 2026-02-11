@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 
 import { createIconifyIcon } from '@vben/icons';
-import { Button, Input, Space, Tag, Tooltip } from 'ant-design-vue';
+import { Button, Dropdown, Input, Menu, MenuItem, Space, Tag, Tooltip } from 'ant-design-vue';
 
 import type { Workflow } from '#/api/workflow';
 import { useDebugContext } from './execution/composables/useDebugContext';
@@ -16,6 +16,9 @@ const Bug = createIconifyIcon('lucide:bug');
 const Edit = createIconifyIcon('lucide:pencil');
 const Check = createIconifyIcon('lucide:check');
 const XIcon = createIconifyIcon('lucide:x');
+const ChevronDown = createIconifyIcon('lucide:chevron-down');
+const RotateCw = createIconifyIcon('lucide:rotate-cw');
+const FileSearch = createIconifyIcon('lucide:file-search');
 
 interface Props {
   workflow: Workflow | null;
@@ -23,6 +26,7 @@ interface Props {
   canUndo?: boolean;
   canRedo?: boolean;
   modified?: boolean;
+  debugRunning?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -34,6 +38,7 @@ const emit = defineEmits<{
   (e: 'execute'): void;
   (e: 'debug'): void;
   (e: 'viewDebugContext'): void;
+  (e: 'showDebugPanel'): void;
   (e: 'rename', name: string): void;
 }>();
 
@@ -42,6 +47,16 @@ const debugContext = useDebugContext();
 const hasDebugCtx = computed(() => {
   return !!props.workflow?.id && debugContext.hasContext(props.workflow.id);
 });
+
+function handleDebugMenuClick({ key }: { key: string | number }) {
+  if (key === 'rerun') {
+    emit('debug');
+  } else if (key === 'result') {
+    emit('viewDebugContext');
+  } else if (key === 'panel') {
+    emit('showDebugPanel');
+  }
+}
 
 // 名称编辑状态
 const isEditingName = ref(false);
@@ -155,16 +170,40 @@ const workflowTypeColor = computed(() => {
           保存
         </Button>
         <Tooltip title="调试工作流（在 Master 上执行）">
-          <Button type="default" class="debug-btn" @click="emit('debug')">
+          <template v-if="hasDebugCtx || debugRunning">
+            <Dropdown :trigger="['click']" placement="bottomRight">
+              <Button type="default" class="debug-btn">
+                <template #icon><Bug class="size-4" /></template>
+                {{ debugRunning ? '调试中...' : '调试' }}
+                <ChevronDown class="size-3 ml-1" />
+              </Button>
+              <template #overlay>
+                <Menu @click="handleDebugMenuClick">
+                  <MenuItem key="rerun">
+                    <Space :size="6">
+                      <RotateCw class="size-4" />
+                      <span>重新调试</span>
+                    </Space>
+                  </MenuItem>
+                  <MenuItem v-if="debugRunning" key="panel">
+                    <Space :size="6">
+                      <Bug class="size-4" />
+                      <span>查看进度</span>
+                    </Space>
+                  </MenuItem>
+                  <MenuItem v-if="hasDebugCtx" key="result">
+                    <Space :size="6">
+                      <FileSearch class="size-4" />
+                      <span>调试结果</span>
+                    </Space>
+                  </MenuItem>
+                </Menu>
+              </template>
+            </Dropdown>
+          </template>
+          <Button v-else type="default" class="debug-btn" @click="emit('debug')">
             <template #icon><Bug class="size-4" /></template>
             调试
-            <span v-if="hasDebugCtx" class="debug-ctx-badge" />
-          </Button>
-        </Tooltip>
-        <Tooltip v-if="hasDebugCtx" title="查看调试结果和缓存变量">
-          <Button type="default" class="debug-ctx-btn" @click="emit('viewDebugContext')">
-            <template #icon><Bug class="size-4" /></template>
-            调试结果
           </Button>
         </Tooltip>
         <Tooltip v-if="canExecute" title="执行工作流（在 Slave 上执行）">
@@ -237,24 +276,7 @@ const workflowTypeColor = computed(() => {
   position: relative;
 }
 
-.debug-ctx-badge {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #52c41a;
-  box-shadow: 0 0 4px #52c41a80;
-}
-
-.debug-ctx-btn {
-  color: #52c41a;
-  border-color: #52c41a;
-}
-
-.debug-ctx-btn:hover {
-  color: #73d13d;
-  border-color: #73d13d;
+.debug-btn .ml-1 {
+  margin-left: 4px;
 }
 </style>

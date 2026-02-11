@@ -41,6 +41,7 @@ const selectedNode = ref<StepNode | null>(null);
 const executeModalOpen = ref(false);
 const debugModalOpen = ref(false);
 const debugContextDrawerOpen = ref(false);
+const debugRunning = ref(false);
 const showPropertyPanel = ref(false);
 const workflowDefinition = ref<{ name: string; steps: StepNode[] }>({ name: '', steps: [] });
 const historyStack = ref<string[]>([]);
@@ -555,8 +556,16 @@ function handleExecuteSuccess(executionId: number) {
 }
 
 // 调试相关
+const executionModalRef = ref<InstanceType<typeof ExecutionModal> | null>(null);
+
 function handleDebug() {
-  // 移除保存检查，允许调试未保存的工作流
+  // 重新调试：重置 ExecutionModal 的状态
+  executionModalRef.value?.resetForNewExecution();
+  debugModalOpen.value = true;
+}
+
+function handleShowDebugPanel() {
+  // 仅打开面板查看进度，不重新启动
   debugModalOpen.value = true;
 }
 
@@ -565,7 +574,11 @@ function handleCheckedKeysChange(keys: string[]) {
 }
 
 function handleDebugComplete() {
-  // 调试完成后的处理
+  debugRunning.value = false;
+}
+
+function handleDebugStarted() {
+  debugRunning.value = true;
 }
 
 function handleViewDebugContext() {
@@ -597,12 +610,14 @@ async function handleRename(newName: string) {
       :can-undo="canUndo"
       :can-redo="canRedo"
       :modified="isModified"
+      :debug-running="debugRunning"
       @save="handleSave"
       @undo="undo"
       @redo="redo"
       @execute="handleExecute"
       @debug="handleDebug"
       @view-debug-context="handleViewDebugContext"
+      @show-debug-panel="handleShowDebugPanel"
       @rename="handleRename"
     />
     <div class="editor-main">
@@ -662,12 +677,14 @@ async function handleRename(newName: string) {
 
     <!-- 执行对话框（调试模式：不入库） -->
     <ExecutionModal
+      ref="executionModalRef"
       v-model:open="debugModalOpen"
       :workflow="workflow"
       :definition="workflowDefinition"
       :selected-steps="treeCheckedKeys"
       :persist="false"
       @complete="handleDebugComplete"
+      @started="handleDebugStarted"
     />
 
     <!-- 调试结果抽屉（查看缓存的执行结果和变量） -->

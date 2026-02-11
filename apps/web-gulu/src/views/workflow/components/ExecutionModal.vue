@@ -26,11 +26,14 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   (e: 'update:open', value: boolean): void;
   (e: 'complete', summary: DebugSummary): void;
+  (e: 'started'): void;
 }>();
 
 const projectStore = useProjectStore();
 const debugContext = useDebugContext();
 const executionPanelRef = ref<InstanceType<typeof ExecutionPanel> | null>(null);
+// 标记是否已经启动过执行，避免重新打开弹窗时重复启动
+const executionStarted = ref(false);
 
 watch(
   () => props.open,
@@ -42,17 +45,32 @@ watch(
         emit('update:open', false);
         return;
       }
-      // 等待 drawer 打开后启动执行
-      setTimeout(() => {
-        executionPanelRef.value?.startExecution();
-      }, 300);
+      // 只在首次打开时启动执行，关闭后重新打开不重复启动
+      if (!executionStarted.value) {
+        executionStarted.value = true;
+        setTimeout(() => {
+          executionPanelRef.value?.startExecution();
+          emit('started');
+        }, 300);
+      }
     }
   },
 );
 
+// 重置状态，用于重新调试
+function resetForNewExecution() {
+  executionStarted.value = false;
+  // 只清理本地状态（断开 SSE），不调用后端停止 API
+  executionPanelRef.value?.cleanup?.();
+}
+
 function handleClose() {
   emit('update:open', false);
 }
+
+defineExpose({
+  resetForNewExecution,
+});
 
 function handleExecutionComplete(summary: DebugSummary) {
   // 保存调试上下文（缓存变量和执行结果，用于单步快速调试）
