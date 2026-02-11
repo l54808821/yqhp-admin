@@ -16,8 +16,6 @@ const Bug = createIconifyIcon('lucide:bug');
 const Edit = createIconifyIcon('lucide:pencil');
 const Check = createIconifyIcon('lucide:check');
 const XIcon = createIconifyIcon('lucide:x');
-const ChevronDown = createIconifyIcon('lucide:chevron-down');
-const RotateCw = createIconifyIcon('lucide:rotate-cw');
 const FileSearch = createIconifyIcon('lucide:file-search');
 
 interface Props {
@@ -47,6 +45,15 @@ const debugContext = useDebugContext();
 const hasDebugCtx = computed(() => {
   return !!props.workflow?.id && debugContext.hasContext(props.workflow.id);
 });
+
+// 点击调试按钮左侧主体
+function handleDebugClick() {
+  if (props.debugRunning) {
+    emit('showDebugPanel');
+  } else {
+    emit('debug');
+  }
+}
 
 function handleDebugMenuClick({ key }: { key: string | number }) {
   if (key === 'rerun') {
@@ -169,22 +176,20 @@ const workflowTypeColor = computed(() => {
           <template #icon><Save class="size-4" /></template>
           保存
         </Button>
-        <Tooltip title="调试工作流（在 Master 上执行）">
-          <template v-if="hasDebugCtx || debugRunning">
-            <Dropdown :trigger="['click']" placement="bottomRight">
-              <Button type="default" class="debug-btn">
-                <template #icon><Bug class="size-4" /></template>
-                {{ debugRunning ? '调试中...' : '调试' }}
-                <ChevronDown class="size-3 ml-1" />
+        <template v-if="hasDebugCtx || debugRunning">
+          <Button.Group>
+            <Button type="default" @click="handleDebugClick">
+              <template #icon><Bug class="size-4" /></template>
+              {{ debugRunning ? '调试中...' : '调试' }}
+            </Button>
+            <Dropdown placement="bottomRight" :trigger="['click']">
+              <Button type="default" class="debug-dropdown-trigger">
+                <template #icon>
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </template>
               </Button>
               <template #overlay>
                 <Menu @click="handleDebugMenuClick">
-                  <MenuItem key="rerun">
-                    <Space :size="6">
-                      <RotateCw class="size-4" />
-                      <span>重新调试</span>
-                    </Space>
-                  </MenuItem>
                   <MenuItem v-if="debugRunning" key="panel">
                     <Space :size="6">
                       <Bug class="size-4" />
@@ -200,8 +205,10 @@ const workflowTypeColor = computed(() => {
                 </Menu>
               </template>
             </Dropdown>
-          </template>
-          <Button v-else type="default" class="debug-btn" @click="emit('debug')">
+          </Button.Group>
+        </template>
+        <Tooltip v-else title="调试工作流（在 Master 上执行）">
+          <Button type="default" @click="emit('debug')">
             <template #icon><Bug class="size-4" /></template>
             调试
           </Button>
@@ -272,11 +279,7 @@ const workflowTypeColor = computed(() => {
   align-items: center;
 }
 
-.debug-btn {
-  position: relative;
-}
-
-.debug-btn .ml-1 {
-  margin-left: 4px;
+.debug-dropdown-trigger {
+  padding: 4px 8px;
 }
 </style>
