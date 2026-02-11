@@ -130,6 +130,28 @@ const routes: RouteRecordRaw[] = [
       },
     ],
   },
+  // MCP 服务器管理
+  {
+    meta: {
+      icon: 'lucide:plug',
+      order: 45,
+      title: 'MCP 服务器',
+    },
+    name: 'McpServerManagement',
+    path: '/project/:projectId/mcp-server',
+    component: BasicLayout,
+    children: [
+      {
+        name: 'McpServerIndex',
+        path: '',
+        component: () => import('#/views/mcp-server/index.vue'),
+        meta: {
+          hideInMenu: true,
+          title: 'MCP 服务器管理',
+        },
+      },
+    ],
+  },
 ];
 
 export default routes;

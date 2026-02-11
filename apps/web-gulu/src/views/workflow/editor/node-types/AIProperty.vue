@@ -8,6 +8,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { createIconifyIcon } from '@vben/icons';
 import {
   Button,
+  Checkbox,
   Collapse,
   Empty,
   Form,
@@ -25,6 +26,7 @@ import {
 
 import { type AiModel, getAiModelListApi } from '#/api/ai-model';
 import { executeApi } from '#/api/debug';
+import { type McpServer, getMcpServerListApi } from '#/api/mcp-server';
 import { useDebugContext } from '../../components/execution/composables/useDebugContext';
 
 // 图标
@@ -49,6 +51,9 @@ interface AIConfig {
   interaction_timeout: number;
   interaction_default: string;
   timeout: number;
+  tools: string[];
+  mcp_server_ids: number[];
+  max_tool_rounds: number;
 }
 
 interface AIStepNode {
@@ -56,6 +61,15 @@ interface AIStepNode {
   type: 'ai';
   name: string;
   config: AIConfig;
+}
+
+interface ToolCallRecord {
+  round: number;
+  tool_name: string;
+  arguments: string;
+  result: string;
+  is_error: boolean;
+  duration_ms: number;
 }
 
 interface AIDebugResponse {
@@ -67,6 +81,7 @@ interface AIDebugResponse {
   totalTokens: number;
   durationMs: number;
   error?: string;
+  toolCalls?: ToolCallRecord[];
 }
 
 interface Props {
@@ -108,6 +123,18 @@ const interactionTypeOptions = [
 // 交互选项文本
 const interactionOptionsStr = ref('');
 
+// 内置工具定义
+const builtinTools = [
+  { name: 'http_request', label: 'HTTP 请求工具', description: '发送 HTTP 请求到指定 URL' },
+  { name: 'var_read', label: '变量读取工具', description: '从工作流上下文读取变量' },
+  { name: 'var_write', label: '变量写入工具', description: '向工作流上下文写入变量' },
+  { name: 'json_parse', label: 'JSON 解析工具', description: '解析 JSON 字符串并提取数据' },
+];
+
+// MCP 服务器列表
+const mcpServerList = ref<McpServer[]>([]);
+const mcpServerLoading = ref(false);
+
 // 同步外部数据
 watch(
   () => props.node,
@@ -131,6 +158,9 @@ watch(
           interaction_timeout: 300,
           interaction_default: '',
           timeout: 300,
+          tools: [],
+          mcp_server_ids: [],
+          max_tool_rounds: 10,
         };
       }
       // 同步交互选项文本
@@ -230,6 +260,53 @@ function getCapabilityColor(tag: string): string {
   return colorMap[tag] || 'default';
 }
 
+// 切换内置工具
+function handleToolToggle(toolName: string, checked: boolean) {
+  if (!localNode.value?.config) return;
+  if (!Array.isArray(localNode.value.config.tools)) {
+    localNode.value.config.tools = [];
+  }
+  if (checked) {
+    if (!localNode.value.config.tools.includes(toolName)) {
+      localNode.value.config.tools.push(toolName);
+    }
+  } else {
+    localNode.value.config.tools = localNode.value.config.tools.filter((t: string) => t !== toolName);
+  }
+  emitUpdate();
+}
+
+// 判断工具是否启用
+function isToolEnabled(toolName: string): boolean {
+  return Array.isArray(localNode.value?.config?.tools) && localNode.value.config.tools.includes(toolName);
+}
+
+// MCP 服务器选择变更
+function handleMcpServerChange(selectedIds: number[]) {
+  if (!localNode.value?.config) return;
+  localNode.value.config.mcp_server_ids = selectedIds;
+  emitUpdate();
+}
+
+// 加载 MCP 服务器列表
+async function loadMcpServers() {
+  mcpServerLoading.value = true;
+  try {
+    const res = await getMcpServerListApi({ status: 1, pageSize: 100 });
+    mcpServerList.value = res.list || [];
+  } catch (error: any) {
+    message.error('加载 MCP 服务器列表失败: ' + (error.message || '未知错误'));
+  } finally {
+    mcpServerLoading.value = false;
+  }
+}
+
+// 截断文本
+function truncateText(text: string, maxLen: number = 200): string {
+  if (!text) return '';
+  return text.length > maxLen ? text.slice(0, maxLen) + '...' : text;
+}
+
 // 执行 AI 节点（阻塞模式）
 async function handleRun() {
   if (!localNode.value || isDebugging.value) return;
@@ -266,6 +343,9 @@ async function handleRun() {
           timeout: localNode.value.config.timeout || 0,
           streaming: false, // 单步调试使用非流式
           interactive: false, // 单步调试不启用交互
+          tools: localNode.value.config.tools || [],
+          mcp_server_ids: localNode.value.config.mcp_server_ids || [],
+          max_tool_rounds: localNode.value.config.max_tool_rounds || 10,
         },
       },
       variables: cachedVariables as Record<string, unknown> | undefined,
@@ -288,6 +368,7 @@ async function handleRun() {
           totalTokens: result.total_tokens || 0,
           durationMs: stepResult.durationMs || 0,
           error: result.error || stepResult.error,
+          toolCalls: Array.isArray(result.tool_calls) ? result.tool_calls : undefined,
         };
       } else {
         debugResponse.value = {
@@ -345,6 +426,7 @@ function stopDrag() {
 
 onMounted(() => {
   loadModels();
+  loadMcpServers();
 });
 </script>
 
@@ -638,6 +720,86 @@ onMounted(() => {
               </template>
             </Form>
           </Tabs.TabPane>
+
+          <!-- 工具 -->
+          <Tabs.TabPane key="tools" tab="工具">
+            <Form layout="vertical" class="config-form">
+              <!-- 内置工具 -->
+              <div class="tools-section-title">内置工具</div>
+              <div class="builtin-tools-list">
+                <div
+                  v-for="tool in builtinTools"
+                  :key="tool.name"
+                  class="builtin-tool-item"
+                >
+                  <div class="builtin-tool-info">
+                    <span class="builtin-tool-name">{{ tool.label }}</span>
+                    <span class="builtin-tool-desc">{{ tool.description }}</span>
+                  </div>
+                  <Switch
+                    :checked="isToolEnabled(tool.name)"
+                    size="small"
+                    @change="(checked: boolean) => handleToolToggle(tool.name, checked)"
+                  />
+                </div>
+              </div>
+
+              <!-- MCP 服务器选择 -->
+              <div class="tools-section-title" style="margin-top: 20px">
+                MCP 服务器
+                <Button
+                  type="link"
+                  size="small"
+                  :loading="mcpServerLoading"
+                  style="padding: 0; margin-left: 8px"
+                  @click="loadMcpServers"
+                >
+                  刷新
+                </Button>
+              </div>
+              <Spin :spinning="mcpServerLoading">
+                <div v-if="mcpServerList.length === 0 && !mcpServerLoading" class="mcp-empty">
+                  暂无可用的 MCP 服务器
+                </div>
+                <Checkbox.Group
+                  v-else
+                  :value="localNode.config.mcp_server_ids || []"
+                  class="mcp-server-group"
+                  @change="(val: any) => handleMcpServerChange(val as number[])"
+                >
+                  <div
+                    v-for="server in mcpServerList"
+                    :key="server.id"
+                    class="mcp-server-item"
+                  >
+                    <Checkbox :value="server.id">
+                      <span class="mcp-server-name">{{ server.name }}</span>
+                      <Tag size="small" :color="server.transport === 'stdio' ? 'blue' : 'green'">
+                        {{ server.transport }}
+                      </Tag>
+                    </Checkbox>
+                    <div v-if="server.description" class="mcp-server-desc">
+                      {{ server.description }}
+                    </div>
+                  </div>
+                </Checkbox.Group>
+              </Spin>
+
+              <!-- 最大工具调用轮次 -->
+              <Form.Item label="最大工具调用轮次" style="margin-top: 20px">
+                <InputNumber
+                  v-model:value="localNode.config.max_tool_rounds"
+                  :min="1"
+                  :max="50"
+                  style="width: 100%"
+                  @change="emitUpdate"
+                />
+                <div class="param-hint">
+                  AI 模型调用工具的最大轮次，防止无限循环
+                </div>
+              </Form.Item>
+            </Form>
+          </Tabs.TabPane>
         </Tabs>
       </div>
     </div>
@@ -690,6 +852,43 @@ onMounted(() => {
           <div v-if="debugResponse.error" class="response-error">
             <AlertCircleIcon class="size-4" />
             <span>{{ debugResponse.error }}</span>
+          </div>
+
+          <!-- 工具调用记录 -->
+          <div v-if="debugResponse.toolCalls?.length" class="tool-calls-section">
+            <Collapse size="small">
+              <Collapse.Panel key="tool-calls">
+                <template #header>
+                  <span class="tool-calls-header">
+                    工具调用记录（{{ debugResponse.toolCalls.length }} 次）
+                  </span>
+                </template>
+                <div
+                  v-for="(tc, idx) in debugResponse.toolCalls"
+                  :key="idx"
+                  class="tool-call-record"
+                >
+                  <div class="tool-call-header">
+                    <Tag size="small" color="blue">第 {{ tc.round }} 轮</Tag>
+                    <span class="tool-call-name">{{ tc.tool_name }}</span>
+                    <Tag size="small" :color="tc.is_error ? 'error' : 'success'">
+                      {{ tc.is_error ? '失败' : '成功' }}
+                    </Tag>
+                    <span class="tool-call-duration">{{ tc.duration_ms }}ms</span>
+                  </div>
+                  <div class="tool-call-detail">
+                    <div class="tool-call-row">
+                      <span class="tool-call-label">参数</span>
+                      <code class="tool-call-code">{{ truncateText(tc.arguments) }}</code>
+                    </div>
+                    <div class="tool-call-row">
+                      <span class="tool-call-label">结果</span>
+                      <code class="tool-call-code" :class="{ 'is-error': tc.is_error }">{{ truncateText(tc.result) }}</code>
+                    </div>
+                  </div>
+                </div>
+              </Collapse.Panel>
+            </Collapse>
           </div>
 
           <!-- AI 回复内容 -->
@@ -989,5 +1188,149 @@ onMounted(() => {
   color: hsl(var(--foreground));
   margin: 0;
   font-family: inherit;
+}
+
+/* 工具配置 Tab */
+.tools-section-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+}
+
+.builtin-tools-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.builtin-tool-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: hsl(var(--muted) / 20%);
+}
+
+.builtin-tool-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.builtin-tool-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+}
+
+.builtin-tool-desc {
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+}
+
+.mcp-empty {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  padding: 12px 0;
+}
+
+.mcp-server-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.mcp-server-item {
+  padding: 6px 0;
+}
+
+.mcp-server-name {
+  margin-right: 6px;
+}
+
+.mcp-server-desc {
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+  margin-left: 24px;
+  margin-top: 2px;
+}
+
+/* 工具调用记录 */
+.tool-calls-section {
+  padding: 0 12px;
+  flex-shrink: 0;
+}
+
+.tool-calls-header {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.tool-call-record {
+  padding: 8px 0;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.tool-call-record:last-child {
+  border-bottom: none;
+}
+
+.tool-call-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.tool-call-name {
+  font-size: 12px;
+  font-weight: 500;
+  font-family: monospace;
+}
+
+.tool-call-duration {
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+  margin-left: auto;
+}
+
+.tool-call-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tool-call-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.tool-call-label {
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+  width: 32px;
+  flex-shrink: 0;
+}
+
+.tool-call-code {
+  font-size: 11px;
+  font-family: monospace;
+  color: hsl(var(--foreground));
+  word-break: break-all;
+  background: hsl(var(--muted) / 30%);
+  padding: 2px 6px;
+  border-radius: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.tool-call-code.is-error {
+  color: hsl(var(--destructive));
 }
 </style>
