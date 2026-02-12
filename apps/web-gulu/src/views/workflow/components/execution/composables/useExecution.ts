@@ -9,6 +9,8 @@ import {
   type AIInteractionData,
   type AIChunkData,
   type AICompleteData,
+  type AIToolCallStartData,
+  type AIToolCallCompleteData,
   type WorkflowCompletedData,
 } from '#/utils/sse';
 import {
@@ -87,6 +89,7 @@ export function useExecution(options: UseExecutionOptions) {
   // AI 相关状态
   const aiContent = ref<Map<string, string>>(new Map());
   const currentAIStepId = ref<string | null>(null);
+  const aiToolCalls = ref<Map<string, Array<{ toolName: string; arguments: string; result?: string; isError?: boolean; durationMs?: number; status: 'running' | 'done' }>>>(new Map());
 
   // AI 交互状态
   const interactionOpen = ref(false);
@@ -210,6 +213,12 @@ export function useExecution(options: UseExecutionOptions) {
       case 'ai_complete':
         handleAIComplete(event.data as AICompleteData);
         break;
+      case 'ai_tool_call_start':
+        handleAIToolCallStart(event.data as AIToolCallStartData);
+        break;
+      case 'ai_tool_call_complete':
+        handleAIToolCallComplete(event.data as AIToolCallCompleteData);
+        break;
       case 'ai_interaction_required':
         handleAIInteraction(event.data as AIInteractionData);
         break;
@@ -270,6 +279,12 @@ export function useExecution(options: UseExecutionOptions) {
     } else {
       stepResults.value = [...stepResults.value, result];
     }
+
+    // 步骤完成时清除 AI 流式状态
+    if (currentAIStepId.value === result.stepId) {
+      currentAIStepId.value = null;
+    }
+
     onStepResult?.(result);
   }
 
@@ -297,15 +312,60 @@ export function useExecution(options: UseExecutionOptions) {
 
   function handleAIChunk(data: AIChunkData) {
     currentAIStepId.value = data.stepId;
-    const current = aiContent.value.get(data.stepId) || '';
+    // index === 0 表示新一轮流式输出开始，重置之前累积的内容
+    // 这样在多轮工具调用场景下，每轮的流式内容不会互相叠加
+    const current = data.index === 0 ? '' : (aiContent.value.get(data.stepId) || '');
     aiContent.value.set(data.stepId, current + data.chunk);
     aiContent.value = new Map(aiContent.value);
   }
 
   function handleAIComplete(data: AICompleteData) {
+    // 设置最终内容（覆盖流式累积的内容，确保最终内容正确）
     aiContent.value.set(data.stepId, data.content);
     aiContent.value = new Map(aiContent.value);
-    currentAIStepId.value = null;
+    // 注意：不在这里清除 currentAIStepId，让 step_completed 事件来处理过渡
+    // 这样可以避免 ai_complete 和 step_completed 之间的短暂空白
+  }
+
+  function handleAIToolCallStart(data: AIToolCallStartData) {
+    // 设置当前 AI 步骤 ID，确保面板在工具调用阶段就能渲染
+    currentAIStepId.value = data.stepId;
+    const calls = aiToolCalls.value.get(data.stepId) || [];
+    calls.push({
+      toolName: data.toolName,
+      arguments: data.arguments,
+      status: 'running',
+    });
+    aiToolCalls.value.set(data.stepId, calls);
+    aiToolCalls.value = new Map(aiToolCalls.value);
+  }
+
+  function handleAIToolCallComplete(data: AIToolCallCompleteData) {
+    const calls = aiToolCalls.value.get(data.stepId) || [];
+    // 找到对应的 running 状态的调用并更新
+    const idx = calls.findIndex(
+      (c) => c.toolName === data.toolName && c.status === 'running'
+    );
+    if (idx >= 0) {
+      calls[idx] = {
+        ...calls[idx],
+        result: data.result,
+        isError: data.isError,
+        durationMs: data.durationMs,
+        status: 'done',
+      };
+    } else {
+      calls.push({
+        toolName: data.toolName,
+        arguments: data.arguments,
+        result: data.result,
+        isError: data.isError,
+        durationMs: data.durationMs,
+        status: 'done',
+      });
+    }
+    aiToolCalls.value.set(data.stepId, calls);
+    aiToolCalls.value = new Map(aiToolCalls.value);
   }
 
   function handleAIInteraction(data: AIInteractionData) {
@@ -422,6 +482,7 @@ export function useExecution(options: UseExecutionOptions) {
       executionSummary.value = null;
       logs.value = [];
       aiContent.value = new Map();
+      aiToolCalls.value = new Map();
       currentAIStepId.value = null;
 
       const accessStore = useAccessStore();
@@ -563,6 +624,7 @@ export function useExecution(options: UseExecutionOptions) {
 
     // AI 状态
     aiContent,
+    aiToolCalls,
     currentAIStepId,
 
     // AI 交互状态

@@ -368,6 +368,7 @@ function getBodyContainer() {
             :selected-tree-node="stepTree.selectedTreeNode.value"
             :is-iteration-selected="stepTree.isIterationSelected.value"
             :ai-content="null"
+            :ai-tool-calls="null"
             :current-a-i-step-id="null"
           />
         </div>

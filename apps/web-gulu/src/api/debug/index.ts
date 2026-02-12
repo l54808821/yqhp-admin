@@ -107,6 +107,8 @@ export type SSEEventType =
   | 'ai_complete'
   | 'ai_error'
   | 'ai_interaction_required'
+  | 'ai_tool_call_start'
+  | 'ai_tool_call_complete'
   | 'heartbeat'
   | 'error';
 
@@ -181,6 +183,23 @@ export interface AIErrorData {
   stepId: string;
   error: string;
   details?: string;
+}
+
+// AI 工具调用开始数据
+export interface AIToolCallStartData {
+  stepId: string;
+  toolName: string;
+  arguments: string;
+}
+
+// AI 工具调用完成数据
+export interface AIToolCallCompleteData {
+  stepId: string;
+  toolName: string;
+  arguments: string;
+  result: string;
+  isError: boolean;
+  durationMs: number;
 }
 
 // 交互类型

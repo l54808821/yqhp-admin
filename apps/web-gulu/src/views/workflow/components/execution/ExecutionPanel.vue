@@ -68,6 +68,12 @@ const selectedStepAIContent = computed(() => {
   return execution.aiContent.value.get(stepTree.selectedStep.value.stepId) || null;
 });
 
+// 选中步骤的 AI 工具调用
+const selectedStepAIToolCalls = computed(() => {
+  if (!stepTree.selectedStep.value) return null;
+  return execution.aiToolCalls.value.get(stepTree.selectedStep.value.stepId) || null;
+});
+
 // 组件卸载时清理
 onBeforeUnmount(() => {
   execution.cleanup();
@@ -146,6 +152,7 @@ defineExpose({
         :selected-tree-node="stepTree.selectedTreeNode.value"
         :is-iteration-selected="stepTree.isIterationSelected.value"
         :ai-content="selectedStepAIContent"
+        :ai-tool-calls="selectedStepAIToolCalls"
         :current-a-i-step-id="execution.currentAIStepId.value"
       />
     </div>

@@ -16,6 +16,8 @@ export type {
   AIChunkData,
   AICompleteData,
   AIErrorData,
+  AIToolCallStartData,
+  AIToolCallCompleteData,
   AIInteractionData,
   InteractionType,
   InteractionOption,

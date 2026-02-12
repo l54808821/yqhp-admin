@@ -20,6 +20,7 @@ interface Props {
   selectedTreeNode: TreeNode | null;
   isIterationSelected: boolean;
   aiContent: string | null;
+  aiToolCalls: Array<{ toolName: string; arguments: string; result?: string; isError?: boolean; durationMs?: number; status: 'running' | 'done' }> | null;
   currentAIStepId: string | null;
 }
 
@@ -99,6 +100,7 @@ function formatDuration(ms?: number) {
             v-else-if="selectedStep.stepType === 'ai'"
             :step-result="selectedStep"
             :ai-content="aiContent"
+            :ai-tool-calls="aiToolCalls"
             :current-a-i-step-id="currentAIStepId"
           />
 
