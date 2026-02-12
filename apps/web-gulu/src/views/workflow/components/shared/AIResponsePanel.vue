@@ -308,7 +308,7 @@ function truncateText(text: string, maxLen: number = 500): string {
 
 /* 工具调用（在 AI 回复 tab 内） */
 .tool-calls-section {
-  padding: 4px 12px 0;
+  padding: 2px 2px 0;
 }
 
 .tool-calls-section :deep(.ant-collapse) {
@@ -398,7 +398,7 @@ function truncateText(text: string, maxLen: number = 500): string {
 
 /* AI 回复内容 */
 .content-body {
-  padding: 12px;
+  padding: 2px;
 }
 
 .content-text {
@@ -434,7 +434,7 @@ function truncateText(text: string, maxLen: number = 500): string {
 
 /* 输入提示词 */
 .input-content {
-  padding: 12px;
+  padding: 2px;
 }
 
 .prompt-block {
@@ -469,7 +469,7 @@ function truncateText(text: string, maxLen: number = 500): string {
 
 /* 详情 tab */
 .detail-content {
-  padding: 12px;
+  padding: 2px;
 }
 
 .detail-row {
