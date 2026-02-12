@@ -28,12 +28,12 @@ import { type AiModel, getAiModelListApi } from '#/api/ai-model';
 import { executeApi } from '#/api/debug';
 import { type McpServer, getMcpServerListApi } from '#/api/mcp-server';
 import { useDebugContext } from '../../components/execution/composables/useDebugContext';
+import { AIResponsePanel, type AIResponseData } from '../../components/shared';
 
 // 图标
 const PlayIcon = createIconifyIcon('lucide:play');
 const GripHorizontalIcon = createIconifyIcon('lucide:grip-horizontal');
 const SparklesIcon = createIconifyIcon('lucide:sparkles');
-const AlertCircleIcon = createIconifyIcon('lucide:alert-circle');
 
 interface AIConfig {
   ai_model_id: number | null;
@@ -63,27 +63,6 @@ interface AIStepNode {
   config: AIConfig;
 }
 
-interface ToolCallRecord {
-  round: number;
-  tool_name: string;
-  arguments: string;
-  result: string;
-  is_error: boolean;
-  duration_ms: number;
-}
-
-interface AIDebugResponse {
-  success: boolean;
-  content: string;
-  model: string;
-  promptTokens: number;
-  completionTokens: number;
-  totalTokens: number;
-  durationMs: number;
-  error?: string;
-  toolCalls?: ToolCallRecord[];
-}
-
 interface Props {
   node: AIStepNode;
   envId?: number;
@@ -103,7 +82,7 @@ const hasDebugCtx = computed(() => !!props.workflowId && debugContext.hasContext
 // 本地数据
 const localNode = ref<AIStepNode | null>(null);
 const isDebugging = ref(false);
-const debugResponse = ref<AIDebugResponse | null>(null);
+const debugResponse = ref<AIResponseData | null>(null);
 
 // 分割面板相关
 const containerRef = ref<HTMLElement | null>(null);
@@ -301,12 +280,6 @@ async function loadMcpServers() {
   }
 }
 
-// 截断文本
-function truncateText(text: string, maxLen: number = 200): string {
-  if (!text) return '';
-  return text.length > maxLen ? text.slice(0, maxLen) + '...' : text;
-}
-
 // 执行 AI 节点（阻塞模式）
 async function handleRun() {
   if (!localNode.value || isDebugging.value) return;
@@ -369,6 +342,9 @@ async function handleRun() {
           durationMs: stepResult.durationMs || 0,
           error: result.error || stepResult.error,
           toolCalls: Array.isArray(result.tool_calls) ? result.tool_calls : undefined,
+          systemPrompt: result.system_prompt || '',
+          prompt: result.prompt || '',
+          finishReason: result.finish_reason || '',
         };
       } else {
         debugResponse.value = {
@@ -821,81 +797,10 @@ onMounted(() => {
       :style="{ height: `calc(${100 - editorPanelHeight}% - 4px)` }"
     >
       <Spin :spinning="isDebugging" tip="AI 执行中...">
-        <div v-if="debugResponse" class="ai-response">
-          <!-- 响应头部信息 -->
-          <div class="response-header">
-            <div class="response-meta">
-              <Tag :color="debugResponse.success ? 'success' : 'error'">
-                {{ debugResponse.success ? '成功' : '失败' }}
-              </Tag>
-              <span v-if="debugResponse.model" class="meta-item">
-                {{ debugResponse.model }}
-              </span>
-              <span class="meta-item">
-                {{ debugResponse.durationMs }}ms
-              </span>
-            </div>
-            <div v-if="debugResponse.totalTokens > 0" class="response-tokens">
-              <Tooltip title="Prompt Tokens">
-                <span class="token-item">P: {{ debugResponse.promptTokens }}</span>
-              </Tooltip>
-              <Tooltip title="Completion Tokens">
-                <span class="token-item">C: {{ debugResponse.completionTokens }}</span>
-              </Tooltip>
-              <Tooltip title="Total Tokens">
-                <span class="token-item total">T: {{ debugResponse.totalTokens }}</span>
-              </Tooltip>
-            </div>
-          </div>
-
-          <!-- 错误信息 -->
-          <div v-if="debugResponse.error" class="response-error">
-            <AlertCircleIcon class="size-4" />
-            <span>{{ debugResponse.error }}</span>
-          </div>
-
-          <!-- 工具调用记录 -->
-          <div v-if="debugResponse.toolCalls?.length" class="tool-calls-section">
-            <Collapse size="small">
-              <Collapse.Panel key="tool-calls">
-                <template #header>
-                  <span class="tool-calls-header">
-                    工具调用记录（{{ debugResponse.toolCalls.length }} 次）
-                  </span>
-                </template>
-                <div
-                  v-for="(tc, idx) in debugResponse.toolCalls"
-                  :key="idx"
-                  class="tool-call-record"
-                >
-                  <div class="tool-call-header">
-                    <Tag size="small" color="blue">第 {{ tc.round }} 轮</Tag>
-                    <span class="tool-call-name">{{ tc.tool_name }}</span>
-                    <Tag size="small" :color="tc.is_error ? 'error' : 'success'">
-                      {{ tc.is_error ? '失败' : '成功' }}
-                    </Tag>
-                    <span class="tool-call-duration">{{ tc.duration_ms }}ms</span>
-                  </div>
-                  <div class="tool-call-detail">
-                    <div class="tool-call-row">
-                      <span class="tool-call-label">参数</span>
-                      <code class="tool-call-code">{{ truncateText(tc.arguments) }}</code>
-                    </div>
-                    <div class="tool-call-row">
-                      <span class="tool-call-label">结果</span>
-                      <code class="tool-call-code" :class="{ 'is-error': tc.is_error }">{{ truncateText(tc.result) }}</code>
-                    </div>
-                  </div>
-                </div>
-              </Collapse.Panel>
-            </Collapse>
-          </div>
-
-          <!-- AI 回复内容 -->
-          <div v-if="debugResponse.content" class="response-content">
-            <pre class="response-text">{{ debugResponse.content }}</pre>
-          </div>
-        </div>
+        <AIResponsePanel
+          v-if="debugResponse"
+          :response="debugResponse"
+        />
         <div v-else class="loading-placeholder" />
       </Spin>
     </div>
@@ -1117,79 +1022,6 @@ onMounted(() => {
   min-height: 150px;
 }
 
-.ai-response {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-}
-
-.response-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 16px;
-  border-bottom: 1px solid hsl(var(--border));
-  flex-shrink: 0;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.response-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.meta-item {
-  font-size: 12px;
-  color: hsl(var(--muted-foreground));
-}
-
-.response-tokens {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.token-item {
-  font-size: 12px;
-  color: hsl(var(--muted-foreground));
-  font-family: monospace;
-}
-
-.token-item.total {
-  font-weight: 600;
-  color: hsl(var(--foreground));
-}
-
-.response-error {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 12px 16px;
-  background: hsl(var(--destructive) / 10%);
-  color: hsl(var(--destructive));
-  font-size: 13px;
-  flex-shrink: 0;
-}
-
-.response-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px 16px;
-}
-
-.response-text {
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-size: 13px;
-  line-height: 1.6;
-  color: hsl(var(--foreground));
-  margin: 0;
-  font-family: inherit;
-}
-
 /* 工具配置 Tab */
 .tools-section-title {
   font-size: 13px;
@@ -1260,77 +1092,4 @@ onMounted(() => {
   margin-top: 2px;
 }
 
-/* 工具调用记录 */
-.tool-calls-section {
-  padding: 0 12px;
-  flex-shrink: 0;
-}
-
-.tool-calls-header {
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.tool-call-record {
-  padding: 8px 0;
-  border-bottom: 1px solid hsl(var(--border));
-}
-
-.tool-call-record:last-child {
-  border-bottom: none;
-}
-
-.tool-call-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
-}
-
-.tool-call-name {
-  font-size: 12px;
-  font-weight: 500;
-  font-family: monospace;
-}
-
-.tool-call-duration {
-  font-size: 11px;
-  color: hsl(var(--muted-foreground));
-  margin-left: auto;
-}
-
-.tool-call-detail {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.tool-call-row {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-}
-
-.tool-call-label {
-  font-size: 11px;
-  color: hsl(var(--muted-foreground));
-  width: 32px;
-  flex-shrink: 0;
-}
-
-.tool-call-code {
-  font-size: 11px;
-  font-family: monospace;
-  color: hsl(var(--foreground));
-  word-break: break-all;
-  background: hsl(var(--muted) / 30%);
-  padding: 2px 6px;
-  border-radius: 3px;
-  flex: 1;
-  min-width: 0;
-}
-
-.tool-call-code.is-error {
-  color: hsl(var(--destructive));
-}
 </style>

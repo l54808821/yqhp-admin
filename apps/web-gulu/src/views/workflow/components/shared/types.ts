@@ -109,6 +109,32 @@ export interface ScriptResponseData {
   success?: boolean;
 }
 
+// 工具调用记录
+export interface ToolCallRecord {
+  round: number;
+  tool_name: string;
+  arguments: string;
+  result: string;
+  is_error: boolean;
+  duration_ms: number;
+}
+
+// 统一的 AI 响应数据结构（camelCase）
+export interface AIResponseData {
+  success: boolean;
+  content: string;
+  model: string;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  durationMs: number;
+  error?: string;
+  toolCalls?: ToolCallRecord[];
+  systemPrompt?: string;
+  prompt?: string;
+  finishReason?: string;
+}
+
 // 单步调试 API 响应类型（后端返回的格式）
 export interface DebugStepApiResponse {
   success: boolean;
