@@ -10,7 +10,7 @@ import {
   MessageSquare,
 } from '#/components/icons';
 
-import AIProperty from './AIProperty.vue';
+import AIProperty from './ai/AIPropertyPanel.vue';
 import ConditionProperty from './ConditionProperty.vue';
 import ConditionBranchProperty from './ConditionBranchProperty.vue';
 import DatabaseProperty from './DatabaseProperty.vue';
