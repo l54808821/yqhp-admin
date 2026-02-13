@@ -104,7 +104,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       icon: 'lucide:brain',
       order: 40,
-      title: 'AI 模型管理',
+      title: '模型管理',
     },
     name: 'AiModelManagement',
     path: '/project/:projectId/ai-model',
@@ -116,7 +116,7 @@ const routes: RouteRecordRaw[] = [
         component: () => import('#/views/ai-model/index.vue'),
         meta: {
           hideInMenu: true,
-          title: 'AI 模型管理',
+          title: '模型管理',
         },
       },
       {
@@ -135,7 +135,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       icon: 'lucide:plug',
       order: 45,
-      title: 'MCP 服务器',
+      title: 'MCP服务',
     },
     name: 'McpServerManagement',
     path: '/project/:projectId/mcp-server',
@@ -147,7 +147,7 @@ const routes: RouteRecordRaw[] = [
         component: () => import('#/views/mcp-server/index.vue'),
         meta: {
           hideInMenu: true,
-          title: 'MCP 服务器管理',
+          title: 'MCP服务管理',
         },
       },
     ],
