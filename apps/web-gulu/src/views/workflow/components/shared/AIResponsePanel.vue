@@ -106,37 +106,34 @@ function truncateText(text: string, maxLen: number = 500): string {
           <span>{{ response.error }}</span>
         </div>
 
-        <!-- 工具调用记录（在回复内容之前） -->
+        <!-- 工具调用记录（折叠卡片，默认收起） -->
         <div v-if="toolCallsCount > 0" class="tool-calls-section">
-          <Collapse size="small" :bordered="false">
-            <Collapse.Panel key="tool-calls">
+          <Collapse :bordered="false" expand-icon-position="end" class="tool-calls-collapse">
+            <Collapse.Panel
+              v-for="(tc, idx) in response.toolCalls"
+              :key="idx"
+              :class="tc.is_error ? 'tc-card-error' : 'tc-card-success'"
+            >
               <template #header>
-                <span class="tool-calls-header">
-                  工具调用记录（{{ toolCallsCount }} 次）
-                </span>
-              </template>
-              <div
-                v-for="(tc, idx) in response.toolCalls"
-                :key="idx"
-                class="tool-call-record"
-              >
-                <div class="tool-call-header">
-                  <Tag size="small" color="blue">第 {{ tc.round }} 轮</Tag>
-                  <span class="tool-call-name">{{ tc.tool_name }}</span>
-                  <Tag size="small" :color="tc.is_error ? 'error' : 'success'">
-                    {{ tc.is_error ? '失败' : '成功' }}
-                  </Tag>
-                  <span class="tool-call-duration">{{ tc.duration_ms }}ms</span>
+                <div class="tc-header">
+                  <span class="tc-icon">⚙</span>
+                  <span class="tc-name">{{ tc.tool_name }}</span>
+                  <span class="tc-status" :class="tc.is_error ? 'tc-status-error' : 'tc-status-success'">
+                    {{ tc.is_error ? '执行失败' : '执行成功' }}
+                  </span>
+                  <Tag size="small" color="purple" class="tc-tag">local</Tag>
+                  <span class="tc-spacer" />
+                  <span class="tc-duration">{{ formatDuration(tc.duration_ms) }}</span>
                 </div>
-                <div class="tool-call-detail">
-                  <div class="tool-call-row">
-                    <span class="tool-call-label">参数</span>
-                    <code class="tool-call-code">{{ truncateText(tc.arguments) }}</code>
-                  </div>
-                  <div class="tool-call-row">
-                    <span class="tool-call-label">结果</span>
-                    <code class="tool-call-code" :class="{ 'is-error': tc.is_error }">{{ truncateText(tc.result) }}</code>
-                  </div>
+              </template>
+              <div class="tc-body">
+                <div class="tc-row">
+                  <span class="tc-label">参数</span>
+                  <pre class="tc-code">{{ truncateText(tc.arguments) }}</pre>
+                </div>
+                <div class="tc-row">
+                  <span class="tc-label">结果</span>
+                  <pre class="tc-code" :class="{ 'tc-code-error': tc.is_error }">{{ truncateText(tc.result) }}</pre>
                 </div>
               </div>
             </Collapse.Panel>
@@ -306,94 +303,162 @@ function truncateText(text: string, maxLen: number = 500): string {
   margin-top: 1px;
 }
 
-/* 工具调用（在 AI 回复 tab 内） */
+/* 工具调用 - 参考风格卡片 */
 .tool-calls-section {
-  padding: 2px 2px 0;
+  padding: 6px 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.tool-calls-section :deep(.ant-collapse) {
+/* Collapse 整体 */
+.tool-calls-collapse {
   background: transparent;
 }
 
-.tool-calls-section :deep(.ant-collapse-item) {
-  border-bottom: none;
+.tool-calls-collapse :deep(.ant-collapse-item) {
+  border: none !important;
+  margin-bottom: 8px;
+  border-radius: 8px !important;
+  overflow: hidden;
 }
 
-.tool-calls-section :deep(.ant-collapse-header) {
-  padding: 6px 0 !important;
+/* 成功/失败卡片的 border 需要覆盖上面的 reset */
+.tool-calls-collapse :deep(.ant-collapse-item.tc-card-success) {
+  border: 1px solid #4f6ef7 !important;
 }
 
-.tool-calls-section :deep(.ant-collapse-content-box) {
-  padding: 0 !important;
+.tool-calls-collapse :deep(.ant-collapse-item.tc-card-error) {
+  border: 1px solid #ff4d4f !important;
 }
 
-.tool-calls-header {
-  font-size: 12px;
-  font-weight: 500;
-  color: hsl(var(--foreground) / 65%);
+.tool-calls-collapse :deep(.ant-collapse-item:last-child) {
+  margin-bottom: 0;
 }
 
-.tool-call-record {
-  padding: 8px 0;
-  border-bottom: 1px solid hsl(var(--border) / 50%);
+/* 成功卡片：蓝色整圈边框，header 浅蓝，body 正常 */
+.tool-calls-collapse :deep(.ant-collapse-item.tc-card-success) {
+  border: 1px solid #4f6ef7;
+  background: hsl(var(--background));
 }
 
-.tool-call-record:last-child {
-  border-bottom: none;
+.tool-calls-collapse :deep(.ant-collapse-item.tc-card-success > .ant-collapse-header) {
+  background: linear-gradient(135deg, #f0f5ff 0%, #e8efff 100%);
 }
 
-.tool-call-header {
+/* 失败卡片：红色整圈边框，header 浅红，body 正常 */
+.tool-calls-collapse :deep(.ant-collapse-item.tc-card-error) {
+  border: 1px solid #ff4d4f;
+  background: hsl(var(--background));
+}
+
+.tool-calls-collapse :deep(.ant-collapse-item.tc-card-error > .ant-collapse-header) {
+  background: linear-gradient(135deg, #fff2f0 0%, #ffe8e6 100%);
+}
+
+.tool-calls-collapse :deep(.ant-collapse-header) {
+  padding: 10px 14px !important;
+  font-size: 13px;
+  align-items: center !important;
+}
+
+.tool-calls-collapse :deep(.ant-collapse-content) {
+  border-top: 1px solid hsl(var(--border) / 30%);
+  background: transparent;
+}
+
+.tool-calls-collapse :deep(.ant-collapse-content-box) {
+  padding: 12px 14px !important;
+}
+
+/* 面板头部 */
+.tc-header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
+  gap: 8px;
+  width: 100%;
 }
 
-.tool-call-name {
+.tc-icon {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.tc-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: hsl(var(--foreground) / 90%);
+}
+
+.tc-status {
   font-size: 12px;
   font-weight: 500;
-  font-family: monospace;
 }
 
-.tool-call-duration {
+.tc-status-success {
+  color: #52c41a;
+}
+
+.tc-status-error {
+  color: #ff4d4f;
+}
+
+.tc-tag {
+  margin: 0;
   font-size: 11px;
-  color: hsl(var(--muted-foreground));
-  margin-left: auto;
+  border-radius: 4px;
 }
 
-.tool-call-detail {
+.tc-spacer {
+  flex: 1;
+}
+
+.tc-duration {
+  font-size: 12px;
+  color: #4f6ef7;
+  font-weight: 500;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+}
+
+/* 面板内容 */
+.tc-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tc-row {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.tool-call-row {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
+.tc-label {
+  font-size: 11px;
+  color: hsl(var(--foreground) / 50%);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
-.tool-call-label {
-  font-size: 11px;
-  color: hsl(var(--muted-foreground));
-  width: 32px;
-  flex-shrink: 0;
-}
-
-.tool-call-code {
-  font-size: 11px;
-  font-family: monospace;
-  color: hsl(var(--foreground));
+.tc-code {
+  font-size: 12px;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  color: hsl(var(--foreground) / 80%);
   word-break: break-all;
-  background: hsl(var(--muted) / 30%);
-  padding: 2px 6px;
-  border-radius: 3px;
-  flex: 1;
-  min-width: 0;
+  white-space: pre-wrap;
+  background: hsl(var(--background));
+  padding: 8px 10px;
+  border-radius: 6px;
+  margin: 0;
+  line-height: 1.5;
+  border: 1px solid hsl(var(--border) / 40%);
 }
 
-.tool-call-code.is-error {
-  color: hsl(var(--destructive));
+.tc-code-error {
+  color: #ff4d4f;
+  background: #fff2f0;
+  border-color: hsl(0 84% 60% / 20%);
 }
 
 /* AI 回复内容 */
