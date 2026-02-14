@@ -176,11 +176,12 @@ onMounted(() => {
         :value="config.max_tool_rounds"
         :min="1"
         :max="50"
+        :placeholder="'默认 10 轮'"
         style="width: 100%"
         @change="(val: any) => emit('update', { max_tool_rounds: val })"
       />
       <div class="param-hint">
-        AI 模型调用工具的最大轮次，防止无限循环
+        AI 模型调用工具的最大轮次，防止无限循环。为空时默认 10 轮。
       </div>
     </Form.Item>
   </Form>
