@@ -27,9 +27,11 @@ import SettingsPanel from './SettingsPanel.vue';
 import ProcessorPanel from './ProcessorPanel.vue';
 import ResponsePanel from './ResponsePanel.vue';
 
+// 子组件 - 域名选择器
+import DomainSelector from './DomainSelector.vue';
+
 // 图标
 const SendIcon = createIconifyIcon('lucide:send');
-const LinkIcon = createIconifyIcon('lucide:link');
 const ChevronDownIcon = createIconifyIcon('lucide:chevron-down');
 const GripHorizontalIcon = createIconifyIcon('lucide:grip-horizontal');
 
@@ -127,9 +129,26 @@ function emitUpdate() {
   debouncedEmit();
 }
 
+// 是否选择了域名
+const hasDomain = computed(() => !!localNode.value?.config?.domainCode);
+
+// URL 输入框 placeholder
+const urlPlaceholder = computed(() =>
+  hasDomain.value
+    ? '输入路径，如 /api/users，支持变量 ${var}'
+    : '输入请求 URL，支持变量 ${var}',
+);
+
 function updateMethod(method: string) {
   if (localNode.value?.config) {
     localNode.value.config.method = method as any;
+    emitUpdate();
+  }
+}
+
+function updateDomainCode(code: string) {
+  if (localNode.value?.config) {
+    localNode.value.config.domainCode = code;
     emitUpdate();
   }
 }
@@ -353,15 +372,14 @@ const postProcessorsCount = computed(() => {
           </template>
         </Dropdown>
 
-        <Tooltip title="域名代码">
-          <button class="icon-btn">
-            <LinkIcon class="size-4" />
-          </button>
-        </Tooltip>
+        <DomainSelector
+          :domain-code="localNode.config?.domainCode || ''"
+          @update:domain-code="updateDomainCode"
+        />
 
         <Input
           :value="localNode.config?.url"
-          placeholder="输入请求 URL，支持变量 ${var}"
+          :placeholder="urlPlaceholder"
           class="url-input"
           :bordered="false"
           @change="(e: any) => updateUrl(e.target.value)"
@@ -555,25 +573,6 @@ const postProcessorsCount = computed(() => {
 
 .method-btn:hover {
   background: color-mix(in srgb, var(--method-color) 18%, transparent);
-}
-
-.icon-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  color: hsl(var(--foreground) / 50%);
-  background: transparent;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.icon-btn:hover {
-  color: hsl(var(--foreground));
-  background: hsl(var(--accent));
 }
 
 .url-input {
