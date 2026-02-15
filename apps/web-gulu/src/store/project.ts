@@ -4,10 +4,10 @@ import { useAccessStore } from '@vben/stores';
 
 import { defineStore } from 'pinia';
 
-import type { Env } from '#/api/env';
+import type { ConfigItem, Env } from '#/api/env';
 import type { Project } from '#/api/project';
 
-import { getEnvsByProjectApi } from '#/api/env';
+import { getConfigsApi, getEnvsByProjectApi } from '#/api/env';
 import { getAllProjectsApi } from '#/api/project';
 import { replaceProjectIdInMenus } from '#/utils/menu';
 
@@ -23,6 +23,8 @@ export const useProjectStore = defineStore('project', () => {
   const envs = ref<Env[]>([]);
   // 当前环境
   const currentEnv = ref<Env | null>(null);
+  // 当前环境的所有配置（域名、变量、数据库、MQ）
+  const envConfigs = ref<ConfigItem[]>([]);
   // 加载状态
   const loading = ref(false);
   // 原始菜单（未替换projectId）
@@ -32,6 +34,20 @@ export const useProjectStore = defineStore('project', () => {
   const currentProjectId = computed(() => currentProject.value?.id ?? 0);
   // 当前环境ID
   const currentEnvId = computed(() => currentEnv.value?.id ?? 0);
+
+  // 按类型派生的配置列表
+  const domainConfigs = computed(() =>
+    envConfigs.value.filter((c) => c.type === 'domain'),
+  );
+  const variableConfigs = computed(() =>
+    envConfigs.value.filter((c) => c.type === 'variable'),
+  );
+  const databaseConfigs = computed(() =>
+    envConfigs.value.filter((c) => c.type === 'database'),
+  );
+  const mqConfigs = computed(() =>
+    envConfigs.value.filter((c) => c.type === 'mq'),
+  );
 
   /**
    * 更新菜单中的项目ID
@@ -136,9 +152,36 @@ export const useProjectStore = defineStore('project', () => {
     currentEnv.value = env;
     if (env) {
       localStorage.setItem(ENV_STORAGE_KEY, String(env.id));
+      // 加载该环境的所有配置
+      loadEnvConfigs(env.id);
     } else {
       localStorage.removeItem(ENV_STORAGE_KEY);
+      envConfigs.value = [];
     }
+  }
+
+  /**
+   * 加载当前环境的所有配置（域名、变量、数据库、MQ）
+   */
+  async function loadEnvConfigs(envId?: number) {
+    const id = envId ?? currentEnv.value?.id;
+    if (!id) {
+      envConfigs.value = [];
+      return;
+    }
+    try {
+      // 不传 type，一次获取所有类型的配置
+      envConfigs.value = await getConfigsApi(id);
+    } catch {
+      envConfigs.value = [];
+    }
+  }
+
+  /**
+   * 刷新当前环境配置（供外部调用，如环境管理弹窗保存后）
+   */
+  async function refreshEnvConfigs() {
+    await loadEnvConfigs();
   }
 
   /**
@@ -181,6 +224,7 @@ export const useProjectStore = defineStore('project', () => {
     currentProject.value = null;
     envs.value = [];
     currentEnv.value = null;
+    envConfigs.value = [];
     loading.value = false;
     originalMenus.value = [];
   }
@@ -191,15 +235,22 @@ export const useProjectStore = defineStore('project', () => {
     currentProject,
     envs,
     currentEnv,
+    envConfigs,
     loading,
     // Computed
     currentProjectId,
     currentEnvId,
+    domainConfigs,
+    variableConfigs,
+    databaseConfigs,
+    mqConfigs,
     // Actions
     loadProjects,
     setCurrentProject,
     loadEnvs,
     setCurrentEnv,
+    loadEnvConfigs,
+    refreshEnvConfigs,
     refreshProjects,
     refreshEnvs,
     updateMenusWithProjectId,

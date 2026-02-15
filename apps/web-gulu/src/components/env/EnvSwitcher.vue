@@ -32,6 +32,8 @@ function openManageModal() {
 function handleModalClose() {
   manageModalVisible.value = false;
   projectStore.refreshEnvs();
+  // 刷新环境配置（域名、变量、数据库、MQ），确保各选择器数据同步
+  projectStore.refreshEnvConfigs();
 }
 </script>
 

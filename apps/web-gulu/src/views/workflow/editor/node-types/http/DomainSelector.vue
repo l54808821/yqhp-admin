@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed } from 'vue';
 
 import { createIconifyIcon } from '@vben/icons';
 
@@ -7,7 +7,6 @@ import { Dropdown, Menu, Tooltip } from 'ant-design-vue';
 
 import type { ConfigItem } from '#/api/env';
 
-import { getConfigsApi } from '#/api/env';
 import { useProjectStore } from '#/store/project';
 
 const LinkIcon = createIconifyIcon('lucide:link');
@@ -28,21 +27,17 @@ const emit = defineEmits<{
 }>();
 
 const projectStore = useProjectStore();
-const domains = ref<ConfigItem[]>([]);
-const loading = ref(false);
 
-// 当前环境 ID
-const envId = computed(() => projectStore.currentEnvId);
-
+// 直接从 store 读取域名配置，数据由 store 统一管理
 // 获取启用的域名列表
 const enabledDomains = computed(() =>
-  domains.value.filter((d) => d.status === 1),
+  projectStore.domainConfigs.filter((d) => d.status === 1),
 );
 
 // 当前选中的域名
 const selectedDomain = computed(() => {
   if (!props.domainCode) return null;
-  return domains.value.find((d) => d.code === props.domainCode) || null;
+  return projectStore.domainConfigs.find((d) => d.code === props.domainCode) || null;
 });
 
 // 选中域名的 base_url
@@ -50,25 +45,6 @@ const selectedBaseUrl = computed(() => {
   if (!selectedDomain.value?.value) return '';
   return (selectedDomain.value.value as any).base_url || '';
 });
-
-// 加载域名配置
-async function loadDomains() {
-  if (!envId.value) {
-    domains.value = [];
-    return;
-  }
-  try {
-    loading.value = true;
-    domains.value = await getConfigsApi(envId.value, 'domain');
-  } catch {
-    domains.value = [];
-  } finally {
-    loading.value = false;
-  }
-}
-
-// 监听环境变化，自动加载域名
-watch(envId, () => loadDomains(), { immediate: true });
 
 // 选择域名
 function selectDomain(code: string) {
