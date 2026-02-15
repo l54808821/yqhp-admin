@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import type Sortable from 'sortablejs';
-
-import { nextTick, onUnmounted, ref, watch } from 'vue';
+import { ref } from 'vue';
 
 import { createIconifyIcon, Plus } from '@vben/icons';
 
@@ -19,16 +17,12 @@ import {
   Tag,
 } from 'ant-design-vue';
 
-import type { ConfigItem } from '#/api/env';
-
 import {
-  batchUpdateConfigValuesApi,
   createConfigDefinitionApi,
-  deleteConfigDefinitionApi,
-  getConfigsApi,
-  updateConfigDefinitionSortApi,
   updateConfigValueApi,
 } from '#/api/env';
+
+import { useConfigTab } from '#/hooks/useConfigTab';
 
 const Trash2 = createIconifyIcon('lucide:trash-2');
 const GripVertical = createIconifyIcon('lucide:grip-vertical');
@@ -44,11 +38,7 @@ const emit = defineEmits<{
   (e: 'updated'): void;
 }>();
 
-const loading = ref(false);
-const configs = ref<ConfigItem[]>([]);
-const originalConfigs = ref<ConfigItem[]>([]); // 用于记录原始数据，判断名称是否修改
 const tableRef = ref<HTMLElement | null>(null);
-let sortableInstance: Sortable | null = null;
 
 // 添加弹窗状态
 const addModalVisible = ref(false);
@@ -59,6 +49,27 @@ const addModalForm = ref({
   value: '',
 });
 const addModalLoading = ref(false);
+
+// 使用公共 composable
+const {
+  loading,
+  configs,
+  loadConfigs,
+  removeConfig,
+  saveAll,
+  setName,
+} = useConfigTab({
+  envId: () => props.envId,
+  projectId: () => props.projectId,
+  configType: 'variable',
+  getSortableElement: () =>
+    tableRef.value?.querySelector('.ant-table-tbody') as HTMLElement | null,
+  sortableOptions: { ghostClass: 'row-ghost', chosenClass: 'row-chosen' },
+  loadErrorMessage: '加载变量配置失败',
+  onEnvChange: () => {
+    addModalVisible.value = false;
+  },
+});
 
 // 变量类型选项
 const varTypeOptions = [
@@ -77,98 +88,6 @@ const columns = [
   { title: '敏感', dataIndex: 'is_sensitive', key: 'is_sensitive', width: 70 },
   { title: '操作', key: 'action', width: 80, align: 'center' as const },
 ];
-
-// 监听环境变化，重新加载数据
-watch(
-  () => props.envId,
-  async () => {
-    addModalVisible.value = false;
-    await loadConfigs();
-  },
-  { immediate: true },
-);
-
-async function loadConfigs() {
-  try {
-    loading.value = true;
-    const data = await getConfigsApi(props.envId, 'variable');
-    configs.value = data || [];
-    // 深拷贝保存原始数据
-    originalConfigs.value = JSON.parse(JSON.stringify(data || []));
-    // 初始化拖拽排序
-    await nextTick();
-    initSortable();
-  } catch {
-    message.error('加载变量配置失败');
-  } finally {
-    loading.value = false;
-  }
-}
-
-// 初始化拖拽排序
-async function initSortable() {
-  if (sortableInstance) {
-    sortableInstance.destroy();
-    sortableInstance = null;
-  }
-
-  // 获取表格的 tbody 元素
-  const tbody = tableRef.value?.querySelector('.ant-table-tbody');
-  if (!tbody) return;
-
-  const SortableModule = await import('sortablejs');
-  const SortableClass = SortableModule.default;
-
-  sortableInstance = SortableClass.create(tbody as HTMLElement, {
-    animation: 200,
-    handle: '.drag-handle',
-    ghostClass: 'row-ghost',
-    chosenClass: 'row-chosen',
-    onEnd: handleSortEnd,
-  });
-}
-
-// 处理排序结束
-async function handleSortEnd(event: { oldIndex?: number; newIndex?: number }) {
-  const { oldIndex, newIndex } = event;
-  if (oldIndex === undefined || newIndex === undefined || oldIndex === newIndex) {
-    return;
-  }
-
-  const draggedConfig = configs.value[oldIndex];
-  if (!draggedConfig) return;
-
-  // 计算目标配置和位置
-  let targetConfig: ConfigItem;
-  let position: 'before' | 'after';
-
-  if (newIndex > oldIndex) {
-    targetConfig = configs.value[newIndex]!;
-    position = 'after';
-  } else {
-    targetConfig = configs.value[newIndex]!;
-    position = 'before';
-  }
-
-  try {
-    await updateConfigDefinitionSortApi(props.projectId, 'variable', {
-      code: draggedConfig.code,
-      target_code: targetConfig.code,
-      position,
-    });
-    await loadConfigs();
-  } catch {
-    message.error('排序更新失败');
-    await loadConfigs();
-  }
-}
-
-onUnmounted(() => {
-  if (sortableInstance) {
-    sortableInstance.destroy();
-    sortableInstance = null;
-  }
-});
 
 // 获取变量值
 function getVariableValue(config: any): string {
@@ -189,11 +108,6 @@ function getVarType(config: any): string {
 // 判断是否敏感
 function isSensitive(config: any): boolean {
   return config?.extra?.is_sensitive || false;
-}
-
-// 设置名称（本地更新）
-function setName(config: any, value: string) {
-  config.name = value;
 }
 
 // 打开添加弹窗
@@ -251,35 +165,9 @@ async function confirmAdd() {
   }
 }
 
-// 删除配置
-async function removeConfig(config: any) {
-  try {
-    await deleteConfigDefinitionApi(props.projectId, config.code);
-    message.success('删除成功');
-    await loadConfigs();
-  } catch (error: any) {
-    message.error(error?.message || '删除失败');
-  }
-}
-
-// 保存配置值（包含名称变更）
+// 保存配置（定义变更 + 配置值）
 async function saveConfigs() {
-  try {
-    // 保存配置值
-    const items = configs.value.map((c) => ({
-      code: c.code,
-      value: c.value || {},
-    }));
-    await batchUpdateConfigValuesApi(props.envId, { items });
-    
-    // 更新原始数据
-    originalConfigs.value = JSON.parse(JSON.stringify(configs.value));
-    
-    message.success('保存成功');
-    emit('updated');
-  } catch (error: any) {
-    message.error(error?.message || '保存失败');
-  }
+  await saveAll(() => emit('updated'));
 }
 
 // 暴露给父组件的方法

@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import type Sortable from 'sortablejs';
-
-import { nextTick, onUnmounted, ref, watch } from 'vue';
+import { ref } from 'vue';
 
 import { createIconifyIcon, Plus } from '@vben/icons';
 
@@ -17,16 +15,12 @@ import {
   Table,
 } from 'ant-design-vue';
 
-import type { ConfigItem } from '#/api/env';
-
 import {
-  batchUpdateConfigValuesApi,
   createConfigDefinitionApi,
-  deleteConfigDefinitionApi,
-  getConfigsApi,
-  updateConfigDefinitionSortApi,
   updateConfigValueApi,
 } from '#/api/env';
+
+import { useConfigTab } from '#/hooks/useConfigTab';
 
 const Trash2 = createIconifyIcon('lucide:trash-2');
 const GripVertical = createIconifyIcon('lucide:grip-vertical');
@@ -42,15 +36,33 @@ const emit = defineEmits<{
   (e: 'updated'): void;
 }>();
 
-const loading = ref(false);
-const configs = ref<ConfigItem[]>([]);
 const tableRef = ref<HTMLElement | null>(null);
-let sortableInstance: Sortable | null = null;
 
 // 添加弹窗状态
 const addModalVisible = ref(false);
 const addModalForm = ref({ name: '', baseUrl: '' });
 const addModalLoading = ref(false);
+
+// 使用公共 composable
+const {
+  loading,
+  configs,
+  loadConfigs,
+  removeConfig,
+  saveAll,
+  setName,
+} = useConfigTab({
+  envId: () => props.envId,
+  projectId: () => props.projectId,
+  configType: 'domain',
+  getSortableElement: () =>
+    tableRef.value?.querySelector('.ant-table-tbody') as HTMLElement | null,
+  sortableOptions: { ghostClass: 'row-ghost', chosenClass: 'row-chosen' },
+  loadErrorMessage: '加载域名配置失败',
+  onEnvChange: () => {
+    addModalVisible.value = false;
+  },
+});
 
 // 表格列定义
 const columns = [
@@ -61,93 +73,6 @@ const columns = [
   { title: '操作', key: 'action', width: 80, align: 'center' as const },
 ];
 
-// 监听环境变化，重新加载数据
-watch(
-  () => props.envId,
-  async () => {
-    addModalVisible.value = false;
-    await loadConfigs();
-  },
-  { immediate: true },
-);
-
-async function loadConfigs() {
-  try {
-    loading.value = true;
-    const data = await getConfigsApi(props.envId, 'domain');
-    configs.value = data || [];
-    await nextTick();
-    initSortable();
-  } catch {
-    message.error('加载域名配置失败');
-  } finally {
-    loading.value = false;
-  }
-}
-
-// 初始化拖拽排序
-async function initSortable() {
-  if (sortableInstance) {
-    sortableInstance.destroy();
-    sortableInstance = null;
-  }
-
-  const tbody = tableRef.value?.querySelector('.ant-table-tbody');
-  if (!tbody) return;
-
-  const SortableModule = await import('sortablejs');
-  const SortableClass = SortableModule.default;
-
-  sortableInstance = SortableClass.create(tbody as HTMLElement, {
-    animation: 200,
-    handle: '.drag-handle',
-    ghostClass: 'row-ghost',
-    chosenClass: 'row-chosen',
-    onEnd: handleSortEnd,
-  });
-}
-
-// 处理排序结束
-async function handleSortEnd(event: { oldIndex?: number; newIndex?: number }) {
-  const { oldIndex, newIndex } = event;
-  if (oldIndex === undefined || newIndex === undefined || oldIndex === newIndex) {
-    return;
-  }
-
-  const draggedConfig = configs.value[oldIndex];
-  if (!draggedConfig) return;
-
-  let targetConfig: ConfigItem;
-  let position: 'before' | 'after';
-
-  if (newIndex > oldIndex) {
-    targetConfig = configs.value[newIndex]!;
-    position = 'after';
-  } else {
-    targetConfig = configs.value[newIndex]!;
-    position = 'before';
-  }
-
-  try {
-    await updateConfigDefinitionSortApi(props.projectId, 'domain', {
-      code: draggedConfig.code,
-      target_code: targetConfig.code,
-      position,
-    });
-    await loadConfigs();
-  } catch {
-    message.error('排序更新失败');
-    await loadConfigs();
-  }
-}
-
-onUnmounted(() => {
-  if (sortableInstance) {
-    sortableInstance.destroy();
-    sortableInstance = null;
-  }
-});
-
 // 获取域名 URL
 function getBaseUrl(config: any): string {
   return config?.value?.base_url || '';
@@ -157,11 +82,6 @@ function getBaseUrl(config: any): string {
 function setBaseUrl(config: any, value: string) {
   if (!config.value) config.value = {};
   config.value.base_url = value;
-}
-
-// 设置名称（本地更新）
-function setName(config: any, value: string) {
-  config.name = value;
 }
 
 // 打开添加弹窗
@@ -216,30 +136,9 @@ async function confirmAdd() {
   }
 }
 
-// 删除配置
-async function removeConfig(config: any) {
-  try {
-    await deleteConfigDefinitionApi(props.projectId, config.code);
-    message.success('删除成功');
-    await loadConfigs();
-  } catch (error: any) {
-    message.error(error?.message || '删除失败');
-  }
-}
-
-// 保存配置值
+// 保存配置（定义变更 + 配置值）
 async function saveConfigs() {
-  try {
-    const items = configs.value.map((c) => ({
-      code: c.code,
-      value: c.value || {},
-    }));
-    await batchUpdateConfigValuesApi(props.envId, { items });
-    message.success('保存成功');
-    emit('updated');
-  } catch (error: any) {
-    message.error(error?.message || '保存失败');
-  }
+  await saveAll(() => emit('updated'));
 }
 
 // 暴露给父组件的方法

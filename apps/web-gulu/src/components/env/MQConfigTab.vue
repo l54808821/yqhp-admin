@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import type Sortable from 'sortablejs';
-
-import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 
 import { createIconifyIcon, Plus } from '@vben/icons';
 
@@ -24,12 +22,11 @@ import type { ConfigItem } from '#/api/env';
 
 import {
   createConfigDefinitionApi,
-  deleteConfigDefinitionApi,
-  getConfigsApi,
   updateConfigDefinitionApi,
-  updateConfigDefinitionSortApi,
   updateConfigValueApi,
 } from '#/api/env';
+
+import { useConfigTab } from '#/hooks/useConfigTab';
 
 const Trash2 = createIconifyIcon('lucide:trash-2');
 const GripVertical = createIconifyIcon('lucide:grip-vertical');
@@ -46,10 +43,7 @@ const emit = defineEmits<{
   (e: 'updated'): void;
 }>();
 
-const loading = ref(false);
-const configs = ref<ConfigItem[]>([]);
 const cardListRef = ref<HTMLElement | null>(null);
-let sortableInstance: Sortable | null = null;
 
 // 弹窗状态
 const modalVisible = ref(false);
@@ -66,6 +60,28 @@ const modalForm = ref({
   username: '',
   password: '',
   options: '',
+});
+
+// 使用公共 composable
+const {
+  loading,
+  configs,
+  loadConfigs,
+  removeConfig,
+} = useConfigTab({
+  envId: () => props.envId,
+  projectId: () => props.projectId,
+  configType: 'mq',
+  getSortableElement: () => cardListRef.value,
+  sortableOptions: {
+    ghostClass: 'card-ghost',
+    chosenClass: 'card-chosen',
+    dragClass: 'card-drag',
+  },
+  loadErrorMessage: '加载 MQ 配置失败',
+  onEnvChange: () => {
+    modalVisible.value = false;
+  },
 });
 
 // MQ 类型选项
@@ -85,89 +101,6 @@ const defaultPorts: Record<string, number> = {
 // 是否显示 VHost 字段（仅 RabbitMQ）
 const showVHostField = computed(() => {
   return modalForm.value.mqType === 'rabbitmq';
-});
-
-// 监听环境变化，重新加载数据
-watch(
-  () => props.envId,
-  async () => {
-    modalVisible.value = false;
-    await loadConfigs();
-  },
-  { immediate: true },
-);
-
-async function loadConfigs() {
-  try {
-    loading.value = true;
-    const data = await getConfigsApi(props.envId, 'mq');
-    configs.value = data || [];
-    await nextTick();
-    initSortable();
-  } catch {
-    message.error('加载 MQ 配置失败');
-  } finally {
-    loading.value = false;
-  }
-}
-
-// 初始化拖拽排序
-async function initSortable() {
-  if (sortableInstance) {
-    sortableInstance.destroy();
-    sortableInstance = null;
-  }
-
-  if (!cardListRef.value) return;
-
-  const SortableModule = await import('sortablejs');
-  const SortableClass = SortableModule.default;
-
-  sortableInstance = SortableClass.create(cardListRef.value, {
-    animation: 200,
-    handle: '.drag-handle',
-    ghostClass: 'card-ghost',
-    chosenClass: 'card-chosen',
-    dragClass: 'card-drag',
-    onEnd: handleSortEnd,
-  });
-}
-
-// 处理排序结束
-async function handleSortEnd(event: { oldIndex?: number; newIndex?: number }) {
-  const { oldIndex, newIndex } = event;
-  if (
-    oldIndex === undefined ||
-    newIndex === undefined ||
-    oldIndex === newIndex
-  ) {
-    return;
-  }
-
-  const draggedConfig = configs.value[oldIndex];
-  if (!draggedConfig) return;
-
-  const targetConfig = configs.value[newIndex]!;
-  const position = newIndex > oldIndex ? 'after' : 'before';
-
-  try {
-    await updateConfigDefinitionSortApi(props.projectId, 'mq', {
-      code: draggedConfig.code,
-      target_code: targetConfig.code,
-      position,
-    });
-    await loadConfigs();
-  } catch {
-    message.error('排序更新失败');
-    await loadConfigs();
-  }
-}
-
-onUnmounted(() => {
-  if (sortableInstance) {
-    sortableInstance.destroy();
-    sortableInstance = null;
-  }
 });
 
 // ==================== 展示辅助 ====================
@@ -331,18 +264,7 @@ async function handleConfirm() {
   }
 }
 
-// 删除配置
-async function removeConfig(config: ConfigItem) {
-  try {
-    await deleteConfigDefinitionApi(props.projectId, config.code);
-    message.success('删除成功');
-    await loadConfigs();
-  } catch (error: any) {
-    message.error(error?.message || '删除失败');
-  }
-}
-
-// 暴露给父组件的方法（保持兼容，MQ 配置已改为即时保存）
+// 暴露给父组件的方法（保持兼容，MQ 配置已改为弹窗内即时保存）
 defineExpose({
   saveConfigs: () => Promise.resolve(),
   loadConfigs,
