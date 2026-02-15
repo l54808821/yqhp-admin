@@ -12,11 +12,7 @@ export interface AIConfig {
   top_p: number;
   streaming: boolean;
   interactive: boolean;
-  interaction_type: string;
-  interaction_prompt: string;
-  interaction_options: string[];
   interaction_timeout: number;
-  interaction_default: string;
   timeout: number;
   tools: string[];
   mcp_server_ids: number[];
@@ -41,6 +37,7 @@ export const builtinTools: BuiltinTool[] = [
   { name: 'var_read', label: '变量读取工具', description: '从工作流上下文读取变量' },
   { name: 'var_write', label: '变量写入工具', description: '向工作流上下文写入变量' },
   { name: 'json_parse', label: 'JSON 解析工具', description: '解析 JSON 字符串并提取数据' },
+  { name: 'human_interaction', label: '人机交互工具', description: 'AI 主动请求用户确认、输入或选择' },
 ];
 
 export function createDefaultAIConfig(): AIConfig {
@@ -54,11 +51,7 @@ export function createDefaultAIConfig(): AIConfig {
     top_p: 1,
     streaming: true,
     interactive: false,
-    interaction_type: 'confirm',
-    interaction_prompt: '',
-    interaction_options: [],
     interaction_timeout: 300,
-    interaction_default: '',
     timeout: 300,
     tools: [],
     mcp_server_ids: [],
