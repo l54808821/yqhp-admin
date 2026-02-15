@@ -24,9 +24,23 @@ const props = defineProps<Props>();
 
 const activeTab = ref('body');
 
+// 是否为请求错误（未收到响应，如 DNS 解析失败、连接超时等）
+const isRequestError = computed(() => {
+  return props.response.statusCode === 0 && !!props.response.error;
+});
+
+// 状态码显示文本：请求错误时显示 statusText（如 "Error"），否则显示数字状态码
+const statusDisplay = computed(() => {
+  if (isRequestError.value) {
+    return props.response.statusText || 'Error';
+  }
+  return props.response.statusCode;
+});
+
 // 状态码颜色
 const statusColor = computed(() => {
   const code = props.response.statusCode;
+  if (isRequestError.value) return '#ff4d4f';
   if (code >= 200 && code < 300) return '#52c41a';
   if (code >= 300 && code < 400) return '#faad14';
   if (code >= 400 && code < 500) return '#ff4d4f';
@@ -118,10 +132,10 @@ function formatHeaderValue(value: string | string[]): string {
       <!-- 右侧状态信息 -->
       <div class="response-meta">
         <Tag :color="statusColor" class="status-tag">
-          {{ response.statusCode }}
+          {{ statusDisplay }}
         </Tag>
         <span class="meta-item">{{ formatDuration(response.duration) }}</span>
-        <span class="meta-item">{{ formatSize(response.size) }}</span>
+        <span v-if="!isRequestError" class="meta-item">{{ formatSize(response.size) }}</span>
       </div>
     </div>
 

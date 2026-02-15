@@ -181,16 +181,25 @@ export function useExecution(options: UseExecutionOptions) {
       case 'step_started':
         handleStepStarted(event.data as StepStartedData);
         break;
-      case 'step_completed':
-        handleStepResult(event.data as StepResult);
-        break;
-      case 'step_failed':
-        // step_failed 事件需要确保 status 为 'failed'
+      case 'step_completed': {
+        // 后端 SSE 事件中 output 数据可能在 result 字段中，统一映射到 output
+        const completedData = event.data as any;
         handleStepResult({
-          ...(event.data as StepResult),
-          status: 'failed',
-        });
+          ...completedData,
+          output: completedData.output || completedData.result,
+        } as StepResult);
         break;
+      }
+      case 'step_failed': {
+        // step_failed 事件：确保 status 为 'failed'，并将 result 映射到 output
+        const failedData = event.data as any;
+        handleStepResult({
+          ...failedData,
+          status: 'failed',
+          output: failedData.output || failedData.result,
+        } as StepResult);
+        break;
+      }
       case 'step_skipped':
         handleStepSkipped(event.data as {
           stepId: string;
