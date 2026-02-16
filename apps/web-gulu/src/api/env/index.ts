@@ -335,3 +335,51 @@ export async function batchUpdateConfigValuesApi(
 ) {
   return requestClient.put(`/envs/${envId}/configs`, params);
 }
+
+// ==================== 数据库 Schema API ====================
+
+/** 数据库表信息 */
+export interface DatabaseTableInfo {
+  name: string;
+  comment?: string;
+}
+
+/** 数据库字段信息 */
+export interface DatabaseColumnInfo {
+  name: string;
+  type: string;
+  comment?: string;
+  nullable?: boolean;
+}
+
+/**
+ * 获取数据库的表列表
+ * @param configCode 数据库配置 code
+ * @param envId 环境 ID
+ */
+export async function getDatabaseTablesApi(
+  configCode: string,
+  envId: number,
+): Promise<DatabaseTableInfo[]> {
+  return requestClient.get<DatabaseTableInfo[]>(
+    `/database/${configCode}/tables`,
+    { params: { envId } },
+  );
+}
+
+/**
+ * 获取指定表的字段列表
+ * @param configCode 数据库配置 code
+ * @param envId 环境 ID
+ * @param table 表名
+ */
+export async function getDatabaseColumnsApi(
+  configCode: string,
+  envId: number,
+  table: string,
+): Promise<DatabaseColumnInfo[]> {
+  return requestClient.get<DatabaseColumnInfo[]>(
+    `/database/${configCode}/columns`,
+    { params: { envId, table } },
+  );
+}

@@ -10,7 +10,6 @@ import { createIconifyIcon } from '@vben/icons';
 import {
   Button,
   Dropdown,
-  Input,
   Menu,
   Spin,
   Tabs,
@@ -28,6 +27,7 @@ import ProcessorPanel from '../http/ProcessorPanel.vue';
 import DatabaseSettingsPanel from './DatabaseSettingsPanel.vue';
 import DatabaseResponsePanel from './DatabaseResponsePanel.vue';
 import DatasourceSelector from './DatasourceSelector.vue';
+import { SqlEditor } from '#/components/code-editor';
 
 // 图标
 const PlayIcon = createIconifyIcon('lucide:play');
@@ -356,12 +356,13 @@ const sqlPlaceholder = computed(() => {
             <span>SQL</span>
           </template>
           <div class="tab-content sql-tab">
-            <Input.TextArea
-              :value="localNode.config?.sql"
+            <SqlEditor
+              :model-value="localNode.config?.sql || ''"
+              :datasource-code="localNode.config?.datasourceCode || ''"
+              :env-id="envId"
               :placeholder="sqlPlaceholder"
-              :rows="12"
-              class="sql-editor"
-              @change="(e: any) => updateSql(e.target.value)"
+              height="100%"
+              @update:model-value="updateSql"
             />
           </div>
         </Tabs.TabPane>
@@ -597,22 +598,10 @@ const sqlPlaceholder = computed(() => {
   border-radius: 9px;
 }
 
-/* SQL 编辑器 */
+/* SQL 编辑器 Tab */
 .sql-tab {
-  padding: 12px 16px;
-}
-
-.sql-editor {
-  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  border-radius: 6px;
-}
-
-.sql-editor :deep(.ant-input) {
-  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
-  font-size: 13px;
-  line-height: 1.6;
+  padding: 0;
+  overflow: hidden;
 }
 
 /* 参数提示 */
