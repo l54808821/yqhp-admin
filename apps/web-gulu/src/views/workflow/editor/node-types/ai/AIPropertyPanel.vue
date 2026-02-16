@@ -22,7 +22,6 @@ import { createDefaultAIConfig } from './types';
 import BasicConfigPanel from './BasicConfigPanel.vue';
 import PromptPanel from './PromptPanel.vue';
 import ModelParamsPanel from './ModelParamsPanel.vue';
-import ExecutionModePanel from './ExecutionModePanel.vue';
 import ToolsPanel from './ToolsPanel.vue';
 
 // 图标
@@ -280,13 +279,6 @@ function stopDrag() {
       <!-- 配置内容（可滚动） -->
       <div class="config-content">
         <Tabs size="small">
-          <Tabs.TabPane key="basic" tab="基本配置">
-            <BasicConfigPanel
-              :config="localNode.config"
-              @update="handleConfigUpdate"
-            />
-          </Tabs.TabPane>
-
           <Tabs.TabPane key="prompt" tab="提示词">
             <PromptPanel
               :config="localNode.config"
@@ -294,15 +286,15 @@ function stopDrag() {
             />
           </Tabs.TabPane>
 
-          <Tabs.TabPane key="params" tab="模型参数">
-            <ModelParamsPanel
+          <Tabs.TabPane key="basic" tab="基本配置">
+            <BasicConfigPanel
               :config="localNode.config"
               @update="handleConfigUpdate"
             />
           </Tabs.TabPane>
 
-          <Tabs.TabPane key="mode" tab="执行模式">
-            <ExecutionModePanel
+          <Tabs.TabPane key="params" tab="模型参数">
+            <ModelParamsPanel
               :config="localNode.config"
               @update="handleConfigUpdate"
             />

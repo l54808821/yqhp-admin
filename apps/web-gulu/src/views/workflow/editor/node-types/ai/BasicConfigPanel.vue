@@ -1,10 +1,10 @@
 <script setup lang="ts">
 /**
- * 基本配置面板：模型选择 + 超时时间
+ * 基本配置面板：模型选择 + 超时 + 执行模式
  */
 import { computed, onMounted, ref } from 'vue';
 
-import { Button, Empty, Form, InputNumber, Select, Tag, message } from 'ant-design-vue';
+import { Empty, Form, InputNumber, Select, Switch, Tag, Tooltip, message } from 'ant-design-vue';
 
 import { type AiModel, getAiModelListApi } from '#/api/ai-model';
 
@@ -14,7 +14,7 @@ interface Props {
   config: AIConfig;
 }
 
-const props = defineProps<Props>();
+defineProps<Props>();
 
 const emit = defineEmits<{
   (e: 'update', patch: Partial<AIConfig>): void;
@@ -22,11 +22,6 @@ const emit = defineEmits<{
 
 const modelList = ref<AiModel[]>([]);
 const modelLoading = ref(false);
-
-const selectedModel = computed(() => {
-  if (!props.config.ai_model_id) return null;
-  return modelList.value.find((m) => m.id === props.config.ai_model_id) || null;
-});
 
 const filteredModelOptions = computed(() => {
   return modelList.value.map((m) => ({
@@ -90,6 +85,7 @@ onMounted(() => {
 
 <template>
   <Form layout="vertical" class="config-form">
+    <!-- 模型选择 -->
     <Form.Item label="AI 模型" required>
       <Select
         :value="config.ai_model_id ?? undefined"
@@ -102,6 +98,7 @@ onMounted(() => {
         :not-found-content="modelLoading ? undefined : null"
         @change="(val: any) => val ? handleModelSelect(val) : handleModelClear()"
         @clear="handleModelClear"
+        @dropdownVisibleChange="(open: boolean) => open && loadModels()"
       >
         <template #notFoundContent>
           <Empty
@@ -130,65 +127,58 @@ onMounted(() => {
           </div>
         </template>
       </Select>
-      <Button
-        type="link"
-        size="small"
-        :loading="modelLoading"
-        style="padding: 0; margin-top: 4px"
-        @click="loadModels"
-      >
-        刷新模型列表
-      </Button>
     </Form.Item>
 
-    <!-- 已选模型信息 -->
-    <div v-if="selectedModel" class="selected-model-info">
-      <div class="model-info-row">
-        <span class="model-info-label">提供商</span>
-        <span class="model-info-value">{{ selectedModel.provider }}</span>
-      </div>
-      <div class="model-info-row">
-        <span class="model-info-label">模型 ID</span>
-        <span class="model-info-value">{{ selectedModel.model_id }}</span>
-      </div>
-      <div v-if="selectedModel.context_length" class="model-info-row">
-        <span class="model-info-label">上下文</span>
-        <span class="model-info-value">{{ (selectedModel.context_length / 1024).toFixed(0) }}K</span>
-      </div>
-      <div v-if="selectedModel.capability_tags?.length" class="model-info-row">
-        <span class="model-info-label">能力</span>
-        <span class="model-info-value">
-          <Tag
-            v-for="tag in selectedModel.capability_tags"
-            :key="tag"
-            :color="getCapabilityColor(tag)"
+    <!-- 开关选项 -->
+    <div class="switch-row">
+      <Tooltip title="启用后，AI 输出将实时流式显示">
+        <label class="switch-item">
+          <Switch
             size="small"
-          >
-            {{ tag }}
-          </Tag>
-        </span>
-      </div>
-      <div v-if="selectedModel.description" class="model-info-row">
-        <span class="model-info-label">描述</span>
-        <span class="model-info-value model-desc">{{ selectedModel.description }}</span>
-      </div>
+            :checked="config.streaming"
+            @change="(val: any) => emit('update', { streaming: val })"
+          />
+          <span class="switch-label">流式输出</span>
+        </label>
+      </Tooltip>
+      <Tooltip title="启用后，AI 可在需要时主动请求用户确认、输入或选择">
+        <label class="switch-item">
+          <Switch
+            size="small"
+            :checked="config.interactive"
+            @change="(val: any) => emit('update', { interactive: val })"
+          />
+          <span class="switch-label">人机交互</span>
+        </label>
+      </Tooltip>
     </div>
 
-    <!-- 超时时间 -->
-    <Form.Item label="超时时间（秒）" style="margin-top: 16px">
-      <InputNumber
-        :value="config.timeout"
-        :min="0"
-        :max="3600"
-        :step="30"
-        placeholder="默认 300 秒"
-        style="width: 100%"
-        @change="(val: any) => emit('update', { timeout: val })"
-      />
-      <div class="param-hint">
-        AI 调用的最大等待时间。设为 0 则使用系统默认值（5 分钟）。
-      </div>
-    </Form.Item>
+    <!-- 超时设置 -->
+    <div class="timeout-row">
+      <Tooltip title="AI 调用的最大等待时间，0 使用默认值（5 分钟）">
+        <Form.Item label="超时（秒）" class="timeout-item">
+          <InputNumber
+            :value="config.timeout"
+            :min="0"
+            :max="3600"
+            :step="30"
+            placeholder="300"
+            @change="(val: any) => emit('update', { timeout: val })"
+          />
+        </Form.Item>
+      </Tooltip>
+      <Tooltip v-if="config.interactive" title="用户未在超时时间内响应时自动跳过，0 表示不超时">
+        <Form.Item label="交互超时（秒）" class="timeout-item">
+          <InputNumber
+            :value="config.interaction_timeout"
+            :min="0"
+            :max="3600"
+            placeholder="300"
+            @change="(val: any) => emit('update', { interaction_timeout: val })"
+          />
+        </Form.Item>
+      </Tooltip>
+    </div>
   </Form>
 </template>
 
@@ -239,44 +229,37 @@ onMounted(() => {
   margin: 0;
 }
 
-.selected-model-info {
-  background: hsl(var(--muted) / 30%);
-  border-radius: 8px;
-  padding: 12px;
-  margin-top: 8px;
-}
-
-.model-info-row {
+.switch-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  gap: 20px;
+  padding: 4px 0 16px;
+}
+
+.switch-item {
+  display: inline-flex;
+  align-items: center;
   gap: 8px;
-  margin-bottom: 6px;
+  cursor: pointer;
 }
 
-.model-info-row:last-child {
-  margin-bottom: 0;
-}
-
-.model-info-label {
-  font-size: 12px;
-  color: hsl(var(--muted-foreground));
-  width: 56px;
-  flex-shrink: 0;
-}
-
-.model-info-value {
-  font-size: 12px;
+.switch-label {
+  font-size: 13px;
   color: hsl(var(--foreground));
-  word-break: break-all;
+  user-select: none;
 }
 
-.model-desc {
-  color: hsl(var(--muted-foreground));
+.timeout-row {
+  display: flex;
+  gap: 12px;
 }
 
-.param-hint {
-  font-size: 12px;
-  color: #999;
-  margin-top: 4px;
+.timeout-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.timeout-item :deep(.ant-input-number) {
+  width: 100%;
 }
 </style>
