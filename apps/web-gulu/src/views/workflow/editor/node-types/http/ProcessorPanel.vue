@@ -2,14 +2,7 @@
 import { ref, watch, computed } from 'vue';
 
 import { createIconifyIcon } from '@vben/icons';
-import {
-  Button,
-  Dropdown,
-  Empty,
-  Menu,
-  Switch,
-  Tooltip,
-} from 'ant-design-vue';
+import { Button, Dropdown, Menu, Switch, Tooltip } from 'ant-design-vue';
 
 import type { KeywordConfig, PreProcessorKeywordType, PostProcessorKeywordType } from '../../types';
 import {
@@ -191,35 +184,6 @@ function handleDragEnd() {
 
 <template>
   <div class="processor-panel">
-    <!-- 工具栏 -->
-    <div class="panel-toolbar">
-      <Dropdown :trigger="['click']">
-        <Button type="primary" size="small">
-          <template #icon><PlusIcon class="size-4" /></template>
-          {{ currentConfig.buttonText }}
-          <ChevronDownIcon class="size-4 ml-1" />
-        </Button>
-        <template #overlay>
-          <Menu @click="({ key }: any) => addKeyword(key)">
-            <Menu.Item
-              v-for="meta in availableKeywordTypes"
-              :key="meta.type"
-            >
-              <div class="menu-item-content">
-                <component
-                  :is="getKeywordIcon(meta.type)"
-                  class="size-4"
-                  :style="{ color: meta.color }"
-                />
-                <span>{{ meta.label }}</span>
-                <span class="menu-item-desc">{{ meta.description }}</span>
-              </div>
-            </Menu.Item>
-          </Menu>
-        </template>
-      </Dropdown>
-    </div>
-
     <!-- 关键字列表 -->
     <div class="keyword-list" v-if="localProcessors.length > 0">
       <div
@@ -320,13 +284,31 @@ function handleDragEnd() {
       </div>
     </div>
 
-    <!-- 空状态 -->
-    <Empty
-      v-else
-      :image="Empty.PRESENTED_IMAGE_SIMPLE"
-      :description="currentConfig.emptyText"
-      class="empty-state"
-    />
+    <!-- 底部添加按钮 -->
+    <Dropdown :trigger="['click']">
+      <div class="add-processor-area">
+        <PlusIcon class="size-4" />
+        <span>{{ currentConfig.buttonText }}</span>
+      </div>
+      <template #overlay>
+        <Menu @click="({ key }: any) => addKeyword(key)">
+          <Menu.Item
+            v-for="meta in availableKeywordTypes"
+            :key="meta.type"
+          >
+            <div class="menu-item-content">
+              <component
+                :is="getKeywordIcon(meta.type)"
+                class="size-4"
+                :style="{ color: meta.color }"
+              />
+              <span>{{ meta.label }}</span>
+              <span class="menu-item-desc">{{ meta.description }}</span>
+            </div>
+          </Menu.Item>
+        </Menu>
+      </template>
+    </Dropdown>
   </div>
 </template>
 
@@ -337,9 +319,23 @@ function handleDragEnd() {
   gap: 8px;
 }
 
-.panel-toolbar {
+.add-processor-area {
   display: flex;
-  justify-content: flex-start;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 16px;
+  border: 1px dashed hsl(var(--border));
+  border-radius: 4px;
+  color: hsl(var(--primary));
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-processor-area:hover {
+  border-color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.05);
 }
 
 .menu-item-content {
@@ -460,9 +456,5 @@ function handleDragEnd() {
   padding: 8px 10px;
   border-top: 1px solid hsl(var(--border) / 50%);
   background: hsl(var(--accent) / 20%);
-}
-
-.empty-state {
-  padding: 24px 0;
 }
 </style>
