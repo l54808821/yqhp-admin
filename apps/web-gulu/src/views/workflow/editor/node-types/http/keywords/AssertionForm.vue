@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 
-import { Form, Input, Select } from 'ant-design-vue';
+import { Input, Select } from 'ant-design-vue';
 
 import type { AssertionConfig } from '../../../types';
 import {
@@ -112,68 +112,58 @@ function updateExpected(value: string) {
 
 <template>
   <div class="assertion-form">
-    <Form layout="vertical" size="small">
-      <div class="form-row">
-        <Form.Item label="断言类型" class="form-item">
-          <Select
-            :value="localConfig.assertType"
-            :options="ASSERTION_TYPE_OPTIONS"
-            @change="updateAssertType"
-          />
-        </Form.Item>
-        <Form.Item label="比较方式" class="form-item">
-          <Select
-            :value="localConfig.operator"
-            :options="COMPARISON_OPERATOR_OPTIONS"
-            @change="updateOperator"
-          />
-        </Form.Item>
-      </div>
-
-      <Form.Item v-if="showExpression" label="表达式">
-        <Input
-          :value="localConfig.expression"
-          :placeholder="expressionPlaceholder"
-          @change="(e: any) => updateExpression(e.target.value)"
-        />
-      </Form.Item>
-
-      <Form.Item v-if="showExpected" label="期望值">
-        <Input
-          :value="localConfig.expected"
-          :placeholder="expectedPlaceholder"
-          @change="(e: any) => updateExpected(e.target.value)"
-        />
-      </Form.Item>
-    </Form>
+    <div class="inline-form">
+      <Select
+        :value="localConfig.assertType"
+        :options="ASSERTION_TYPE_OPTIONS"
+        placeholder="断言类型"
+        size="small"
+        class="field-select"
+        @change="updateAssertType"
+      />
+      <Select
+        :value="localConfig.operator"
+        :options="COMPARISON_OPERATOR_OPTIONS"
+        placeholder="比较方式"
+        size="small"
+        class="field-select"
+        @change="updateOperator"
+      />
+      <Input
+        v-if="showExpression"
+        :value="localConfig.expression"
+        :placeholder="expressionPlaceholder"
+        size="small"
+        class="field-input"
+        @change="(e: any) => updateExpression(e.target.value)"
+      />
+      <Input
+        v-if="showExpected"
+        :value="localConfig.expected"
+        :placeholder="expectedPlaceholder"
+        size="small"
+        class="field-input"
+        @change="(e: any) => updateExpected(e.target.value)"
+      />
+    </div>
   </div>
 </template>
 
 <style scoped>
-.assertion-form {
-  max-width: 500px;
-}
-
-.form-row {
+.inline-form {
   display: flex;
-  gap: 12px;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.form-item {
+.field-select {
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+.field-input {
   flex: 1;
-  margin-bottom: 12px;
-}
-
-:deep(.ant-form-item) {
-  margin-bottom: 12px;
-}
-
-:deep(.ant-form-item-label) {
-  padding-bottom: 4px;
-}
-
-:deep(.ant-form-item-label > label) {
-  font-size: 12px;
-  color: hsl(var(--foreground) / 70%);
+  min-width: 100px;
 }
 </style>

@@ -334,7 +334,7 @@ function handleDragEnd() {
 .processor-panel {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .panel-toolbar {
@@ -357,7 +357,7 @@ function handleDragEnd() {
 .keyword-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .keyword-item {
@@ -384,8 +384,8 @@ function handleDragEnd() {
 .keyword-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: 6px;
+  padding: 6px 10px;
   cursor: pointer;
   user-select: none;
 }
@@ -424,9 +424,9 @@ function handleDragEnd() {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
 }
 
 .keyword-info {
@@ -457,12 +457,12 @@ function handleDragEnd() {
 }
 
 .keyword-body {
-  padding: 12px 16px;
+  padding: 8px 10px;
   border-top: 1px solid hsl(var(--border) / 50%);
   background: hsl(var(--accent) / 20%);
 }
 
 .empty-state {
-  padding: 40px 0;
+  padding: 24px 0;
 }
 </style>

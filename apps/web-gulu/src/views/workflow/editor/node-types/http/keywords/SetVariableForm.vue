@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 
-import { Form, Input, Select } from 'ant-design-vue';
+import { Input, Select, Tooltip } from 'ant-design-vue';
 
 import type { SetVariableConfig } from '../../../types';
 import {
@@ -61,98 +61,54 @@ function updateScope(value: string) {
 
 <template>
   <div class="set-variable-form">
-    <Form layout="vertical" size="small">
-      <div class="form-row">
-        <Form.Item label="变量名" class="form-item">
-          <Input
-            :value="localConfig.variableName"
-            placeholder="输入变量名"
-            @change="(e: any) => updateVariableName(e.target.value)"
-          />
-        </Form.Item>
-        <Form.Item label="作用域" class="form-item-small">
-          <Select
-            :value="localConfig.scope"
-            :options="VARIABLE_SCOPE_OPTIONS"
-            @change="updateScope"
-          />
-        </Form.Item>
-      </div>
-
-      <Form.Item label="变量值">
-        <Input.TextArea
-          :value="localConfig.value"
-          placeholder="输入变量值，支持变量 ${var}"
-          :rows="3"
-          @change="(e: any) => updateValue(e.target.value)"
+    <div class="inline-form">
+      <Input
+        :value="localConfig.variableName"
+        placeholder="变量名"
+        size="small"
+        class="field-name"
+        @change="(e: any) => updateVariableName(e.target.value)"
+      />
+      <Tooltip title="临时变量：仅在当前执行中有效；环境变量：保存到当前环境，后续执行可用">
+        <Select
+          :value="localConfig.scope"
+          :options="VARIABLE_SCOPE_OPTIONS"
+          size="small"
+          class="field-scope"
+          @change="updateScope"
         />
-      </Form.Item>
-    </Form>
-
-    <div class="form-tips">
-      <div class="tip-item">
-        <span class="tip-label">临时变量：</span>
-        <span class="tip-text">仅在当前执行中有效</span>
-      </div>
-      <div class="tip-item">
-        <span class="tip-label">环境变量：</span>
-        <span class="tip-text">保存到当前环境，后续执行可用</span>
-      </div>
+      </Tooltip>
+      <Input
+        :value="localConfig.value"
+        placeholder="变量值，支持 ${var}"
+        size="small"
+        class="field-value"
+        @change="(e: any) => updateValue(e.target.value)"
+      />
     </div>
   </div>
 </template>
 
 <style scoped>
-.set-variable-form {
-  max-width: 500px;
-}
-
-.form-row {
+.inline-form {
   display: flex;
-  gap: 12px;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.form-item {
-  flex: 1;
-  margin-bottom: 12px;
-}
-
-.form-item-small {
+.field-name {
   width: 140px;
   flex-shrink: 0;
-  margin-bottom: 12px;
 }
 
-.form-tips {
-  margin-top: 12px;
-  padding: 8px 12px;
-  background: hsl(var(--accent) / 30%);
-  border-radius: 6px;
+.field-scope {
+  width: 110px;
+  flex-shrink: 0;
 }
 
-.tip-item {
-  font-size: 12px;
-  line-height: 1.8;
-}
-
-.tip-label {
-  color: hsl(var(--foreground) / 70%);
-}
-
-.tip-text {
-  color: hsl(var(--foreground) / 50%);
-}
-
-:deep(.ant-form-item) {
-  margin-bottom: 12px;
-}
-
-:deep(.ant-form-item-label) {
-  padding-bottom: 4px;
-}
-
-:deep(.ant-form-item-label > label) {
-  font-size: 12px;
-  color: hsl(var(--foreground) / 70%);
+.field-value {
+  flex: 1;
+  min-width: 120px;
 }
 </style>

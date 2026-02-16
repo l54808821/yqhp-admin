@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 
-import { Form, InputNumber, Slider } from 'ant-design-vue';
+import { InputNumber } from 'ant-design-vue';
 
 import type { WaitConfig } from '../../../types';
 import { createWaitConfig } from '../../../types';
@@ -46,70 +46,43 @@ function updateDuration(value: number | null) {
 
 <template>
   <div class="wait-form">
-    <Form layout="vertical" size="small">
-      <Form.Item label="等待时间 (毫秒)">
-        <div class="duration-input">
-          <Slider
-            :value="localConfig.duration"
-            :min="0"
-            :max="30000"
-            :step="100"
-            class="duration-slider"
-            @change="updateDuration"
-          />
-          <InputNumber
-            :value="localConfig.duration"
-            :min="0"
-            :max="300000"
-            :step="100"
-            class="duration-number"
-            @change="updateDuration"
-          />
-        </div>
-        <div class="duration-hint">
-          {{ (localConfig.duration / 1000).toFixed(1) }} 秒
-        </div>
-      </Form.Item>
-    </Form>
+    <div class="inline-form">
+      <span class="field-label">等待</span>
+      <InputNumber
+        :value="localConfig.duration"
+        :min="0"
+        :max="300000"
+        :step="100"
+        size="small"
+        class="field-number"
+        @change="updateDuration"
+      />
+      <span class="field-unit">ms ({{ (localConfig.duration / 1000).toFixed(1) }}s)</span>
+    </div>
   </div>
 </template>
 
 
 <style scoped>
-.wait-form {
-  max-width: 400px;
-}
-
-.duration-input {
+.inline-form {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
 }
 
-.duration-slider {
-  flex: 1;
+.field-label {
+  font-size: 13px;
+  color: hsl(var(--foreground) / 70%);
+  flex-shrink: 0;
 }
 
-.duration-number {
+.field-number {
   width: 120px;
 }
 
-.duration-hint {
-  margin-top: 8px;
+.field-unit {
   font-size: 12px;
   color: hsl(var(--foreground) / 50%);
-}
-
-:deep(.ant-form-item) {
-  margin-bottom: 12px;
-}
-
-:deep(.ant-form-item-label) {
-  padding-bottom: 4px;
-}
-
-:deep(.ant-form-item-label > label) {
-  font-size: 12px;
-  color: hsl(var(--foreground) / 70%);
+  flex-shrink: 0;
 }
 </style>

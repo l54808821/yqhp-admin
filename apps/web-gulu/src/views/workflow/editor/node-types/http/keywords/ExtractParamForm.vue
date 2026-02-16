@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 
-import { Form, Input, InputNumber, Select } from 'ant-design-vue';
+import { createIconifyIcon } from '@vben/icons';
+import { Input, InputNumber, Select, Tooltip } from 'ant-design-vue';
+
+const SettingsIcon = createIconifyIcon('lucide:settings-2');
 
 import type { ExtractParamConfig } from '../../../types';
 import {
@@ -58,24 +61,6 @@ const expressionPlaceholder = computed(() => {
   }
 });
 
-// 表达式标签
-const expressionLabel = computed(() => {
-  switch (localConfig.value.extractType) {
-    case 'jsonpath':
-      return 'JSONPath 表达式';
-    case 'xpath':
-      return 'XPath 表达式';
-    case 'regex':
-      return '正则表达式';
-    case 'header':
-      return '响应头名称';
-    case 'cookie':
-      return 'Cookie 名称';
-    default:
-      return '表达式';
-  }
-});
-
 // 更新提取类型
 function updateExtractType(value: string) {
   localConfig.value.extractType = value as any;
@@ -105,94 +90,131 @@ function updateDefaultValue(value: string) {
   localConfig.value.defaultValue = value;
   emitUpdate();
 }
+
+// 高级选项展开/折叠
+const showAdvanced = ref(false);
 </script>
 
 <template>
   <div class="extract-param-form">
-    <Form layout="vertical" size="small">
-      <div class="form-row">
-        <Form.Item label="提取方式" class="form-item">
-          <Select
-            :value="localConfig.extractType"
-            :options="EXTRACT_TYPE_OPTIONS"
-            @change="updateExtractType"
-          />
-        </Form.Item>
-        <Form.Item label="保存到变量" class="form-item">
-          <Input
-            :value="localConfig.variableName"
-            placeholder="变量名"
-            @change="(e: any) => updateVariableName(e.target.value)"
-          />
-        </Form.Item>
-      </div>
-
-      <Form.Item :label="expressionLabel">
-        <Input
-          :value="localConfig.expression"
-          :placeholder="expressionPlaceholder"
-          @change="(e: any) => updateExpression(e.target.value)"
+    <div class="inline-form">
+      <Select
+        :value="localConfig.extractType"
+        :options="EXTRACT_TYPE_OPTIONS"
+        placeholder="提取方式"
+        size="small"
+        class="field-type"
+        @change="updateExtractType"
+      />
+      <Input
+        :value="localConfig.expression"
+        :placeholder="expressionPlaceholder"
+        size="small"
+        class="field-expr"
+        @change="(e: any) => updateExpression(e.target.value)"
+      />
+      <Input
+        :value="localConfig.variableName"
+        placeholder="保存到变量"
+        size="small"
+        class="field-var"
+        @change="(e: any) => updateVariableName(e.target.value)"
+      />
+      <Tooltip title="高级选项">
+        <button
+          class="advanced-btn"
+          :class="{ active: showAdvanced }"
+          @click="showAdvanced = !showAdvanced"
+        >
+          <SettingsIcon class="size-3.5" />
+        </button>
+      </Tooltip>
+    </div>
+    <div v-if="showAdvanced" class="advanced-row">
+      <Tooltip title="-1 表示提取全部匹配结果">
+        <InputNumber
+          :value="localConfig.index"
+          :min="-1"
+          placeholder="索引: 0"
+          size="small"
+          class="field-index"
+          @change="updateIndex"
         />
-      </Form.Item>
-
-      <div class="form-row">
-        <Form.Item label="匹配索引" class="form-item">
-          <InputNumber
-            :value="localConfig.index"
-            :min="-1"
-            placeholder="0"
-            class="full-width"
-            @change="updateIndex"
-          />
-          <div class="form-hint">-1 表示提取全部匹配结果</div>
-        </Form.Item>
-        <Form.Item label="默认值" class="form-item">
-          <Input
-            :value="localConfig.defaultValue"
-            placeholder="提取失败时使用的默认值"
-            @change="(e: any) => updateDefaultValue(e.target.value)"
-          />
-        </Form.Item>
-      </div>
-    </Form>
+      </Tooltip>
+      <Input
+        :value="localConfig.defaultValue"
+        placeholder="默认值（提取失败时使用）"
+        size="small"
+        class="field-default"
+        @change="(e: any) => updateDefaultValue(e.target.value)"
+      />
+    </div>
   </div>
 </template>
 
 <style scoped>
-.extract-param-form {
-  max-width: 500px;
-}
-
-.form-row {
+.inline-form {
   display: flex;
-  gap: 12px;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.form-item {
+.field-type {
+  min-width: 110px;
+  flex-shrink: 0;
+}
+
+.field-expr {
   flex: 1;
-  margin-bottom: 12px;
+  min-width: 120px;
 }
 
-.full-width {
-  width: 100%;
+.field-var {
+  width: 130px;
+  flex-shrink: 0;
 }
 
-.form-hint {
-  margin-top: 4px;
-  font-size: 11px;
+.advanced-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 24px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 4px;
+  background: transparent;
   color: hsl(var(--foreground) / 50%);
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
 }
 
-:deep(.ant-form-item) {
-  margin-bottom: 12px;
+.advanced-btn:hover {
+  color: hsl(var(--foreground) / 80%);
+  border-color: hsl(var(--primary) / 50%);
 }
 
-:deep(.ant-form-item-label) {
-  padding-bottom: 4px;
+.advanced-btn.active {
+  color: hsl(var(--primary));
+  border-color: hsl(var(--primary) / 50%);
+  background: hsl(var(--primary) / 8%);
 }
 
-:deep(.ant-form-item-label > label) {
-  font-size: 12px;
-  color: hsl(var(--foreground) / 70%);
+.advanced-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.field-index {
+  width: 110px;
+  flex-shrink: 0;
+}
+
+.field-default {
+  flex: 1;
+  min-width: 120px;
 }
 </style>

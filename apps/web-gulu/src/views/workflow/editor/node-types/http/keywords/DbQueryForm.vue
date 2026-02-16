@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 
-import { Form, Input, Select } from 'ant-design-vue';
+import { Input, Select } from 'ant-design-vue';
 
 import type { DbQueryConfig } from '../../../types';
 import { createDbQueryConfig } from '../../../types';
@@ -72,62 +72,55 @@ LIMIT 10;
 
 <template>
   <div class="db-query-form">
-    <Form layout="vertical" size="small">
-      <div class="form-row">
-        <Form.Item label="数据源" class="form-item">
-          <Select
-            :value="localConfig.datasourceId"
-            :options="datasourceOptions"
-            placeholder="选择数据源"
-            @change="updateDatasource"
-          />
-        </Form.Item>
-        <Form.Item label="保存结果到变量" class="form-item">
-          <Input
-            :value="localConfig.variableName"
-            placeholder="变量名（可选）"
-            @change="(e: any) => updateVariableName(e.target.value)"
-          />
-        </Form.Item>
-      </div>
-
-      <Form.Item label="SQL 语句">
-        <Input.TextArea
-          :value="localConfig.sql"
-          :placeholder="exampleSql"
-          :rows="8"
-          class="sql-editor"
-          @change="(e: any) => updateSql(e.target.value)"
-        />
-      </Form.Item>
-    </Form>
-
-    <div class="form-tips">
-      <div class="tip-item">
-        <span class="tip-label">提示：</span>
-        <span class="tip-text">SQL 中可以使用 ${'{'}variableName{'}'} 引用变量</span>
-      </div>
-      <div class="tip-item">
-        <span class="tip-label">结果：</span>
-        <span class="tip-text">查询结果将以 JSON 数组格式保存到指定变量</span>
-      </div>
+    <div class="inline-form">
+      <Select
+        :value="localConfig.datasourceId"
+        :options="datasourceOptions"
+        placeholder="选择数据源"
+        size="small"
+        class="field-datasource"
+        @change="updateDatasource"
+      />
+      <Input
+        :value="localConfig.variableName"
+        placeholder="保存到变量（可选）"
+        size="small"
+        class="field-var"
+        @change="(e: any) => updateVariableName(e.target.value)"
+      />
     </div>
+    <Input.TextArea
+      :value="localConfig.sql"
+      :placeholder="exampleSql"
+      :rows="4"
+      size="small"
+      class="sql-editor"
+      @change="(e: any) => updateSql(e.target.value)"
+    />
   </div>
 </template>
 
 <style scoped>
 .db-query-form {
-  max-width: 600px;
-}
-
-.form-row {
   display: flex;
-  gap: 12px;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.form-item {
+.inline-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.field-datasource {
+  min-width: 160px;
+  flex-shrink: 0;
+}
+
+.field-var {
   flex: 1;
-  margin-bottom: 12px;
+  min-width: 120px;
 }
 
 .sql-editor {
@@ -137,38 +130,5 @@ LIMIT 10;
 
 .sql-editor :deep(.ant-input) {
   border-radius: 6px;
-}
-
-.form-tips {
-  margin-top: 12px;
-  padding: 8px 12px;
-  background: hsl(var(--accent) / 30%);
-  border-radius: 6px;
-}
-
-.tip-item {
-  font-size: 12px;
-  line-height: 1.8;
-}
-
-.tip-label {
-  color: hsl(var(--foreground) / 70%);
-}
-
-.tip-text {
-  color: hsl(var(--foreground) / 50%);
-}
-
-:deep(.ant-form-item) {
-  margin-bottom: 12px;
-}
-
-:deep(.ant-form-item-label) {
-  padding-bottom: 4px;
-}
-
-:deep(.ant-form-item-label > label) {
-  font-size: 12px;
-  color: hsl(var(--foreground) / 70%);
 }
 </style>
