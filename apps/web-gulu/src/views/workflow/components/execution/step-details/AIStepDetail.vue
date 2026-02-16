@@ -9,7 +9,12 @@ import { Alert } from 'ant-design-vue';
 
 import type { StepResult } from '#/api/debug';
 
-import { AIResponsePanel, type AIResponseData } from '../../shared';
+import {
+  AIResponsePanel,
+  ConsoleLogPanel,
+  type AIResponseData,
+  type ConsoleLogEntry,
+} from '../../shared';
 
 // AI 输出类型定义（后端返回的 snake_case 格式）
 interface AIOutput {
@@ -29,6 +34,7 @@ interface AIOutput {
     is_error: boolean;
     duration_ms: number;
   }>;
+  console_logs?: ConsoleLogEntry[];
 }
 
 interface Props {
@@ -97,6 +103,12 @@ const streamingContent = computed(() => {
 const isStreaming = computed(() => {
   return props.currentAIStepId === props.stepResult.stepId && props.stepResult.status === 'running';
 });
+
+// 后置处理器日志
+const consoleLogs = computed<ConsoleLogEntry[]>(() => {
+  const output = props.stepResult.output as AIOutput | undefined;
+  return output?.console_logs || [];
+});
 </script>
 
 <template>
@@ -117,7 +129,13 @@ const isStreaming = computed(() => {
       :is-streaming="isStreaming"
     />
 
-    <div v-else-if="!stepResult.error" class="empty-state">
+    <!-- 后置处理器日志 -->
+    <ConsoleLogPanel
+      v-if="consoleLogs.length > 0"
+      :logs="consoleLogs"
+    />
+
+    <div v-else-if="!stepResult.error && !aiResponse" class="empty-state">
       {{ stepResult.status === 'running' ? '等待 AI 回复...' : '无响应数据' }}
     </div>
   </div>

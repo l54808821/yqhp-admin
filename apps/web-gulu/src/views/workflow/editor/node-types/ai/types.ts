@@ -24,6 +24,7 @@ export interface AIStepNode {
   type: 'ai';
   name: string;
   config: AIConfig;
+  postProcessors?: import('../../types').KeywordConfig[];
 }
 
 export interface BuiltinTool {

@@ -15,6 +15,8 @@ import {
   type AIResponseData,
 } from '../../../components/shared';
 
+import type { KeywordConfig } from '../../types';
+import ProcessorPanel from '../http/ProcessorPanel.vue';
 import type { AIConfig } from './types';
 import { createDefaultAIConfig } from './types';
 import BasicConfigPanel from './BasicConfigPanel.vue';
@@ -33,6 +35,7 @@ interface AIStepNode {
   type: string;
   name: string;
   config: AIConfig;
+  postProcessors?: KeywordConfig[];
 }
 
 interface Props {
@@ -72,6 +75,9 @@ watch(
       if (!localNode.value!.config) {
         localNode.value!.config = createDefaultAIConfig();
       }
+      if (!localNode.value!.postProcessors) {
+        localNode.value!.postProcessors = [];
+      }
     }
   },
   { immediate: true, deep: true },
@@ -88,6 +94,20 @@ function handleConfigUpdate(patch: Partial<AIConfig>) {
   if (!localNode.value?.config) return;
   Object.assign(localNode.value.config, patch);
   emitUpdate();
+}
+
+// 后置处理器计数
+const postProcessorsCount = computed(() => {
+  const processors = localNode.value?.postProcessors;
+  return Array.isArray(processors) ? processors.filter((p: KeywordConfig) => p.enabled).length : 0;
+});
+
+// 更新后置处理器
+function updatePostProcessors(processors: KeywordConfig[]) {
+  if (localNode.value) {
+    localNode.value.postProcessors = processors;
+    emitUpdate();
+  }
 }
 
 // 执行 AI 节点
@@ -130,6 +150,13 @@ async function handleRun() {
             mcp_server_ids: localNode.value.config.mcp_server_ids || [],
             max_tool_rounds: localNode.value.config.max_tool_rounds || 10,
           },
+          postProcessors: localNode.value.postProcessors?.map((p: KeywordConfig) => ({
+            id: p.id,
+            type: p.type,
+            enabled: p.enabled,
+            name: p.name,
+            config: p.config,
+          })),
         },
         variables: cachedVariables as Record<string, unknown> | undefined,
         envId: props.envId || 0,
@@ -287,6 +314,18 @@ function stopDrag() {
               @update="handleConfigUpdate"
             />
           </Tabs.TabPane>
+
+          <Tabs.TabPane key="post">
+            <template #tab>
+              <span>后置处理</span>
+              <span v-if="postProcessorsCount > 0" class="tab-badge">{{ postProcessorsCount }}</span>
+            </template>
+            <ProcessorPanel
+              mode="post"
+              :processors="localNode.postProcessors || []"
+              @update="updatePostProcessors"
+            />
+          </Tabs.TabPane>
         </Tabs>
       </div>
     </div>
@@ -424,5 +463,20 @@ function stopDrag() {
 .loading-placeholder {
   height: 100%;
   min-height: 150px;
+}
+
+.tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 12%);
+  border-radius: 9px;
 }
 </style>
