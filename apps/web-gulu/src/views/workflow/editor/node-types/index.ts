@@ -13,7 +13,7 @@ import {
 import AIProperty from './ai/AIPropertyPanel.vue';
 import ConditionProperty from './ConditionProperty.vue';
 import ConditionBranchProperty from './ConditionBranchProperty.vue';
-import DatabaseProperty from './DatabaseProperty.vue';
+import DatabasePropertyPanel from './database/DatabasePropertyPanel.vue';
 import HttpPropertyPanel from './http/HttpPropertyPanel.vue';
 import LoopProperty from './LoopProperty.vue';
 import MqProperty from './MqProperty.vue';
@@ -182,11 +182,28 @@ export const nodeTypeRegistry: Record<string, NodeTypeConfig> = {
     label: '数据库',
     icon: Database,
     color: '#1890ff',
-    propertyComponent: DatabaseProperty,
+    propertyComponent: DatabasePropertyPanel,
     defaultConfig: () => ({
-      config: { database_config: '', query: '', params: [] },
+      config: {
+        datasourceCode: '',
+        action: 'query',
+        sql: '',
+        params: [],
+        settings: {
+          timeout: 30000,
+          maxRows: 1000,
+          saveToVariable: '',
+        },
+      },
+      preProcessors: [],
+      postProcessors: [],
     }),
-    getDescription: (node) => (node.config?.query ? node.config.query.slice(0, 30) : ''),
+    getDescription: (node) => {
+      const action = node.config?.action || 'query';
+      const sql = node.config?.sql;
+      if (sql) return `${action.toUpperCase()} ${sql.slice(0, 30)}`;
+      return action.toUpperCase();
+    },
   },
   wait: {
     key: 'wait',

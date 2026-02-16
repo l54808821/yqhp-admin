@@ -1,0 +1,684 @@
+<script setup lang="ts">
+/**
+ * 数据库节点属性面板
+ * 参考 HttpPropertyPanel 的设计风格，提供丰富的数据库操作配置
+ */
+import { computed, ref, watch } from 'vue';
+import { useDebounceFn } from '@vueuse/core';
+
+import { createIconifyIcon } from '@vben/icons';
+import {
+  Button,
+  Dropdown,
+  Input,
+  Menu,
+  Spin,
+  Tabs,
+  message,
+} from 'ant-design-vue';
+
+import type { DatabaseStepNode, ParamItem, KeywordConfig, DatabaseResponseData } from '../../types';
+import { createDatabaseConfig, DB_ACTION_COLORS, DB_ACTION_OPTIONS } from '../../types';
+import { executeApi } from '#/api/debug';
+import { useDebugContext } from '../../../components/execution/composables/useDebugContext';
+
+// 子组件
+import ParamTable from '../../components/ParamTable.vue';
+import ProcessorPanel from '../http/ProcessorPanel.vue';
+import DatabaseSettingsPanel from './DatabaseSettingsPanel.vue';
+import DatabaseResponsePanel from './DatabaseResponsePanel.vue';
+import DatasourceSelector from './DatasourceSelector.vue';
+
+// 图标
+const PlayIcon = createIconifyIcon('lucide:play');
+const ChevronDownIcon = createIconifyIcon('lucide:chevron-down');
+const GripHorizontalIcon = createIconifyIcon('lucide:grip-horizontal');
+
+interface Props {
+  node: DatabaseStepNode;
+  envId?: number;
+  workflowId?: number;
+}
+
+const props = defineProps<Props>();
+
+const emit = defineEmits<{
+  (e: 'update', node: DatabaseStepNode): void;
+}>();
+
+// 调试上下文
+const debugContext = useDebugContext();
+const hasDebugCtx = computed(
+  () => !!props.workflowId && debugContext.hasContext(props.workflowId),
+);
+
+// 本地数据
+const localNode = ref<DatabaseStepNode | null>(null);
+const activeTab = ref('sql');
+const isDebugging = ref(false);
+const debugResponse = ref<DatabaseResponseData | null>(null);
+
+// 分割面板相关
+const containerRef = ref<HTMLElement | null>(null);
+const isDragging = ref(false);
+const requestPanelHeight = ref(60);
+
+// 同步外部数据
+watch(
+  () => props.node,
+  (newNode) => {
+    if (newNode) {
+      localNode.value = JSON.parse(JSON.stringify(newNode));
+      if (!localNode.value!.config) {
+        localNode.value!.config = createDatabaseConfig();
+      }
+      if (!localNode.value!.config.params) {
+        localNode.value!.config.params = [];
+      }
+      if (!localNode.value!.preProcessors) {
+        localNode.value!.preProcessors = [];
+      }
+      if (!localNode.value!.postProcessors) {
+        localNode.value!.postProcessors = [];
+      }
+    }
+  },
+  { immediate: true, deep: true },
+);
+
+// 当前操作颜色
+const currentActionColor = computed(() => {
+  const action = localNode.value?.config?.action || 'query';
+  return DB_ACTION_COLORS[action] || DB_ACTION_COLORS.query;
+});
+
+// 当前操作标签
+const currentActionLabel = computed(() => {
+  const action = localNode.value?.config?.action || 'query';
+  const option = DB_ACTION_OPTIONS.find((o) => o.value === action);
+  return option?.label || 'Query';
+});
+
+// 防抖更新
+const debouncedEmit = useDebounceFn(() => {
+  if (localNode.value) {
+    emit('update', JSON.parse(JSON.stringify(localNode.value)));
+  }
+}, 300);
+
+function emitUpdate() {
+  debouncedEmit();
+}
+
+function updateAction(action: string) {
+  if (localNode.value?.config) {
+    localNode.value.config.action = action as any;
+    emitUpdate();
+  }
+}
+
+function updateDatasourceCode(code: string) {
+  if (localNode.value?.config) {
+    localNode.value.config.datasourceCode = code;
+    emitUpdate();
+  }
+}
+
+function updateSql(sql: string) {
+  if (localNode.value?.config) {
+    localNode.value.config.sql = sql;
+    emitUpdate();
+  }
+}
+
+function updateParams(params: ParamItem[]) {
+  if (localNode.value?.config) {
+    localNode.value.config.params = params;
+    emitUpdate();
+  }
+}
+
+function updateSettings(settings: any) {
+  if (localNode.value?.config) {
+    localNode.value.config.settings = settings;
+    emitUpdate();
+  }
+}
+
+function updatePreProcessors(processors: KeywordConfig[]) {
+  if (localNode.value) {
+    localNode.value.preProcessors = processors;
+    emitUpdate();
+  }
+}
+
+function updatePostProcessors(processors: KeywordConfig[]) {
+  if (localNode.value) {
+    localNode.value.postProcessors = processors;
+    emitUpdate();
+  }
+}
+
+// 发送执行请求（阻塞模式）
+async function handleExecute() {
+  if (!localNode.value || isDebugging.value) return;
+
+  isDebugging.value = true;
+
+  const cachedVariables = props.workflowId
+    ? debugContext.getVariables(props.workflowId)
+    : undefined;
+
+  try {
+    const response = await executeApi({
+      step: {
+        id: localNode.value.id,
+        type: 'database',
+        name: localNode.value.name || '数据库操作',
+        config: localNode.value.config as any,
+        preProcessors: localNode.value.preProcessors?.map((p: KeywordConfig) => ({
+          id: p.id,
+          type: p.type,
+          enabled: p.enabled,
+          name: p.name,
+          config: p.config,
+        })),
+        postProcessors: localNode.value.postProcessors?.map((p: KeywordConfig) => ({
+          id: p.id,
+          type: p.type,
+          enabled: p.enabled,
+          name: p.name,
+          config: p.config,
+        })),
+      },
+      variables: cachedVariables as Record<string, unknown> | undefined,
+      envId: props.envId || 0,
+      mode: 'debug',
+      stream: false,
+      persist: false,
+    });
+
+    const stepResult = response.steps?.[0];
+    if (stepResult?.result) {
+      const result = stepResult.result as any;
+      debugResponse.value = {
+        success: result.success ?? stepResult.success,
+        action: localNode.value.config.action || 'query',
+        durationMs: result.durationMs ?? stepResult.durationMs ?? 0,
+        data: result.data,
+        columns: result.columns,
+        rowCount: result.rowCount ?? result.data?.length,
+        rowsAffected: result.rowsAffected ?? result.rows_affected,
+        count: result.count,
+        exists: result.exists,
+        actualSql: result.actualSql ?? result.actual_sql,
+        error: result.error ?? stepResult.error,
+        consoleLogs: result.consoleLogs,
+        assertions: result.assertions,
+      };
+    } else {
+      // 步骤级错误
+      debugResponse.value = {
+        success: false,
+        action: localNode.value.config.action || 'query',
+        durationMs: stepResult?.durationMs ?? 0,
+        error: stepResult?.error || '未获取到执行结果',
+      };
+    }
+  } catch (error: any) {
+    debugResponse.value = {
+      success: false,
+      action: localNode.value.config.action || 'query',
+      durationMs: 0,
+      error: error.message || '执行失败',
+    };
+    message.error(error.message || '执行失败');
+  } finally {
+    isDebugging.value = false;
+  }
+}
+
+// 拖拽分割条
+function startDrag(e: MouseEvent) {
+  isDragging.value = true;
+  document.addEventListener('mousemove', onDrag);
+  document.addEventListener('mouseup', stopDrag);
+  e.preventDefault();
+}
+
+function onDrag(e: MouseEvent) {
+  if (!isDragging.value || !containerRef.value) return;
+  const rect = containerRef.value.getBoundingClientRect();
+  const offsetY = e.clientY - rect.top;
+  const percentage = (offsetY / rect.height) * 100;
+  requestPanelHeight.value = Math.min(80, Math.max(20, percentage));
+}
+
+function stopDrag() {
+  isDragging.value = false;
+  document.removeEventListener('mousemove', onDrag);
+  document.removeEventListener('mouseup', stopDrag);
+}
+
+// Tab 数量
+const paramsCount = computed(() => {
+  const params = localNode.value?.config?.params;
+  return Array.isArray(params) ? params.filter((p) => p.enabled && p.key).length : 0;
+});
+const preProcessorsCount = computed(() => {
+  const processors = localNode.value?.preProcessors;
+  return Array.isArray(processors) ? processors.filter((p: KeywordConfig) => p.enabled).length : 0;
+});
+const postProcessorsCount = computed(() => {
+  const processors = localNode.value?.postProcessors;
+  return Array.isArray(processors) ? processors.filter((p: KeywordConfig) => p.enabled).length : 0;
+});
+
+// SQL 占位符提示
+const sqlPlaceholder = computed(() => {
+  const action = localNode.value?.config?.action || 'query';
+  switch (action) {
+    case 'query':
+      return 'SELECT * FROM users WHERE id = ? LIMIT 10;\n\n-- 支持变量: ${userId}\n-- 支持参数占位符: ?';
+    case 'execute':
+      return 'INSERT INTO users (name, email) VALUES (?, ?);\n\n-- 或 UPDATE / DELETE 语句';
+    case 'count':
+      return 'SELECT COUNT(*) FROM users WHERE status = ?';
+    case 'exists':
+      return 'SELECT 1 FROM users WHERE email = ?';
+    default:
+      return '输入 SQL 语句...';
+  }
+});
+</script>
+
+<template>
+  <div class="db-panel" ref="containerRef" v-if="localNode">
+    <!-- 请求区域 -->
+    <div
+      class="request-section"
+      :style="{ height: debugResponse ? `${requestPanelHeight}%` : '100%' }"
+    >
+      <!-- 操作栏 -->
+      <div class="action-bar">
+        <!-- 操作类型选择器 -->
+        <Dropdown :trigger="['click']">
+          <button
+            class="action-btn"
+            :style="{ '--action-color': currentActionColor }"
+          >
+            {{ currentActionLabel }}
+            <ChevronDownIcon class="size-3 ml-1 opacity-60" />
+          </button>
+          <template #overlay>
+            <Menu @click="({ key }: any) => updateAction(key)">
+              <Menu.Item
+                v-for="opt in DB_ACTION_OPTIONS"
+                :key="opt.value"
+              >
+                <div class="action-option">
+                  <span :style="{ color: opt.color, fontWeight: 600 }">{{ opt.label }}</span>
+                  <span class="action-desc">{{ opt.description }}</span>
+                </div>
+              </Menu.Item>
+            </Menu>
+          </template>
+        </Dropdown>
+
+        <!-- 数据源选择器 -->
+        <DatasourceSelector
+          :datasource-code="localNode.config?.datasourceCode || ''"
+          @update:datasource-code="updateDatasourceCode"
+        />
+
+        <!-- 填充空间 -->
+        <div class="action-bar-spacer" />
+
+        <!-- 调试上下文指示器 -->
+        <span v-if="hasDebugCtx" class="debug-ctx-dot" title="使用调试上下文变量" />
+
+        <!-- 执行按钮 -->
+        <Button
+          type="primary"
+          class="execute-btn"
+          :loading="isDebugging"
+          @click="handleExecute"
+        >
+          <template #icon><PlayIcon class="size-4" /></template>
+          执 行
+        </Button>
+      </div>
+
+      <!-- 配置 Tabs -->
+      <Tabs v-model:activeKey="activeTab" class="config-tabs" size="small">
+        <Tabs.TabPane key="sql">
+          <template #tab>
+            <span>SQL</span>
+          </template>
+          <div class="tab-content sql-tab">
+            <Input.TextArea
+              :value="localNode.config?.sql"
+              :placeholder="sqlPlaceholder"
+              :rows="12"
+              class="sql-editor"
+              @change="(e: any) => updateSql(e.target.value)"
+            />
+          </div>
+        </Tabs.TabPane>
+
+        <Tabs.TabPane key="params">
+          <template #tab>
+            <span>参数</span>
+            <span v-if="paramsCount > 0" class="tab-badge">{{ paramsCount }}</span>
+          </template>
+          <div class="tab-content">
+            <div class="params-hint">
+              SQL 中使用 <code>?</code> 占位符，参数按顺序绑定。支持变量引用 <code>${'{'}变量名{'}'}</code>
+            </div>
+            <ParamTable
+              :items="localNode.config?.params || []"
+              :placeholder="{ key: '参数名（备注用）', value: '参数值' }"
+              @update="updateParams"
+            />
+          </div>
+        </Tabs.TabPane>
+
+        <Tabs.TabPane key="pre">
+          <template #tab>
+            <span>前置操作</span>
+            <span v-if="preProcessorsCount > 0" class="tab-badge">{{ preProcessorsCount }}</span>
+          </template>
+          <div class="tab-content">
+            <ProcessorPanel
+              mode="pre"
+              :processors="localNode.preProcessors || []"
+              @update="updatePreProcessors"
+            />
+          </div>
+        </Tabs.TabPane>
+
+        <Tabs.TabPane key="post">
+          <template #tab>
+            <span>后置操作</span>
+            <span v-if="postProcessorsCount > 0" class="tab-badge">{{ postProcessorsCount }}</span>
+          </template>
+          <div class="tab-content">
+            <ProcessorPanel
+              mode="post"
+              :processors="localNode.postProcessors || []"
+              @update="updatePostProcessors"
+            />
+          </div>
+        </Tabs.TabPane>
+
+        <Tabs.TabPane key="settings" tab="设置">
+          <div class="tab-content">
+            <DatabaseSettingsPanel
+              :settings="localNode.config?.settings"
+              @update="updateSettings"
+            />
+          </div>
+        </Tabs.TabPane>
+      </Tabs>
+    </div>
+
+    <!-- 分割条 -->
+    <div
+      v-if="debugResponse || isDebugging"
+      class="resize-bar"
+      :class="{ dragging: isDragging }"
+      @mousedown="startDrag"
+    >
+      <GripHorizontalIcon class="resize-icon" />
+    </div>
+
+    <!-- 响应区域 -->
+    <div
+      v-if="debugResponse || isDebugging"
+      class="response-section"
+      :style="{ height: `calc(${100 - requestPanelHeight}% - 4px)` }"
+    >
+      <Spin :spinning="isDebugging" tip="执行中...">
+        <DatabaseResponsePanel v-if="debugResponse" :response="debugResponse" />
+        <div v-else class="loading-placeholder" />
+      </Spin>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.db-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: hsl(var(--background));
+  overflow: hidden;
+}
+
+/* 请求区域 */
+.request-section {
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+  overflow: hidden;
+}
+
+/* 操作栏 */
+.action-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: hsl(var(--card));
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--action-color);
+  background: color-mix(in srgb, var(--action-color) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--action-color) 30%, transparent);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.action-btn:hover {
+  background: color-mix(in srgb, var(--action-color) 18%, transparent);
+}
+
+.action-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.action-desc {
+  font-size: 12px;
+  color: hsl(var(--foreground) / 50%);
+}
+
+.action-bar-spacer {
+  flex: 1;
+}
+
+.debug-ctx-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #52c41a;
+  box-shadow: 0 0 4px #52c41a80;
+  flex-shrink: 0;
+}
+
+.execute-btn {
+  height: 32px;
+  padding: 0 20px;
+  font-weight: 500;
+  border-radius: 6px;
+}
+
+/* 配置 Tabs */
+.config-tabs {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.config-tabs :deep(.ant-tabs-nav) {
+  margin: 0;
+  padding: 0 16px;
+  background: hsl(var(--card));
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.config-tabs :deep(.ant-tabs-nav::before) {
+  display: none;
+}
+
+.config-tabs :deep(.ant-tabs-tab) {
+  padding: 8px 4px;
+  font-size: 13px;
+}
+
+.config-tabs :deep(.ant-tabs-tab + .ant-tabs-tab) {
+  margin-left: 20px;
+}
+
+.config-tabs :deep(.ant-tabs-tab-active .ant-tabs-tab-btn) {
+  color: hsl(var(--primary));
+  font-weight: 500;
+}
+
+.config-tabs :deep(.ant-tabs-ink-bar) {
+  background: hsl(var(--primary));
+}
+
+.config-tabs :deep(.ant-tabs-content-holder) {
+  flex: 1;
+  overflow: hidden;
+}
+
+.config-tabs :deep(.ant-tabs-content) {
+  height: 100%;
+}
+
+.config-tabs :deep(.ant-tabs-tabpane) {
+  height: 100%;
+  overflow: hidden;
+}
+
+.tab-content {
+  height: 100%;
+  padding: 12px 16px;
+  overflow-y: auto;
+}
+
+.tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 12%);
+  border-radius: 9px;
+}
+
+/* SQL 编辑器 */
+.sql-tab {
+  padding: 12px 16px;
+}
+
+.sql-editor {
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  border-radius: 6px;
+}
+
+.sql-editor :deep(.ant-input) {
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* 参数提示 */
+.params-hint {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: hsl(var(--foreground) / 55%);
+  background: hsl(var(--accent) / 40%);
+  border-radius: 6px;
+  line-height: 1.6;
+}
+
+.params-hint code {
+  padding: 1px 4px;
+  font-size: 11px;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  background: hsl(var(--accent));
+  border-radius: 3px;
+  color: hsl(var(--primary));
+}
+
+/* 分割条 */
+.resize-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 4px;
+  background: hsl(var(--border));
+  cursor: row-resize;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.resize-bar:hover,
+.resize-bar.dragging {
+  background: hsl(var(--primary) / 40%);
+}
+
+.resize-icon {
+  width: 20px;
+  height: 8px;
+  color: hsl(var(--foreground) / 25%);
+}
+
+.resize-bar:hover .resize-icon,
+.resize-bar.dragging .resize-icon {
+  color: hsl(var(--primary));
+}
+
+/* 响应区域 */
+.response-section {
+  display: flex;
+  flex-direction: column;
+  min-height: 150px;
+  overflow: hidden;
+  background: hsl(var(--card));
+}
+
+.response-section :deep(.ant-spin-nested-loading),
+.response-section :deep(.ant-spin-container) {
+  height: 100%;
+}
+
+.loading-placeholder {
+  height: 100%;
+  min-height: 150px;
+}
+</style>

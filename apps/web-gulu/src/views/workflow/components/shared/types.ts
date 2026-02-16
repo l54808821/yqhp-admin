@@ -135,6 +135,38 @@ export interface AIResponseData {
   finishReason?: string;
 }
 
+// 统一的数据库响应数据结构（camelCase）
+export interface DatabaseResponseData {
+  // 执行状态
+  success: boolean;
+  action: string; // query | execute | count | exists
+  durationMs: number; // 毫秒
+
+  // 查询结果（query 操作）
+  data?: Record<string, unknown>[];
+  columns?: string[];
+  rowCount?: number;
+
+  // 执行结果（execute 操作）
+  rowsAffected?: number;
+
+  // count 结果
+  count?: number;
+
+  // exists 结果
+  exists?: boolean;
+
+  // 实际执行的 SQL（变量替换后）
+  actualSql?: string;
+
+  // 错误信息
+  error?: string;
+
+  // 控制台日志
+  consoleLogs?: ConsoleLogEntry[];
+  assertions?: AssertionResult[];
+}
+
 // 单步调试 API 响应类型（后端返回的格式）
 export interface DebugStepApiResponse {
   success: boolean;

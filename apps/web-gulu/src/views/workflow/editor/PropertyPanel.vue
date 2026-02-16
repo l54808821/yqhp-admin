@@ -67,8 +67,11 @@ const isScriptNode = computed(() => localNode.value?.type === 'script');
 // 是否是 AI 节点（使用特殊布局）
 const isAiNode = computed(() => localNode.value?.type === 'ai');
 
+// 是否是数据库节点（使用特殊布局）
+const isDatabaseNode = computed(() => localNode.value?.type === 'database');
+
 // 是否使用特殊布局（无 padding）
-const useSpecialLayout = computed(() => isHttpNode.value || isScriptNode.value || isAiNode.value);
+const useSpecialLayout = computed(() => isHttpNode.value || isScriptNode.value || isAiNode.value || isDatabaseNode.value);
 
 // 是否是条件分支节点（不显示通用的节点名称字段）
 const isConditionBranch = computed(() => localNode.value?.type === 'condition_branch');
@@ -164,6 +167,29 @@ function handleDelete(node: any) {
         />
       </template>
 
+      <!-- 数据库节点使用特殊布局 -->
+      <template v-else-if="isDatabaseNode">
+        <div class="panel-header database-header">
+          <Input
+            v-model:value="localNode.name"
+            class="node-name-input"
+            placeholder="节点名称"
+            @blur="handleUpdate()"
+          />
+          <Button type="text" size="small" @click="handleClose">
+            <template #icon><X class="size-4" /></template>
+          </Button>
+        </div>
+        <component
+          :is="propertyComponent"
+          :node="localNode"
+          :env-id="envId"
+          :workflow-id="workflowId"
+          class="database-panel-wrapper"
+          @update="handleUpdate"
+        />
+      </template>
+
       <!-- 其他节点使用原有布局 -->
       <template v-else>
         <div class="panel-header">
@@ -228,7 +254,8 @@ function handleDelete(node: any) {
 
 .panel-header.http-header,
 .panel-header.script-header,
-.panel-header.ai-header {
+.panel-header.ai-header,
+.panel-header.database-header {
   height: 49px;
   padding: 0 16px;
   margin-bottom: 0;
@@ -263,7 +290,8 @@ function handleDelete(node: any) {
 
 .http-panel-wrapper,
 .script-panel-wrapper,
-.ai-panel-wrapper {
+.ai-panel-wrapper,
+.database-panel-wrapper {
   flex: 1;
   min-height: 0;
   overflow: hidden;

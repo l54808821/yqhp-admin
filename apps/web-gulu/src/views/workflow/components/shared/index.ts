@@ -14,6 +14,7 @@ export type {
   ToolCallRecord,
   HttpResponseData,
   ScriptResponseData,
+  DatabaseResponseData,
   ConsoleLogEntry,
   ProcessorLogInfo,
   ConsoleLogType,
