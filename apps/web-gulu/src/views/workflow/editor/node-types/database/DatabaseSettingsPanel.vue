@@ -53,91 +53,75 @@ function updateSaveToVariable(value: string) {
 <template>
   <div class="settings-panel">
     <Form layout="vertical" class="settings-form">
-      <!-- 超时设置 -->
-      <div class="settings-section">
-        <div class="section-title">超时设置</div>
-        <div class="settings-row">
-          <Form.Item label="查询超时 (ms)" class="settings-item">
-            <InputNumber
-              :value="localSettings.timeout"
-              :min="0"
-              :max="300000"
-              :step="1000"
-              placeholder="30000"
-              class="settings-input"
-              @change="updateTimeout"
-            />
-          </Form.Item>
-        </div>
-      </div>
+      <Form.Item class="settings-item">
+        <template #label>
+          <span class="item-label">查询超时</span>
+        </template>
+        <InputNumber
+          :value="localSettings.timeout"
+          :min="0"
+          :max="300000"
+          :step="1000"
+          :addon-after="'ms'"
+          placeholder="30000"
+          class="settings-input"
+          @change="updateTimeout"
+        />
+      </Form.Item>
 
-      <!-- 结果限制 -->
-      <div class="settings-section">
-        <div class="section-title">结果限制</div>
-        <div class="settings-row">
-          <Form.Item label="最大返回行数" class="settings-item">
-            <InputNumber
-              :value="localSettings.maxRows"
-              :min="1"
-              :max="100000"
-              :step="100"
-              placeholder="1000"
-              class="settings-input"
-              @change="updateMaxRows"
-            />
-            <span class="settings-hint">限制查询返回的最大行数，防止意外大查询</span>
-          </Form.Item>
-        </div>
-      </div>
+      <Form.Item class="settings-item">
+        <template #label>
+          <span class="item-label">最大返回行数</span>
+        </template>
+        <InputNumber
+          :value="localSettings.maxRows"
+          :min="1"
+          :max="100000"
+          :step="100"
+          placeholder="1000"
+          class="settings-input"
+          @change="updateMaxRows"
+        />
+        <div class="settings-hint">限制返回行数，防止意外大查询</div>
+      </Form.Item>
 
-      <!-- 变量设置 -->
-      <div class="settings-section">
-        <div class="section-title">变量设置</div>
-        <div class="settings-row">
-          <Form.Item label="保存结果到变量" class="settings-item">
-            <Input
-              :value="localSettings.saveToVariable"
-              placeholder="变量名（可选），如 dbResult"
-              class="settings-input"
-              @change="(e: any) => updateSaveToVariable(e.target.value)"
-            />
-            <span class="settings-hint">将查询结果保存到变量中，后续步骤可通过 ${'{'}变量名{'}'} 引用</span>
-          </Form.Item>
+      <Form.Item class="settings-item">
+        <template #label>
+          <span class="item-label">保存结果到变量</span>
+        </template>
+        <Input
+          :value="localSettings.saveToVariable"
+          placeholder="变量名（可选），如 dbResult"
+          class="settings-input"
+          @change="(e: any) => updateSaveToVariable(e.target.value)"
+        />
+        <div class="settings-hint">
+          后续步骤可通过
+          <code class="hint-code">${'{'}变量名{'}'}</code>
+          引用查询结果
         </div>
-      </div>
+      </Form.Item>
     </Form>
   </div>
 </template>
 
 <style scoped>
 .settings-panel {
-  padding: 4px 0;
+  padding: 8px 0 0;
 }
 
 .settings-form {
-  max-width: 600px;
-}
-
-.settings-section {
-  margin-bottom: 24px;
-}
-
-.section-title {
-  margin-bottom: 12px;
-  font-size: 13px;
-  font-weight: 500;
-  color: hsl(var(--foreground) / 80%);
-}
-
-.settings-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
+  max-width: 480px;
 }
 
 .settings-item {
-  min-width: 200px;
-  margin-bottom: 0;
+  margin-bottom: 16px;
+}
+
+.item-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: hsl(var(--foreground) / 85%);
 }
 
 .settings-input {
@@ -145,9 +129,18 @@ function updateSaveToVariable(value: string) {
 }
 
 .settings-hint {
-  display: block;
   margin-top: 4px;
   font-size: 12px;
-  color: hsl(var(--foreground) / 50%);
+  line-height: 1.4;
+  color: hsl(var(--foreground) / 45%);
+}
+
+.hint-code {
+  padding: 1px 4px;
+  font-family: monospace;
+  font-size: 11px;
+  color: hsl(var(--foreground) / 60%);
+  background: hsl(var(--foreground) / 6%);
+  border-radius: 3px;
 }
 </style>
