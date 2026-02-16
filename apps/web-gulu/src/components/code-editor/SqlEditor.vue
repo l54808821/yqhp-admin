@@ -7,6 +7,8 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { Button, Collapse, Tooltip, message } from 'ant-design-vue';
 import { createIconifyIcon } from '@vben/icons';
+import * as monaco from 'monaco-editor';
+import { format as formatSQL } from 'sql-formatter';
 import CodeEditor from './CodeEditor.vue';
 import {
   registerSqlCompletionProvider,
@@ -214,9 +216,39 @@ const filteredTables = computed(() => {
   );
 });
 
+// ==================== SQL 格式化 Provider ====================
+
+let formatProviderDisposable: monaco.IDisposable | null = null;
+
+function registerSqlFormatProvider() {
+  if (formatProviderDisposable) return;
+  formatProviderDisposable = monaco.languages.registerDocumentFormattingEditProvider('sql', {
+    provideDocumentFormattingEdits(model) {
+      const text = model.getValue();
+      try {
+        const formatted = formatSQL(text, {
+          language: 'mysql',
+          tabWidth: 2,
+          keywordCase: 'upper',
+          linesBetweenQueries: 2,
+        });
+        return [
+          {
+            range: model.getFullModelRange(),
+            text: formatted,
+          },
+        ];
+      } catch {
+        return [];
+      }
+    },
+  });
+}
+
 // ==================== 生命周期 ====================
 
 onMounted(() => {
+  registerSqlFormatProvider();
   completionController = registerSqlCompletionProvider(props.datasourceCode);
   if (props.datasourceCode && props.envId) {
     loadSchema();
@@ -226,6 +258,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   completionController?.dispose();
   completionController = null;
+  formatProviderDisposable?.dispose();
+  formatProviderDisposable = null;
 });
 
 // ==================== 监听 ====================

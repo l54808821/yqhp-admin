@@ -9,15 +9,13 @@ import { useDebounceFn } from '@vueuse/core';
 import { createIconifyIcon } from '@vben/icons';
 import {
   Button,
-  Dropdown,
-  Menu,
   Spin,
   Tabs,
   message,
 } from 'ant-design-vue';
 
-import type { DatabaseStepNode, ParamItem, KeywordConfig, DatabaseResponseData } from '../../types';
-import { createDatabaseConfig, DB_ACTION_COLORS, DB_ACTION_OPTIONS } from '../../types';
+import type { DatabaseStepNode, ParamItem, KeywordConfig, DatabaseResponseData, DatabaseAction } from '../../types';
+import { createDatabaseConfig } from '../../types';
 import { executeApi } from '#/api/debug';
 import { useDebugContext } from '../../../components/execution/composables/useDebugContext';
 
@@ -31,7 +29,6 @@ import { SqlEditor } from '#/components/code-editor';
 
 // 图标
 const PlayIcon = createIconifyIcon('lucide:play');
-const ChevronDownIcon = createIconifyIcon('lucide:chevron-down');
 const GripHorizontalIcon = createIconifyIcon('lucide:grip-horizontal');
 
 interface Props {
@@ -86,18 +83,18 @@ watch(
   { immediate: true, deep: true },
 );
 
-// 当前操作颜色
-const currentActionColor = computed(() => {
-  const action = localNode.value?.config?.action || 'query';
-  return DB_ACTION_COLORS[action] || DB_ACTION_COLORS.query;
-});
-
-// 当前操作标签
-const currentActionLabel = computed(() => {
-  const action = localNode.value?.config?.action || 'query';
-  const option = DB_ACTION_OPTIONS.find((o) => o.value === action);
-  return option?.label || 'Query';
-});
+// 从 SQL 语句推断操作类型（用于响应展示）
+function inferActionFromSql(sql: string): DatabaseAction {
+  const trimmed = sql.trim().toUpperCase();
+  if (trimmed.startsWith('SELECT') || trimmed.startsWith('SHOW') || trimmed.startsWith('DESCRIBE') || trimmed.startsWith('EXPLAIN')) {
+    return 'query';
+  }
+  if (trimmed.startsWith('INSERT') || trimmed.startsWith('UPDATE') || trimmed.startsWith('DELETE')
+    || trimmed.startsWith('CREATE') || trimmed.startsWith('ALTER') || trimmed.startsWith('DROP') || trimmed.startsWith('TRUNCATE')) {
+    return 'execute';
+  }
+  return 'query';
+}
 
 // 防抖更新
 const debouncedEmit = useDebounceFn(() => {
@@ -108,13 +105,6 @@ const debouncedEmit = useDebounceFn(() => {
 
 function emitUpdate() {
   debouncedEmit();
-}
-
-function updateAction(action: string) {
-  if (localNode.value?.config) {
-    localNode.value.config.action = action as any;
-    emitUpdate();
-  }
 }
 
 function updateDatasourceCode(code: string) {
@@ -201,9 +191,11 @@ async function handleExecute() {
     const stepResult = response.steps?.[0];
     if (stepResult?.result) {
       const result = stepResult.result as any;
+      const inferredAction = result.action || inferActionFromSql(localNode.value.config?.sql || '');
       debugResponse.value = {
         success: result.success ?? stepResult.success,
-        action: localNode.value.config.action || 'query',
+        action: inferredAction,
+        driver: result.driver,
         durationMs: result.durationMs ?? stepResult.durationMs ?? 0,
         data: result.data,
         columns: result.columns,
@@ -220,7 +212,7 @@ async function handleExecute() {
       // 步骤级错误
       debugResponse.value = {
         success: false,
-        action: localNode.value.config.action || 'query',
+        action: inferActionFromSql(localNode.value.config?.sql || ''),
         durationMs: stepResult?.durationMs ?? 0,
         error: stepResult?.error || '未获取到执行结果',
       };
@@ -228,7 +220,7 @@ async function handleExecute() {
   } catch (error: any) {
     debugResponse.value = {
       success: false,
-      action: localNode.value.config.action || 'query',
+      action: inferActionFromSql(localNode.value.config?.sql || ''),
       durationMs: 0,
       error: error.message || '执行失败',
     };
@@ -301,30 +293,6 @@ const sqlPlaceholder = computed(() => {
     >
       <!-- 操作栏 -->
       <div class="action-bar">
-        <!-- 操作类型选择器 -->
-        <Dropdown :trigger="['click']">
-          <button
-            class="action-btn"
-            :style="{ '--action-color': currentActionColor }"
-          >
-            {{ currentActionLabel }}
-            <ChevronDownIcon class="size-3 ml-1 opacity-60" />
-          </button>
-          <template #overlay>
-            <Menu @click="({ key }: any) => updateAction(key)">
-              <Menu.Item
-                v-for="opt in DB_ACTION_OPTIONS"
-                :key="opt.value"
-              >
-                <div class="action-option">
-                  <span :style="{ color: opt.color, fontWeight: 600 }">{{ opt.label }}</span>
-                  <span class="action-desc">{{ opt.description }}</span>
-                </div>
-              </Menu.Item>
-            </Menu>
-          </template>
-        </Dropdown>
-
         <!-- 数据源选择器 -->
         <DatasourceSelector
           :datasource-code="localNode.config?.datasourceCode || ''"
@@ -472,36 +440,6 @@ const sqlPlaceholder = computed(() => {
   padding: 12px 16px;
   background: hsl(var(--card));
   border-bottom: 1px solid hsl(var(--border));
-}
-
-.action-btn {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 6px 12px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--action-color);
-  background: color-mix(in srgb, var(--action-color) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--action-color) 30%, transparent);
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.action-btn:hover {
-  background: color-mix(in srgb, var(--action-color) 18%, transparent);
-}
-
-.action-option {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.action-desc {
-  font-size: 12px;
-  color: hsl(var(--foreground) / 50%);
 }
 
 .action-bar-spacer {

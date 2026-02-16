@@ -93,16 +93,51 @@ const tableData = computed(() => {
   }));
 });
 
-// JSON 格式的响应
+// JSON 视图：只展示 data 数据
 const jsonBody = computed(() => {
   const r = props.response;
-  const result: Record<string, unknown> = { success: r.success, action: r.action };
-  if (r.data !== undefined) result.data = r.data;
-  if (r.rowsAffected !== undefined) result.rowsAffected = r.rowsAffected;
-  if (r.count !== undefined) result.count = r.count;
-  if (r.exists !== undefined) result.exists = r.exists;
-  if (r.error) result.error = r.error;
-  return JSON.stringify(result, null, 2);
+  switch (r.action) {
+    case 'query':
+      return JSON.stringify(r.data || [], null, 2);
+    case 'execute':
+      return JSON.stringify({ rowsAffected: r.rowsAffected ?? 0 }, null, 2);
+    case 'count':
+      return JSON.stringify({ count: r.count ?? 0 }, null, 2);
+    case 'exists':
+      return JSON.stringify({ exists: r.exists ?? false }, null, 2);
+    default:
+      return JSON.stringify(r.data || [], null, 2);
+  }
+});
+
+// 数据库类型展示名称
+const driverLabel = computed(() => {
+  const d = props.response.driver;
+  if (!d) return '未知';
+  const map: Record<string, string> = {
+    mysql: 'MySQL',
+    postgres: 'PostgreSQL',
+    postgresql: 'PostgreSQL',
+    sqlite: 'SQLite',
+    mongodb: 'MongoDB',
+    redis: 'Redis',
+  };
+  return map[d.toLowerCase()] || d;
+});
+
+// 操作类型展示
+const actionLabel = computed(() => {
+  const a = props.response.action;
+  const map: Record<string, string> = {
+    query: 'Query (查询)',
+    execute: 'Execute (执行)',
+    count: 'Count (统计)',
+    exists: 'Exists (存在检查)',
+    begin: 'Begin (开启事务)',
+    commit: 'Commit (提交事务)',
+    rollback: 'Rollback (回滚事务)',
+  };
+  return map[a] || a;
 });
 
 // 是否有数据表格可展示
@@ -133,7 +168,7 @@ const failedAssertions = computed(() => assertionResults.value.filter((a) => !a.
       <Tabs v-model:activeKey="activeTab" size="small" class="response-tabs">
         <Tabs.TabPane key="data" tab="数据" />
         <Tabs.TabPane key="json" tab="JSON" />
-        <Tabs.TabPane key="sql" v-if="response.actualSql" tab="实际SQL" />
+        <Tabs.TabPane key="info" tab="请求信息" />
         <Tabs.TabPane key="assertions" v-if="hasAssertions" tab="断言" />
         <Tabs.TabPane key="console" v-if="hasConsoleOutput">
           <template #tab>
@@ -210,11 +245,35 @@ const failedAssertions = computed(() => assertionResults.value.filter((a) => !a.
         <ResponseBodyEditor :body="jsonBody" body-type="json" height="100%" />
       </div>
 
-      <!-- 实际 SQL -->
-      <div v-else-if="activeTab === 'sql'" class="tab-content">
-        <div class="actual-sql">
-          <div class="sql-label">实际执行的 SQL（变量替换后）</div>
+      <!-- 请求信息 -->
+      <div v-else-if="activeTab === 'info'" class="tab-content info-content">
+        <div class="info-grid">
+          <div class="info-row">
+            <span class="info-label">数据库类型</span>
+            <span class="info-value">{{ driverLabel }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">操作类型</span>
+            <span class="info-value">{{ actionLabel }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">执行耗时</span>
+            <span class="info-value">{{ formatDuration(response.durationMs) }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">执行状态</span>
+            <span class="info-value" :class="response.success ? 'text-green' : 'text-red'">
+              {{ response.success ? '成功' : '失败' }}
+            </span>
+          </div>
+        </div>
+        <div v-if="response.actualSql" class="info-section">
+          <div class="info-section-title">实际执行的 SQL（变量替换后）</div>
           <pre class="sql-content">{{ response.actualSql }}</pre>
+        </div>
+        <div v-if="response.error" class="info-section">
+          <div class="info-section-title error-label">错误信息</div>
+          <pre class="error-message">{{ response.error }}</pre>
         </div>
       </div>
 
@@ -446,16 +505,61 @@ const failedAssertions = computed(() => assertionResults.value.filter((a) => !a.
   color: #ff4d4f;
 }
 
-/* 实际 SQL */
-.actual-sql {
-  padding: 16px;
+/* 请求信息 */
+.info-content {
+  padding: 12px 16px;
+  overflow-y: auto;
 }
 
-.sql-label {
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: hsl(var(--accent) / 30%);
+  border-radius: 6px;
+}
+
+.info-label {
+  font-size: 12px;
+  color: hsl(var(--foreground) / 50%);
+  white-space: nowrap;
+}
+
+.info-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: hsl(var(--foreground) / 85%);
+}
+
+.info-value.text-green {
+  color: #52c41a;
+}
+
+.info-value.text-red {
+  color: #ff4d4f;
+}
+
+.info-section {
+  margin-bottom: 12px;
+}
+
+.info-section-title {
   font-size: 12px;
   font-weight: 500;
   color: hsl(var(--foreground) / 60%);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+}
+
+.info-section-title.error-label {
+  color: #ff4d4f;
 }
 
 .sql-content {

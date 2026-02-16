@@ -199,10 +199,12 @@ export const nodeTypeRegistry: Record<string, NodeTypeConfig> = {
       postProcessors: [],
     }),
     getDescription: (node) => {
-      const action = node.config?.action || 'query';
-      const sql = node.config?.sql;
-      if (sql) return `${action.toUpperCase()} ${sql.slice(0, 30)}`;
-      return action.toUpperCase();
+      const sql = node.config?.sql?.trim();
+      if (sql) {
+        const firstWord = sql.split(/\s+/)[0]?.toUpperCase() || '';
+        return `${firstWord} ${sql.slice(firstWord.length, firstWord.length + 30).trim()}`;
+      }
+      return '';
     },
   },
   wait: {

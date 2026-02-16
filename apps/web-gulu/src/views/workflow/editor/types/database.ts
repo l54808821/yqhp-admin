@@ -104,8 +104,12 @@ import type { ConsoleLogEntry, AssertionResult } from '../../components/shared/t
  */
 export interface DatabaseResponseData {
   success: boolean;
-  action: DatabaseAction;
+  action: string;
   durationMs: number;
+
+  // 请求元信息
+  driver?: string;          // 数据库类型 (mysql, postgres)
+  actualSql?: string;       // 变量替换后的实际 SQL
 
   // 查询结果
   data?: Record<string, any>[];
@@ -120,9 +124,6 @@ export interface DatabaseResponseData {
 
   // exists 结果
   exists?: boolean;
-
-  // 实际执行的 SQL（变量替换后）
-  actualSql?: string;
 
   // 错误
   error?: string;
