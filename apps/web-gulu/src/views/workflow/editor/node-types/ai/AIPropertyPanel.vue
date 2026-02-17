@@ -147,6 +147,7 @@ async function handleRun() {
             interactive: false,
             tools: localNode.value.config.tools || [],
             mcp_server_ids: localNode.value.config.mcp_server_ids || [],
+            skill_ids: localNode.value.config.skill_ids || [],
             max_tool_rounds: localNode.value.config.max_tool_rounds || 10,
           },
           postProcessors: localNode.value.postProcessors?.map((p: KeywordConfig) => ({

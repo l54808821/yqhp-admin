@@ -130,6 +130,37 @@ const routes: RouteRecordRaw[] = [
       },
     ],
   },
+  // Skill 管理
+  {
+    meta: {
+      icon: 'lucide:sparkles',
+      order: 46,
+      title: 'Skill管理',
+    },
+    name: 'SkillManagement',
+    path: '/project/:projectId/skill',
+    component: BasicLayout,
+    children: [
+      {
+        name: 'SkillIndex',
+        path: '',
+        component: () => import('#/views/skill/index.vue'),
+        meta: {
+          hideInMenu: true,
+          title: 'Skill管理',
+        },
+      },
+      {
+        name: 'SkillDetail',
+        path: ':skillId',
+        component: () => import('#/views/skill/detail.vue'),
+        meta: {
+          hideInMenu: true,
+          title: 'Skill详情',
+        },
+      },
+    ],
+  },
   // MCP 服务器管理
   {
     meta: {

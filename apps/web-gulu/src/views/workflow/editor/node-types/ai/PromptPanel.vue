@@ -44,7 +44,7 @@ watch(
       <Input.TextArea
         v-model:value="localSystemPrompt"
         :rows="4"
-        placeholder="设置 AI 的角色和行为"
+        placeholder="设置 AI 的基础角色和行为（Skill 能力在「工具」标签页配置）"
         @blur="emit('update', { system_prompt: localSystemPrompt })"
       />
     </Form.Item>

@@ -16,6 +16,7 @@ export interface AIConfig {
   timeout: number;
   tools: string[];
   mcp_server_ids: number[];
+  skill_ids: number[];
   max_tool_rounds: number;
 }
 
@@ -56,6 +57,7 @@ export function createDefaultAIConfig(): AIConfig {
     timeout: 300,
     tools: [],
     mcp_server_ids: [],
+    skill_ids: [],
     max_tool_rounds: 10,
   };
 }
