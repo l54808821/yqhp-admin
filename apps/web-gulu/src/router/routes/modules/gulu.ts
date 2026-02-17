@@ -181,6 +181,15 @@ const routes: RouteRecordRaw[] = [
           title: '知识库管理',
         },
       },
+      {
+        name: 'KnowledgeDetail',
+        path: ':kbId',
+        component: () => import('#/views/knowledge/detail.vue'),
+        meta: {
+          hideInMenu: true,
+          title: '知识库详情',
+        },
+      },
     ],
   },
   // MCP 服务器管理

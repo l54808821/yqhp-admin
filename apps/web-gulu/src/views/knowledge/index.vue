@@ -2,6 +2,7 @@
 import type { KnowledgeBase, KnowledgeBaseListParams } from '#/api/knowledge-base';
 
 import { onMounted, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
 import {
   Button,
@@ -35,6 +36,9 @@ const searchParams = ref<KnowledgeBaseListParams>({
   type: undefined,
   status: undefined,
 });
+
+const route = useRoute();
+const router = useRouter();
 
 const kbList = ref<KnowledgeBase[]>([]);
 const total = ref(0);
@@ -80,6 +84,11 @@ function handlePageChange(page: number, pageSize: number) {
 
 function handleAdd() {
   formModalRef.value?.open();
+}
+
+function handleView(record: KnowledgeBase) {
+  const projectId = route.params.projectId;
+  router.push(`/project/${projectId}/knowledge/${record.id}`);
 }
 
 function handleEdit(record: KnowledgeBase) {
@@ -193,6 +202,7 @@ onMounted(() => {
             >
               <KnowledgeBaseCard
                 :kb="kb"
+                @view="handleView"
                 @edit="handleEdit"
                 @delete="handleDelete"
                 @manage-docs="handleManageDocs"

@@ -84,6 +84,42 @@ export interface CreateDocumentParams {
   content?: string;
 }
 
+/** 文档分块信息 */
+export interface DocumentChunk {
+  chunk_index: number;
+  content: string;
+  char_count: number;
+  enabled: boolean;
+}
+
+/** 分段设置 */
+export interface ChunkSetting {
+  separator?: string;
+  chunk_size?: number;
+  chunk_overlap?: number;
+  clean_whitespace?: boolean;
+  remove_urls?: boolean;
+}
+
+/** 分块预览请求 */
+export interface PreviewChunksParams {
+  document_id?: number;
+  content?: string;
+  chunk_setting?: ChunkSetting;
+}
+
+/** 分块预览结果 */
+export interface PreviewChunkItem {
+  index: number;
+  content: string;
+  char_count: number;
+}
+
+/** 处理文档请求 */
+export interface ProcessDocumentParams {
+  chunk_setting?: ChunkSetting;
+}
+
 /** 知识库检索参数 */
 export interface KnowledgeSearchParams {
   query: string;
@@ -96,6 +132,7 @@ export interface KnowledgeSearchResult {
   content: string;
   score: number;
   document_id: number;
+  document_name: string;
   chunk_index: number;
   metadata?: Record<string, unknown>;
 }
@@ -176,6 +213,27 @@ export async function getKnowledgeDocumentListApi(kbId: number) {
  */
 export async function deleteKnowledgeDocumentApi(kbId: number, docId: number) {
   return requestClient.delete(`/knowledge-bases/${kbId}/documents/${docId}`);
+}
+
+/**
+ * 预览文档分块（不保存到 Qdrant）
+ */
+export async function previewDocumentChunksApi(kbId: number, params: PreviewChunksParams) {
+  return requestClient.post<PreviewChunkItem[]>(`/knowledge-bases/${kbId}/documents/preview-chunks`, params);
+}
+
+/**
+ * 确认分段参数并开始处理文档
+ */
+export async function processDocumentApi(kbId: number, docId: number, params: ProcessDocumentParams) {
+  return requestClient.put(`/knowledge-bases/${kbId}/documents/${docId}/process`, params);
+}
+
+/**
+ * 获取文档分块列表
+ */
+export async function getDocumentChunksApi(kbId: number, docId: number) {
+  return requestClient.get<DocumentChunk[]>(`/knowledge-bases/${kbId}/documents/${docId}/chunks`);
 }
 
 /**

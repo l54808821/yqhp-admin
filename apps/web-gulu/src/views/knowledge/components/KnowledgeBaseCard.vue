@@ -23,6 +23,7 @@ const emit = defineEmits<{
   (e: 'delete', id: number): void;
   (e: 'manageDocs', kb: KnowledgeBase): void;
   (e: 'statusChange', id: number, checked: boolean): void;
+  (e: 'view', kb: KnowledgeBase): void;
 }>();
 
 const typeLabel = computed(() =>
@@ -41,6 +42,7 @@ const typeIcon = computed(() =>
     hoverable
     class="kb-card"
     :body-style="{ padding: '16px' }"
+    @click="emit('view', kb)"
   >
     <!-- 头部 -->
     <div class="kb-card-header">
