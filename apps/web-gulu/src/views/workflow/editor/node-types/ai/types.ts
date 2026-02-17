@@ -23,6 +23,9 @@ export interface AIConfig {
   max_tool_rounds: number;
   agent_mode: AgentMode;
   max_reflection_rounds: number;
+  knowledge_base_ids: number[];
+  kb_top_k: number;
+  kb_score_threshold: number;
 }
 
 export interface AIStepNode {
@@ -66,5 +69,8 @@ export function createDefaultAIConfig(): AIConfig {
     max_tool_rounds: 10,
     agent_mode: '',
     max_reflection_rounds: 2,
+    knowledge_base_ids: [],
+    kb_top_k: 5,
+    kb_score_threshold: 0.7,
   };
 }

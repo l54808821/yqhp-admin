@@ -23,6 +23,7 @@ import BasicConfigPanel from './BasicConfigPanel.vue';
 import PromptPanel from './PromptPanel.vue';
 import ModelParamsPanel from './ModelParamsPanel.vue';
 import ToolsPanel from './ToolsPanel.vue';
+import KnowledgePanel from './KnowledgePanel.vue';
 
 // 图标
 const PlayIcon = createIconifyIcon('lucide:play');
@@ -151,6 +152,9 @@ async function handleRun() {
             max_tool_rounds: localNode.value.config.max_tool_rounds || 10,
             agent_mode: localNode.value.config.agent_mode || '',
             max_reflection_rounds: localNode.value.config.max_reflection_rounds || 2,
+            knowledge_base_ids: localNode.value.config.knowledge_base_ids || [],
+            kb_top_k: localNode.value.config.kb_top_k || 5,
+            kb_score_threshold: localNode.value.config.kb_score_threshold || 0.7,
           },
           postProcessors: localNode.value.postProcessors?.map((p: KeywordConfig) => ({
             id: p.id,
@@ -299,6 +303,13 @@ function stopDrag() {
 
           <Tabs.TabPane key="params" tab="模型参数">
             <ModelParamsPanel
+              :config="localNode.config"
+              @update="handleConfigUpdate"
+            />
+          </Tabs.TabPane>
+
+          <Tabs.TabPane key="knowledge" tab="知识库">
+            <KnowledgePanel
               :config="localNode.config"
               @update="handleConfigUpdate"
             />

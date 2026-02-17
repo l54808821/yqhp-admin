@@ -161,6 +161,28 @@ const routes: RouteRecordRaw[] = [
       },
     ],
   },
+  // 知识库管理
+  {
+    meta: {
+      icon: 'lucide:book-open',
+      order: 47,
+      title: '知识库',
+    },
+    name: 'KnowledgeManagement',
+    path: '/project/:projectId/knowledge',
+    component: BasicLayout,
+    children: [
+      {
+        name: 'KnowledgeIndex',
+        path: '',
+        component: () => import('#/views/knowledge/index.vue'),
+        meta: {
+          hideInMenu: true,
+          title: '知识库管理',
+        },
+      },
+    ],
+  },
   // MCP 服务器管理
   {
     meta: {
