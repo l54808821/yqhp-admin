@@ -102,6 +102,7 @@ export const nodeTypeRegistry: Record<string, NodeTypeConfig> = {
         interactive: false,
         interaction_timeout: 300,
         timeout: 300,
+        agent_mode: '',
       },
     }),
     getDescription: (node) => {

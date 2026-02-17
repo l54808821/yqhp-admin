@@ -10,8 +10,10 @@ import { createIconifyIcon } from '@vben/icons';
 import { Collapse, Tabs, Tag } from 'ant-design-vue';
 
 import type { AIResponseData } from './types';
+import ReActTracePanel from './ReActTracePanel.vue';
 
 const AlertCircleIcon = createIconifyIcon('lucide:alert-circle');
+const BrainIcon = createIconifyIcon('lucide:brain');
 
 interface Props {
   response: AIResponseData;
@@ -61,6 +63,12 @@ const hasInput = computed(() => !!props.response.systemPrompt || !!props.respons
 // 工具调用数量
 const toolCallsCount = computed(() => props.response.toolCalls?.length || 0);
 
+// 是否有 ReAct 推理过程
+const hasReActTrace = computed(() => {
+  const trace = props.response.reactTrace;
+  return Array.isArray(trace) && trace.length > 0;
+});
+
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
   return `${(ms / 1000).toFixed(2)}s`;
@@ -81,6 +89,13 @@ function truncateText(text: string, maxLen: number = 500): string {
           <template #tab>
             <span>AI 回复</span>
             <span v-if="isStreaming" class="streaming-dot" />
+          </template>
+        </Tabs.TabPane>
+        <Tabs.TabPane key="react-trace" v-if="hasReActTrace">
+          <template #tab>
+            <BrainIcon class="tab-icon" />
+            <span>推理过程</span>
+            <span class="trace-badge">{{ response.reactTrace?.length }}</span>
           </template>
         </Tabs.TabPane>
         <Tabs.TabPane key="input" v-if="hasInput" tab="输入" />
@@ -148,6 +163,16 @@ function truncateText(text: string, maxLen: number = 500): string {
         <div v-else-if="!response.error" class="content-empty">
           {{ isStreaming ? '等待 AI 回复...' : '无回复内容' }}
         </div>
+      </div>
+
+      <!-- ReAct 推理过程 -->
+      <div v-else-if="activeTab === 'react-trace'" class="tab-content">
+        <ReActTracePanel
+          v-if="hasReActTrace"
+          :trace="response.reactTrace!"
+          :final-content="response.content"
+          :is-streaming="isStreaming"
+        />
       </div>
 
       <!-- 输入提示词 -->
@@ -236,6 +261,28 @@ function truncateText(text: string, maxLen: number = 500): string {
 
 .response-tabs :deep(.ant-tabs-tab + .ant-tabs-tab) {
   margin-left: 20px;
+}
+
+.tab-icon {
+  width: 14px;
+  height: 14px;
+  vertical-align: -2px;
+  margin-right: 4px;
+}
+
+.trace-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #7c3aed;
+  background: hsl(263 70% 50% / 12%);
+  border-radius: 9px;
 }
 
 .streaming-dot {

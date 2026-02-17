@@ -153,6 +153,25 @@ onMounted(() => {
       </Tooltip>
     </div>
 
+    <!-- Agent 模式 -->
+    <Form.Item label="Agent 模式">
+      <Select
+        :value="config.agent_mode || ''"
+        @change="(val: any) => emit('update', { agent_mode: val || '' })"
+      >
+        <Select.Option value="">默认（无 Agent 模式）</Select.Option>
+        <Select.Option value="react">
+          <div class="agent-mode-option">
+            <span class="agent-mode-name">ReAct 推理模式</span>
+            <span class="agent-mode-desc">思考 → 行动 → 观察 循环推理</span>
+          </div>
+        </Select.Option>
+      </Select>
+      <div v-if="config.agent_mode === 'react'" class="agent-mode-tip">
+        开启后，AI 将在每次工具调用前显式输出推理过程，并在结果中展示完整的思考链。
+      </div>
+    </Form.Item>
+
     <!-- 超时设置 -->
     <div class="timeout-row">
       <Tooltip title="AI 调用的最大等待时间，0 使用默认值（5 分钟）">
@@ -247,6 +266,32 @@ onMounted(() => {
   font-size: 13px;
   color: hsl(var(--foreground));
   user-select: none;
+}
+
+.agent-mode-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.agent-mode-name {
+  font-weight: 500;
+}
+
+.agent-mode-desc {
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+}
+
+.agent-mode-tip {
+  margin-top: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: hsl(var(--foreground) / 60%);
+  background: hsl(var(--primary) / 6%);
+  border-radius: 6px;
+  border: 1px solid hsl(var(--primary) / 12%);
+  line-height: 1.5;
 }
 
 .timeout-row {

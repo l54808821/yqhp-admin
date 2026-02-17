@@ -149,6 +149,7 @@ async function handleRun() {
             mcp_server_ids: localNode.value.config.mcp_server_ids || [],
             skill_ids: localNode.value.config.skill_ids || [],
             max_tool_rounds: localNode.value.config.max_tool_rounds || 10,
+            agent_mode: localNode.value.config.agent_mode || '',
           },
           postProcessors: localNode.value.postProcessors?.map((p: KeywordConfig) => ({
             id: p.id,
@@ -182,6 +183,9 @@ async function handleRun() {
           error: result.error || stepResult.error,
           toolCalls: Array.isArray(result.tool_calls)
             ? result.tool_calls
+            : undefined,
+          reactTrace: Array.isArray(result.react_trace)
+            ? result.react_trace
             : undefined,
           systemPrompt: result.system_prompt || '',
           prompt: result.prompt || '',

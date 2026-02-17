@@ -119,6 +119,13 @@ export interface ToolCallRecord {
   duration_ms: number;
 }
 
+// ReAct 单轮推理记录（Thinking → Action → Observation）
+export interface ReActRound {
+  round: number;
+  thinking: string;
+  tool_calls: ToolCallRecord[];
+}
+
 // 统一的 AI 响应数据结构（camelCase）
 export interface AIResponseData {
   success: boolean;
@@ -130,6 +137,7 @@ export interface AIResponseData {
   durationMs: number;
   error?: string;
   toolCalls?: ToolCallRecord[];
+  reactTrace?: ReActRound[];
   systemPrompt?: string;
   prompt?: string;
   finishReason?: string;

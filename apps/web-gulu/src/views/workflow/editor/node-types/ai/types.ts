@@ -2,6 +2,9 @@
  * AI 节点共享类型定义
  */
 
+// Agent 模式类型
+export type AgentMode = '' | 'none' | 'react';
+
 export interface AIConfig {
   ai_model_id: number | null;
   ai_model_name: string;
@@ -18,6 +21,7 @@ export interface AIConfig {
   mcp_server_ids: number[];
   skill_ids: number[];
   max_tool_rounds: number;
+  agent_mode: AgentMode;
 }
 
 export interface AIStepNode {
@@ -59,5 +63,6 @@ export function createDefaultAIConfig(): AIConfig {
     mcp_server_ids: [],
     skill_ids: [],
     max_tool_rounds: 10,
+    agent_mode: '',
   };
 }

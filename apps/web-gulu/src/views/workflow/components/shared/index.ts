@@ -4,6 +4,7 @@
 
 // 组件
 export { default as AIResponsePanel } from './AIResponsePanel.vue';
+export { default as ReActTracePanel } from './ReActTracePanel.vue';
 export { default as HttpResponsePanel } from './HttpResponsePanel.vue';
 export { default as ScriptResponsePanel } from './ScriptResponsePanel.vue';
 export { default as ConsoleLogPanel } from './ConsoleLogPanel.vue';
@@ -12,6 +13,7 @@ export { default as ConsoleLogPanel } from './ConsoleLogPanel.vue';
 export type {
   AIResponseData,
   ToolCallRecord,
+  ReActRound,
   HttpResponseData,
   ScriptResponseData,
   DatabaseResponseData,

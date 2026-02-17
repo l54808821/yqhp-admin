@@ -106,6 +106,7 @@ export type SSEEventType =
   | 'ai_chunk'
   | 'ai_complete'
   | 'ai_error'
+  | 'ai_thinking'
   | 'ai_interaction_required'
   | 'ai_tool_call_start'
   | 'ai_tool_call_complete'
@@ -176,6 +177,13 @@ export interface AICompleteData {
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
+}
+
+// AI 推理思考数据（ReAct 模式）
+export interface AIThinkingData {
+  stepId: string;
+  round: number;
+  thinking: string;
 }
 
 // AI 错误数据
