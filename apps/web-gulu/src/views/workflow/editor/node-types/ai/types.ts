@@ -3,7 +3,7 @@
  */
 
 // Agent 模式类型
-export type AgentMode = '' | 'none' | 'react';
+export type AgentMode = '' | 'none' | 'react' | 'plan_and_execute' | 'reflection';
 
 export interface AIConfig {
   ai_model_id: number | null;
@@ -22,6 +22,7 @@ export interface AIConfig {
   skill_ids: number[];
   max_tool_rounds: number;
   agent_mode: AgentMode;
+  max_reflection_rounds: number;
 }
 
 export interface AIStepNode {
@@ -64,5 +65,6 @@ export function createDefaultAIConfig(): AIConfig {
     skill_ids: [],
     max_tool_rounds: 10,
     agent_mode: '',
+    max_reflection_rounds: 2,
   };
 }

@@ -119,11 +119,51 @@ export interface ToolCallRecord {
   duration_ms: number;
 }
 
+// ============ Agent 模式轨迹类型 ============
+
 // ReAct 单轮推理记录（Thinking → Action → Observation）
 export interface ReActRound {
   round: number;
   thinking: string;
   tool_calls: ToolCallRecord[];
+}
+
+// Plan-and-Execute 计划步骤
+export interface PlanStep {
+  index: number;
+  task: string;
+  status: string; // pending | running | completed | failed
+  thinking?: string;
+  result?: string;
+  tool_calls?: ToolCallRecord[];
+}
+
+// Plan-and-Execute 执行轨迹
+export interface PlanExecTrace {
+  plan: string;
+  steps: PlanStep[];
+  synthesis?: string;
+}
+
+// Reflection 单轮反思记录
+export interface ReflectionRound {
+  round: number;
+  draft: string;
+  critique: string;
+}
+
+// Reflection 执行轨迹
+export interface ReflectionTrace {
+  rounds: ReflectionRound[];
+  final_answer?: string;
+}
+
+// 统一的 Agent 模式执行轨迹
+export interface AgentTrace {
+  mode: string; // "react" | "plan_and_execute" | "reflection"
+  react?: ReActRound[];
+  plan_and_execute?: PlanExecTrace;
+  reflection?: ReflectionTrace;
 }
 
 // 统一的 AI 响应数据结构（camelCase）
@@ -137,7 +177,7 @@ export interface AIResponseData {
   durationMs: number;
   error?: string;
   toolCalls?: ToolCallRecord[];
-  reactTrace?: ReActRound[];
+  agentTrace?: AgentTrace;
   systemPrompt?: string;
   prompt?: string;
   finishReason?: string;

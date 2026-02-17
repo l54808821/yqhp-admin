@@ -166,9 +166,27 @@ onMounted(() => {
             <span class="agent-mode-desc">思考 → 行动 → 观察 循环推理</span>
           </div>
         </Select.Option>
+        <Select.Option value="plan_and_execute">
+          <div class="agent-mode-option">
+            <span class="agent-mode-name">Plan-and-Execute 规划执行</span>
+            <span class="agent-mode-desc">先制定计划 → 逐步执行 → 汇总结果</span>
+          </div>
+        </Select.Option>
+        <Select.Option value="reflection">
+          <div class="agent-mode-option">
+            <span class="agent-mode-name">Reflection 反思模式</span>
+            <span class="agent-mode-desc">生成初稿 → 自我审视 → 迭代改进</span>
+          </div>
+        </Select.Option>
       </Select>
       <div v-if="config.agent_mode === 'react'" class="agent-mode-tip">
-        开启后，AI 将在每次工具调用前显式输出推理过程，并在结果中展示完整的思考链。
+        开启后，AI 将在每次工具调用前显式输出推理过程，并在结果中展示完整的思考链。需配合工具使用。
+      </div>
+      <div v-else-if="config.agent_mode === 'plan_and_execute'" class="agent-mode-tip">
+        AI 会先分析任务并制定分步计划，然后逐步执行每个步骤（可调用工具），最后汇总所有结果。适合复杂的多步骤任务。
+      </div>
+      <div v-else-if="config.agent_mode === 'reflection'" class="agent-mode-tip">
+        AI 先生成初稿，然后自我审视并迭代改进，直到质量满意或达到最大轮次。适合对输出质量要求高的场景。
       </div>
     </Form.Item>
 
@@ -194,6 +212,18 @@ onMounted(() => {
             :max="3600"
             placeholder="300"
             @change="(val: any) => emit('update', { interaction_timeout: val })"
+          />
+        </Form.Item>
+      </Tooltip>
+      <Tooltip v-if="config.agent_mode === 'reflection'" title="反思改进的最大轮次，0 使用默认值（2 轮）">
+        <Form.Item label="最大反思轮次" class="timeout-item">
+          <InputNumber
+            :value="config.max_reflection_rounds"
+            :min="0"
+            :max="10"
+            :step="1"
+            placeholder="2"
+            @change="(val: any) => emit('update', { max_reflection_rounds: val })"
           />
         </Form.Item>
       </Tooltip>

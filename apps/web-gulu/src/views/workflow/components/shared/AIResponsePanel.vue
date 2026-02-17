@@ -11,6 +11,8 @@ import { Collapse, Tabs, Tag } from 'ant-design-vue';
 
 import type { AIResponseData } from './types';
 import ReActTracePanel from './ReActTracePanel.vue';
+import PlanExecTracePanel from './PlanExecTracePanel.vue';
+import ReflectionTracePanel from './ReflectionTracePanel.vue';
 
 const AlertCircleIcon = createIconifyIcon('lucide:alert-circle');
 const BrainIcon = createIconifyIcon('lucide:brain');
@@ -63,10 +65,38 @@ const hasInput = computed(() => !!props.response.systemPrompt || !!props.respons
 // 工具调用数量
 const toolCallsCount = computed(() => props.response.toolCalls?.length || 0);
 
-// 是否有 ReAct 推理过程
-const hasReActTrace = computed(() => {
-  const trace = props.response.reactTrace;
-  return Array.isArray(trace) && trace.length > 0;
+// 是否有 Agent 推理过程
+const agentTrace = computed(() => props.response.agentTrace);
+const hasAgentTrace = computed(() => {
+  const trace = agentTrace.value;
+  if (!trace || !trace.mode) return false;
+  switch (trace.mode) {
+    case 'react': return Array.isArray(trace.react) && trace.react.length > 0;
+    case 'plan_and_execute': return !!trace.plan_and_execute;
+    case 'reflection': return !!trace.reflection && trace.reflection.rounds?.length > 0;
+    default: return false;
+  }
+});
+
+const agentTraceLabel = computed(() => {
+  const mode = agentTrace.value?.mode;
+  switch (mode) {
+    case 'react': return '推理过程';
+    case 'plan_and_execute': return '执行计划';
+    case 'reflection': return '反思过程';
+    default: return '推理过程';
+  }
+});
+
+const agentTraceBadge = computed(() => {
+  const trace = agentTrace.value;
+  if (!trace) return 0;
+  switch (trace.mode) {
+    case 'react': return trace.react?.length || 0;
+    case 'plan_and_execute': return trace.plan_and_execute?.steps?.length || 0;
+    case 'reflection': return trace.reflection?.rounds?.length || 0;
+    default: return 0;
+  }
 });
 
 function formatDuration(ms: number): string {
@@ -91,11 +121,11 @@ function truncateText(text: string, maxLen: number = 500): string {
             <span v-if="isStreaming" class="streaming-dot" />
           </template>
         </Tabs.TabPane>
-        <Tabs.TabPane key="react-trace" v-if="hasReActTrace">
+        <Tabs.TabPane key="agent-trace" v-if="hasAgentTrace">
           <template #tab>
             <BrainIcon class="tab-icon" />
-            <span>推理过程</span>
-            <span class="trace-badge">{{ response.reactTrace?.length }}</span>
+            <span>{{ agentTraceLabel }}</span>
+            <span class="trace-badge">{{ agentTraceBadge }}</span>
           </template>
         </Tabs.TabPane>
         <Tabs.TabPane key="input" v-if="hasInput" tab="输入" />
@@ -165,11 +195,23 @@ function truncateText(text: string, maxLen: number = 500): string {
         </div>
       </div>
 
-      <!-- ReAct 推理过程 -->
-      <div v-else-if="activeTab === 'react-trace'" class="tab-content">
+      <!-- Agent 推理过程（根据 mode 切换不同面板） -->
+      <div v-else-if="activeTab === 'agent-trace'" class="tab-content">
         <ReActTracePanel
-          v-if="hasReActTrace"
-          :trace="response.reactTrace!"
+          v-if="agentTrace?.mode === 'react' && agentTrace.react"
+          :trace="agentTrace.react"
+          :final-content="response.content"
+          :is-streaming="isStreaming"
+        />
+        <PlanExecTracePanel
+          v-else-if="agentTrace?.mode === 'plan_and_execute' && agentTrace.plan_and_execute"
+          :trace="agentTrace.plan_and_execute"
+          :final-content="response.content"
+          :is-streaming="isStreaming"
+        />
+        <ReflectionTracePanel
+          v-else-if="agentTrace?.mode === 'reflection' && agentTrace.reflection"
+          :trace="agentTrace.reflection"
           :final-content="response.content"
           :is-streaming="isStreaming"
         />
