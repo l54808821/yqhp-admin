@@ -11,12 +11,9 @@ import { computed, onMounted, ref } from 'vue';
 import {
   Button,
   Col,
-  Drawer,
-  InputNumber,
   Pagination,
-  Radio,
+  Popover,
   Row,
-  Slider,
   Spin,
   message,
 } from 'ant-design-vue';
@@ -38,6 +35,8 @@ import {
   renderChunkContent,
   RETRIEVAL_MODE_LABELS,
 } from '#/utils/knowledge';
+
+import RetrievalSettingsPanel from './RetrievalSettingsPanel.vue';
 
 interface Props {
   kb: KnowledgeBase;
@@ -140,11 +139,29 @@ onMounted(() => {
           <div class="recall-input-header">
             <span class="recall-input-label">源文本</span>
             <div class="recall-input-header-right">
-              <button class="recall-mode-btn" @click="settingsOpen = true">
-                <Hash :size="12" />
-                {{ currentModeLabel }}
-                <SlidersHorizontal :size="12" />
-              </button>
+              <Popover
+                v-model:open="settingsOpen"
+                trigger="click"
+                placement="rightTop"
+                :align="{ offset: [-2, 0] }"
+                overlay-class-name="recall-settings-popover"
+              >
+                <template #content>
+                  <div class="recall-settings-popover-body">
+                    <RetrievalSettingsPanel
+                      v-model:retrieval-mode="retrievalMode"
+                      v-model:score-threshold="scoreThreshold"
+                      v-model:top-k="topK"
+                      compact
+                    />
+                  </div>
+                </template>
+                <button class="recall-mode-btn">
+                  <Hash :size="12" />
+                  {{ currentModeLabel }}
+                  <SlidersHorizontal :size="12" />
+                </button>
+              </Popover>
             </div>
           </div>
           <textarea
@@ -285,48 +302,6 @@ onMounted(() => {
       </div>
     </Col>
 
-    <!-- 检索设置 Drawer -->
-    <Drawer
-      v-model:open="settingsOpen"
-      title="检索设置"
-      :width="300"
-      placement="right"
-    >
-      <div class="settings-drawer-body">
-        <div class="settings-item">
-          <div class="settings-item-label">检索方式</div>
-          <Radio.Group v-model:value="retrievalMode" class="settings-radio-group">
-            <Radio value="vector">向量检索</Radio>
-            <Radio value="keyword">关键词检索</Radio>
-            <Radio value="hybrid">混合检索</Radio>
-          </Radio.Group>
-        </div>
-
-        <div class="settings-item">
-          <div class="settings-item-label">
-            相似度阈值
-            <span class="settings-item-value">{{ scoreThreshold.toFixed(2) }}</span>
-          </div>
-          <Slider
-            v-model:value="scoreThreshold"
-            :min="0"
-            :max="1"
-            :step="0.01"
-          />
-          <div class="settings-item-hint">低于此阈值的结果将被过滤</div>
-        </div>
-
-        <div class="settings-item">
-          <div class="settings-item-label">召回数量（Top-K）</div>
-          <InputNumber
-            v-model:value="topK"
-            :min="1"
-            :max="20"
-            style="width: 100%"
-          />
-        </div>
-      </div>
-    </Drawer>
   </Row>
 </template>
 
@@ -695,38 +670,9 @@ onMounted(() => {
   color: hsl(var(--muted-foreground) / 60%);
 }
 
-/* ====== 设置 Drawer ====== */
-.settings-drawer-body {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.settings-item-label {
-  font-size: 13px;
-  font-weight: 500;
-  color: hsl(var(--foreground));
-  margin-bottom: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.settings-item-value {
-  font-size: 13px;
-  font-weight: 600;
-  color: hsl(var(--primary));
-}
-
-.settings-radio-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.settings-item-hint {
-  font-size: 11px;
-  color: hsl(var(--muted-foreground));
-  margin-top: 4px;
+/* ====== 设置 Popover ====== */
+.recall-settings-popover-body {
+  width: 260px;
+  padding: 4px 0;
 }
 </style>

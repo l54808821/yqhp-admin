@@ -11,13 +11,14 @@ import {
   InputNumber,
   message,
   Select,
-  Slider,
   Switch,
 } from 'ant-design-vue';
 
 import { getAiModelListApi } from '#/api/ai-model';
 import { updateKnowledgeBaseApi } from '#/api/knowledge-base';
 import { useModelFilter } from '#/composables/useModelFilter';
+
+import RetrievalSettingsPanel from './RetrievalSettingsPanel.vue';
 
 interface Props {
   kb: KnowledgeBase;
@@ -283,55 +284,12 @@ onMounted(() => {
       </template>
 
       <Form layout="vertical">
-        <!-- 检索方式 -->
-        <div class="section-label">检索方式</div>
-
-        <Form.Item>
-          <div class="retrieval-modes">
-            <div
-              class="retrieval-mode-item"
-              :class="{ active: form.retrieval_mode === 'vector' }"
-              @click="form.retrieval_mode = 'vector'"
-            >
-              <div class="retrieval-mode-title">向量检索</div>
-              <div class="retrieval-mode-desc">通过嵌入模型搜索语义最相似的文本分块</div>
-            </div>
-            <div
-              class="retrieval-mode-item"
-              :class="{ active: form.retrieval_mode === 'keyword' }"
-              @click="form.retrieval_mode = 'keyword'"
-            >
-              <div class="retrieval-mode-title">关键词检索</div>
-              <div class="retrieval-mode-desc">基于全文索引匹配包含关键词的文本分块</div>
-            </div>
-            <div
-              class="retrieval-mode-item"
-              :class="{ active: form.retrieval_mode === 'hybrid' }"
-              @click="form.retrieval_mode = 'hybrid'"
-            >
-              <div class="retrieval-mode-title">混合检索</div>
-              <div class="retrieval-mode-desc">同时使用向量和关键词检索，合并结果</div>
-            </div>
-            <template v-if="kb.type === 'graph'">
-              <div
-                class="retrieval-mode-item"
-                :class="{ active: form.retrieval_mode === 'graph' }"
-                @click="form.retrieval_mode = 'graph'"
-              >
-                <div class="retrieval-mode-title">图谱检索</div>
-                <div class="retrieval-mode-desc">通过知识图谱的实体和关系进行检索</div>
-              </div>
-              <div
-                class="retrieval-mode-item"
-                :class="{ active: form.retrieval_mode === 'hybrid_graph' }"
-                @click="form.retrieval_mode = 'hybrid_graph'"
-              >
-                <div class="retrieval-mode-title">混合图谱</div>
-                <div class="retrieval-mode-desc">同时使用向量检索和图谱检索，合并结果</div>
-              </div>
-            </template>
-          </div>
-        </Form.Item>
+        <RetrievalSettingsPanel
+          v-model:retrieval-mode="form.retrieval_mode"
+          v-model:score-threshold="form.similarity_threshold"
+          v-model:top-k="form.top_k"
+          :show-graph-modes="kb.type === 'graph'"
+        />
 
         <Divider />
 
@@ -367,26 +325,6 @@ onMounted(() => {
               </Form.Item>
             </div>
           </template>
-        </div>
-
-        <Divider />
-
-        <div class="form-row">
-          <Form.Item label="Top K" class="form-item-half">
-            <div class="slider-with-input">
-              <Slider v-model:value="form.top_k" :min="1" :max="20" style="flex: 1" />
-              <InputNumber v-model:value="form.top_k" :min="1" :max="20" size="small" style="width: 64px" />
-            </div>
-            <div class="form-hint">最多返回的文本分块数量。</div>
-          </Form.Item>
-
-          <Form.Item label="Score 阈值" class="form-item-half">
-            <div class="slider-with-input">
-              <Slider v-model:value="form.similarity_threshold" :min="0" :max="1" :step="0.05" style="flex: 1" />
-              <InputNumber v-model:value="form.similarity_threshold" :min="0" :max="1" :step="0.05" size="small" style="width: 64px" />
-            </div>
-            <div class="form-hint">低于此分数的结果将被过滤。建议 0.5 ~ 0.8。</div>
-          </Form.Item>
         </div>
       </Form>
     </Card>
@@ -509,48 +447,6 @@ onMounted(() => {
   padding: 14px;
   border-top: 1px solid hsl(var(--border));
   background: hsl(var(--background));
-}
-
-/* 检索方式选项卡 */
-.retrieval-modes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.retrieval-mode-item {
-  padding: 10px 12px;
-  border: 2px solid hsl(var(--border));
-  border-radius: 8px;
-  cursor: pointer;
-  flex: 1;
-  min-width: 120px;
-  transition: all 0.15s;
-}
-
-.retrieval-mode-item.active {
-  border-color: hsl(var(--primary));
-  background: hsl(var(--primary) / 4%);
-}
-
-.retrieval-mode-title {
-  font-size: 13px;
-  font-weight: 500;
-  color: hsl(var(--foreground));
-  margin-bottom: 2px;
-}
-
-.retrieval-mode-desc {
-  font-size: 11px;
-  color: hsl(var(--muted-foreground));
-  line-height: 1.4;
-}
-
-/* 滑块 + 输入框组合 */
-.slider-with-input {
-  display: flex;
-  align-items: center;
-  gap: 12px;
 }
 
 /* 保存按钮（固定底部） */
