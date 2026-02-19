@@ -5,7 +5,7 @@
  * Step 2: 文本分段与清洗（配置参数 + 实时预览分块）
  * Step 3: 处理完成
  */
-import type { ChunkSetting, KnowledgeBase, KnowledgeDocument } from '#/api/knowledge-base';
+import type { ChunkSetting, KnowledgeBase, KnowledgeDocument, UploadFileResult } from '#/api/knowledge-base';
 
 import { ref } from 'vue';
 
@@ -22,8 +22,8 @@ import {
 import { FileText, Upload as UploadIcon } from 'lucide-vue-next';
 
 import {
-  processDocumentApi,
-  uploadKnowledgeDocumentApi,
+  createAndProcessDocumentApi,
+  uploadKnowledgeFileApi,
 } from '#/api/knowledge-base';
 
 import ChunkSettingPanel from './ChunkSettingPanel.vue';
@@ -41,9 +41,9 @@ const emit = defineEmits<{
 const visible = ref(false);
 const currentStep = ref(0);
 
-// Step 1 - 上传
+// Step 1 - 上传（仅保存文件，不建 DB 记录）
 const uploadLoading = ref(false);
-const uploadedDoc = ref<KnowledgeDocument | null>(null);
+const uploadedFile = ref<UploadFileResult | null>(null);
 
 // Step 2 - 分段设置
 const chunkSettings = ref<ChunkSetting>({
@@ -58,11 +58,13 @@ const chunkPanelRef = ref<InstanceType<typeof ChunkSettingPanel>>();
 // Step 3 - 处理
 const processing = ref(false);
 const processComplete = ref(false);
+const createdDoc = ref<KnowledgeDocument | null>(null);
 
 function open() {
   visible.value = true;
   currentStep.value = 0;
-  uploadedDoc.value = null;
+  uploadedFile.value = null;
+  createdDoc.value = null;
   processComplete.value = false;
   chunkSettings.value = {
     separator: '\\n\\n',
@@ -73,16 +75,15 @@ function open() {
   };
 }
 
-// Step 1: 上传文件
+// Step 1: 仅上传文件（不建 DB 记录）
 async function handleUpload(info: any) {
   const file = info.file;
   if (!file) return;
 
   uploadLoading.value = true;
   try {
-    // 上传到后端
-    const doc = await uploadKnowledgeDocumentApi(props.kb.id, file);
-    uploadedDoc.value = doc;
+    const result = await uploadKnowledgeFileApi(props.kb.id, file);
+    uploadedFile.value = result;
     message.success('文件上传成功');
     currentStep.value = 1;
   } catch (e: any) {
@@ -92,15 +93,17 @@ async function handleUpload(info: any) {
   }
 }
 
-// Step 2: 确认并处理
+// Step 2: 创建 DB 记录并启动处理
 async function handleProcess() {
-  if (!uploadedDoc.value) return;
+  if (!uploadedFile.value) return;
 
   processing.value = true;
   try {
-    await processDocumentApi(props.kb.id, uploadedDoc.value.id, {
+    const doc = await createAndProcessDocumentApi(props.kb.id, {
+      ...uploadedFile.value,
       chunk_setting: { ...chunkSettings.value },
     });
+    createdDoc.value = doc;
     currentStep.value = 2;
     processComplete.value = true;
   } catch (e: any) {
@@ -163,8 +166,9 @@ defineExpose({ open });
         ref="chunkPanelRef"
         v-model:settings="chunkSettings"
         :kb-id="props.kb.id"
-        :document-id="uploadedDoc?.id ?? 0"
-        :document-name="uploadedDoc?.name"
+        :file-path="uploadedFile?.file_path ?? ''"
+        :file-type="uploadedFile?.file_type ?? ''"
+        :document-name="uploadedFile?.file_name"
         :default-chunk-size="props.kb.chunk_size || 1024"
         :default-chunk-overlap="props.kb.chunk_overlap || 50"
       />
@@ -181,7 +185,7 @@ defineExpose({ open });
           <div class="complete-info">
             <div class="complete-doc">
               <FileText :size="16" />
-              <span>{{ uploadedDoc?.name }}</span>
+              <span>{{ createdDoc?.name }}</span>
               <Tag color="green" size="small">嵌入处理中</Tag>
             </div>
             <div class="complete-params">

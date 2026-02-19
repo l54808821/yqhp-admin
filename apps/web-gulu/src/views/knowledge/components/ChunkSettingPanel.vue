@@ -20,7 +20,8 @@ import { previewDocumentChunksApi } from '#/api/knowledge-base';
 
 interface Props {
   kbId: number;
-  documentId: number;
+  filePath: string;
+  fileType: string;
   documentName?: string;
   defaultChunkSize?: number;
   defaultChunkOverlap?: number;
@@ -47,7 +48,7 @@ const previewLoading = ref(false);
 const hasPreview = ref(false);
 
 async function handlePreview() {
-  if (!props.documentId) {
+  if (!props.filePath) {
     message.warning('请先上传文档');
     return;
   }
@@ -55,7 +56,8 @@ async function handlePreview() {
   previewLoading.value = true;
   try {
     const res = await previewDocumentChunksApi(props.kbId, {
-      document_id: props.documentId,
+      file_path: props.filePath,
+      file_type: props.fileType,
       chunk_setting: { ...settings.value },
     });
     previewChunks.value = res || [];

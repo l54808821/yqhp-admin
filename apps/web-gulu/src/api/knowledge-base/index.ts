@@ -117,6 +117,8 @@ export interface ChunkSetting {
 /** 分块预览请求 */
 export interface PreviewChunksParams {
   document_id?: number;
+  file_path?: string;
+  file_type?: string;
   content?: string;
   chunk_setting?: ChunkSetting;
 }
@@ -130,6 +132,23 @@ export interface PreviewChunkItem {
 
 /** 处理文档请求 */
 export interface ProcessDocumentParams {
+  chunk_setting?: ChunkSetting;
+}
+
+/** 仅上传文件（不建 DB 记录）的返回结构 */
+export interface UploadFileResult {
+  file_path: string;
+  file_name: string;
+  file_type: string;
+  file_size: number;
+}
+
+/** 创建文档并处理的请求参数 */
+export interface CreateAndProcessParams {
+  file_path: string;
+  file_name: string;
+  file_type: string;
+  file_size: number;
   chunk_setting?: ChunkSetting;
 }
 
@@ -227,6 +246,18 @@ export async function uploadKnowledgeDocumentApi(kbId: number, file: File) {
   return requestClient.post<KnowledgeDocument>(`/knowledge-bases/${kbId}/documents`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
+}
+
+export async function uploadKnowledgeFileApi(kbId: number, file: File) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return requestClient.post<UploadFileResult>(`/knowledge-bases/${kbId}/upload-file`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+}
+
+export async function createAndProcessDocumentApi(kbId: number, params: CreateAndProcessParams) {
+  return requestClient.post<KnowledgeDocument>(`/knowledge-bases/${kbId}/documents/create-and-process`, params);
 }
 
 export interface KnowledgeDocumentListParams {
