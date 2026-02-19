@@ -52,21 +52,16 @@ onMounted(() => {
   <div class="kb-detail-page">
     <Spin :spinning="loading">
       <template v-if="kb">
-        <!-- 面包屑导航条 -->
-        <div class="kb-breadcrumb">
-          <button class="kb-breadcrumb-btn" @click="handleBack">
-            <ArrowLeft :size="14" />
-            返回知识库列表
-          </button>
-        </div>
-
-        <!-- 知识库信息 Header -->
+        <!-- 知识库信息 Header（含返回入口） -->
         <div class="kb-detail-header">
+          <button class="kb-back-btn" @click="handleBack">
+            <ArrowLeft :size="14" />
+          </button>
           <div
             class="kb-detail-icon"
             :class="kb.type === 'graph' ? 'icon-graph' : 'icon-normal'"
           >
-            <component :is="kb.type === 'graph' ? GitFork : Database" :size="26" />
+            <component :is="kb.type === 'graph' ? GitFork : Database" :size="20" />
           </div>
           <div class="kb-detail-title-area">
             <div class="kb-detail-name">{{ kb.name }}</div>
@@ -150,55 +145,45 @@ onMounted(() => {
   flex-direction: column;
 }
 
-/* 面包屑导航条 */
-.kb-breadcrumb {
-  display: flex;
-  align-items: center;
-  padding: 0 24px;
-  height: 38px;
-  flex-shrink: 0;
-  border-bottom: 1px solid hsl(var(--border) / 50%);
-  background: hsl(var(--background));
-}
-
-.kb-breadcrumb-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 12px;
-  color: hsl(var(--muted-foreground));
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px 6px;
-  border-radius: 5px;
-  transition: background 0.15s, color 0.15s;
-  line-height: 1;
-}
-
-.kb-breadcrumb-btn:hover {
-  background: hsl(var(--muted) / 60%);
-  color: hsl(var(--foreground));
-}
-
-/* 知识库信息 Header */
+/* 知识库信息 Header（含返回按钮） */
 .kb-detail-header {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 20px 28px;
+  gap: 10px;
+  padding: 10px 20px;
   background: hsl(var(--card));
   box-shadow: 0 1px 0 hsl(var(--border));
   flex-shrink: 0;
+}
+
+.kb-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid hsl(var(--border));
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.kb-back-btn:hover {
+  background: hsl(var(--muted) / 60%);
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--border));
 }
 
 .kb-detail-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   flex-shrink: 0;
 }
 
@@ -217,11 +202,11 @@ onMounted(() => {
 .kb-detail-title-area {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .kb-detail-name {
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 600;
   color: hsl(var(--foreground));
   line-height: 1.2;
@@ -272,14 +257,14 @@ onMounted(() => {
 
 .kb-tabs :deep(.ant-tabs-nav) {
   flex-shrink: 0;
-  padding: 0 28px;
+  padding: 0 24px;
   margin-bottom: 0;
   background: hsl(var(--card));
   border-bottom: 1px solid hsl(var(--border));
 }
 
 .kb-tabs :deep(.ant-tabs-tab) {
-  padding: 14px 4px;
+  padding: 10px 4px;
   font-size: 13px;
 }
 

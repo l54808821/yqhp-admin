@@ -208,6 +208,7 @@ onMounted(() => {
     </div>
 
     <Spin :spinning="loading" class="doc-tab-content">
+      <div class="doc-list-wrap">
       <div v-if="documents.length > 0" class="doc-list">
         <div class="doc-list-header">
           <Checkbox :checked="allSelected" @change="toggleSelectAll" />
@@ -271,6 +272,7 @@ onMounted(() => {
       <div v-else-if="!loading" class="doc-empty">
         <Empty description="暂无文档，点击上方「添加文件」上传" />
       </div>
+      </div><!-- end doc-list-wrap -->
     </Spin>
 
     <DocumentUploadWizard ref="wizardRef" :kb="props.kb" @done="handleWizardDone" />
@@ -289,7 +291,7 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 28px;
+  padding: 10px 24px;
   background: hsl(var(--card));
   border-bottom: 1px solid hsl(var(--border));
   flex-shrink: 0;
@@ -316,7 +318,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 16px;
+  padding: 6px 0 10px;
   font-size: 12px;
   color: hsl(var(--muted-foreground));
 }
@@ -329,17 +331,20 @@ onMounted(() => {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 20px 28px;
 }
 
 .doc-tab-content :deep(.ant-spin-container) {
   height: 100%;
 }
 
+.doc-list-wrap {
+  padding: 16px 24px;
+}
+
 .doc-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .doc-item {

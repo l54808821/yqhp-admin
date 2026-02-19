@@ -140,6 +140,7 @@ onMounted(() => {
 
 <template>
   <div class="settings-tab">
+    <div class="settings-scroll-area">
 
     <!-- 索引配置 -->
     <Card class="settings-card">
@@ -390,7 +391,9 @@ onMounted(() => {
       </Form>
     </Card>
 
-    <!-- 保存按钮 -->
+    </div><!-- end settings-scroll-area -->
+
+    <!-- 保存按钮（固定底部） -->
     <div class="settings-save">
       <Button type="primary" :loading="saving" @click="handleSave">
         保存设置
@@ -402,11 +405,21 @@ onMounted(() => {
 
 <style scoped>
 .settings-tab {
-  padding: 20px 28px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.settings-scroll-area {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 24px;
 }
 
 .settings-card {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 /* 卡片标题行 */
@@ -450,7 +463,7 @@ onMounted(() => {
 
 .form-hint {
   font-size: 12px;
-  color: #999;
+  color: hsl(var(--muted-foreground));
   margin-top: 4px;
 }
 
@@ -460,7 +473,7 @@ onMounted(() => {
 
 .model-provider {
   font-size: 11px;
-  color: #999;
+  color: hsl(var(--muted-foreground));
   margin-left: 4px;
 }
 
@@ -540,10 +553,13 @@ onMounted(() => {
   gap: 12px;
 }
 
-/* 保存按钮 */
+/* 保存按钮（固定底部） */
 .settings-save {
+  flex-shrink: 0;
   display: flex;
   justify-content: flex-end;
-  padding-top: 4px;
+  padding: 12px 24px;
+  border-top: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
 }
 </style>

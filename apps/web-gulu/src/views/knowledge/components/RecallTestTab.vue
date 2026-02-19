@@ -1,7 +1,4 @@
 <script setup lang="ts">
-/**
- * 召回测试 Tab — 支持检索方式选择 + 持久化历史
- */
 import type {
   KnowledgeBase,
   KnowledgeSearchResult,
@@ -9,20 +6,27 @@ import type {
   RetrievalMode,
 } from '#/api/knowledge-base';
 
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
 import {
   Button,
-  Empty,
+  Drawer,
   Input,
   InputNumber,
+  Pagination,
   Radio,
   Slider,
   Spin,
-  Tag,
   message,
 } from 'ant-design-vue';
-import { Clock, FileText, Search } from 'lucide-vue-next';
+import {
+  ExternalLink,
+  FileText,
+  Hash,
+  Search,
+  SlidersHorizontal,
+  Target,
+} from 'lucide-vue-next';
 
 import {
   getQueryHistoryApi,
@@ -44,17 +48,30 @@ const query = ref('');
 const results = ref<KnowledgeSearchResult[]>([]);
 const searching = ref(false);
 const hasSearched = ref(false);
+const settingsOpen = ref(false);
+
 const retrievalMode = ref<RetrievalMode>(props.kb.retrieval_mode || 'vector');
-// 独立的阈值控件，默认 0（不过滤），与知识库全局配置解耦
 const scoreThreshold = ref(0);
 const topK = ref(props.kb.top_k || 5);
 
 const searchHistory = ref<QueryHistoryItem[]>([]);
+const historyPage = ref(1);
+const historyPageSize = 10;
+
+const pagedHistory = computed(() => {
+  const start = (historyPage.value - 1) * historyPageSize;
+  return searchHistory.value.slice(start, start + historyPageSize);
+});
+
+const currentModeLabel = computed(() => {
+  return RETRIEVAL_MODE_LABELS[retrievalMode.value] || '向量检索';
+});
 
 async function loadHistory() {
   try {
-    const res = await getQueryHistoryApi(props.kb.id, 20);
+    const res = await getQueryHistoryApi(props.kb.id, 100);
     searchHistory.value = res || [];
+    historyPage.value = 1;
   } catch {
     // ignore
   }
@@ -104,15 +121,6 @@ function getScoreColor(score: number): string {
   return '#ff4d4f';
 }
 
-function getScoreBg(score: number): string {
-  if (score >= 0.8) return '#f6ffed';
-  if (score >= 0.6) return '#e6f4ff';
-  if (score >= 0.4) return '#fffbe6';
-  return '#fff2f0';
-}
-
-const modeLabels = RETRIEVAL_MODE_LABELS;
-
 onMounted(() => {
   loadHistory();
 });
@@ -120,54 +128,32 @@ onMounted(() => {
 
 <template>
   <div class="recall-tab">
+    <!-- 左侧面板 -->
     <div class="recall-left">
-      <div class="recall-left-title">召回测试</div>
-      <div class="recall-left-desc">
-        根据给定的查询文本测试知识的召回效果。
-      </div>
+      <!-- 标题区 -->
+      <div class="recall-title">召回测试</div>
+      <div class="recall-desc">根据给定的查询文本测试知识的召回效果。</div>
 
-      <div class="recall-input-area">
+      <!-- 输入卡片 -->
+      <div class="recall-input-card">
         <div class="recall-input-header">
-          <span>源文本</span>
-          <Radio.Group v-model:value="retrievalMode" size="small" button-style="solid">
-            <Radio.Button value="vector">向量</Radio.Button>
-            <Radio.Button value="keyword">关键词</Radio.Button>
-            <Radio.Button value="hybrid">混合</Radio.Button>
-          </Radio.Group>
+          <span class="recall-input-label">源文本</span>
+          <div class="recall-input-header-right">
+            <button class="recall-mode-btn" @click="settingsOpen = true">
+              <Hash :size="12" />
+              {{ currentModeLabel }}
+              <SlidersHorizontal :size="12" />
+            </button>
+          </div>
         </div>
         <Input.TextArea
           v-model:value="query"
-          :rows="4"
-          placeholder="输入查询文本..."
+          :rows="6"
+          placeholder="请输入文本，建议使用简短的陈述句。"
           :maxlength="2000"
           show-count
-          @press-enter="handleSearch"
+          @press-enter.prevent="handleSearch"
         />
-        <div class="recall-params">
-          <div class="recall-param-row">
-            <span class="recall-param-label">
-              相似度阈值
-              <span class="recall-param-value">{{ scoreThreshold.toFixed(2) }}</span>
-            </span>
-            <Slider
-              v-model:value="scoreThreshold"
-              :min="0"
-              :max="1"
-              :step="0.01"
-              class="recall-param-slider"
-            />
-          </div>
-          <div class="recall-param-row">
-            <span class="recall-param-label">召回数量</span>
-            <InputNumber
-              v-model:value="topK"
-              :min="1"
-              :max="20"
-              size="small"
-              style="width: 70px"
-            />
-          </div>
-        </div>
         <div class="recall-input-footer">
           <Button
             type="primary"
@@ -181,61 +167,73 @@ onMounted(() => {
         </div>
       </div>
 
+      <!-- 记录表格 -->
       <div v-if="searchHistory.length > 0" class="recall-history">
-        <div class="recall-history-title">
-          <Clock :size="14" />
-          历史记录
+        <div class="recall-history-title">记录</div>
+        <div class="recall-history-table-wrap">
+          <table class="recall-history-table">
+            <thead>
+              <tr>
+                <th class="col-query">查询内容</th>
+                <th class="col-source">数据源</th>
+                <th class="col-time">时间 ↓</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="record in pagedHistory"
+                :key="record.id"
+                class="history-row"
+                @click="handleHistoryClick(record)"
+              >
+                <td class="col-query">
+                  <span class="history-query-text">{{ record.query_text }}</span>
+                </td>
+                <td class="col-source">
+                  <span class="history-source-dot" />
+                  Retrieval Test
+                </td>
+                <td class="col-time">{{ formatTime(record.created_at) }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-        <div class="recall-history-list">
-          <div
-            v-for="record in searchHistory"
-            :key="record.id"
-            class="recall-history-item"
-            @click="handleHistoryClick(record)"
-          >
-            <div class="history-query">{{ record.query_text }}</div>
-            <div class="history-meta">
-              <Tag size="small">{{ modeLabels[record.retrieval_mode] || record.retrieval_mode }}</Tag>
-              <span>{{ record.result_count }} 结果</span>
-              <span>{{ formatTime(record.created_at) }}</span>
-            </div>
-          </div>
+        <div v-if="searchHistory.length > historyPageSize" class="recall-history-pagination">
+          <Pagination
+            v-model:current="historyPage"
+            :total="searchHistory.length"
+            :page-size="historyPageSize"
+            size="small"
+            simple
+          />
         </div>
       </div>
     </div>
 
+    <!-- 右侧：结果区 -->
     <div class="recall-right">
-      <Spin :spinning="searching">
+      <Spin :spinning="searching" class="recall-results-spin">
         <template v-if="hasSearched && results.length > 0">
-          <div class="recall-results-header">
-            <strong>{{ results.length }} 个召回段落</strong>
-          </div>
+          <div class="recall-results-count">{{ results.length }} 个召回段落</div>
           <div class="recall-results-list">
             <div
               v-for="(result, idx) in results"
               :key="idx"
               class="recall-result-card"
             >
-              <div
-                class="result-score-badge"
-                :style="{
-                  color: getScoreColor(result.score),
-                  background: getScoreBg(result.score),
-                  borderColor: getScoreColor(result.score) + '40',
-                }"
-              >
-                SCORE {{ result.score.toFixed(2) }}
-              </div>
-
               <div class="result-chunk-header">
-                <span class="result-chunk-label">
-                  Chunk-{{ String(result.chunk_index + 1).padStart(2, '0') }}
-                </span>
-                <span class="result-chunk-chars">
-                  {{ result.word_count }} 字
-                </span>
-                <span v-if="result.hit_count" class="result-hit-count">
-                  命中 {{ result.hit_count }} 次
+                <div class="result-chunk-left">
+                  <Hash :size="13" class="result-hash-icon" />
+                  <span class="result-chunk-label">
+                    Chunk-{{ String(result.chunk_index + 1).padStart(2, '0') }}
+                  </span>
+                  <span class="result-chunk-chars">{{ result.word_count }} 字符</span>
+                </div>
+                <span
+                  class="result-score"
+                  :style="{ color: getScoreColor(result.score) }"
+                >
+                  score {{ result.score.toFixed(2) }}
                 </span>
               </div>
 
@@ -254,40 +252,80 @@ onMounted(() => {
               <div v-else class="result-content" v-html="renderContent(result.content)" />
 
               <div v-if="result.document_name" class="result-source">
-                <FileText :size="12" />
-                <span>{{ result.document_name }}</span>
+                <div class="result-source-left">
+                  <FileText :size="12" />
+                  <span>{{ result.document_name }}</span>
+                </div>
+                <a class="result-source-link" @click.stop>
+                  打开
+                  <ExternalLink :size="11" />
+                </a>
               </div>
             </div>
           </div>
         </template>
 
         <template v-else-if="hasSearched && !searching">
-          <div class="recall-empty">
-            <Empty description="未找到与查询相关的内容">
-              <template #image>
-                <Search :size="48" style="color: hsl(var(--muted-foreground))" />
-              </template>
-            </Empty>
-            <div class="recall-empty-tips">
-              <p>建议：</p>
-              <ul>
-                <li>尝试使用不同的关键词</li>
-                <li>切换检索方式（向量 / 关键词 / 混合）</li>
-                <li>检查知识库中是否有相关文档</li>
-                <li>适当降低相似度阈值</li>
-              </ul>
-            </div>
+          <div class="recall-placeholder">
+            <Target :size="40" style="color: hsl(var(--muted-foreground) / 40%)" />
+            <p>未找到与查询相关的内容</p>
+            <p class="recall-placeholder-sub">尝试调整关键词、切换检索方式或降低相似度阈值</p>
           </div>
         </template>
 
-        <template v-else>
+        <template v-else-if="!hasSearched">
           <div class="recall-placeholder">
-            <Search :size="48" style="color: hsl(var(--muted-foreground) / 40%)" />
-            <p>在左侧输入查询文本，点击「测试」查看召回结果</p>
+            <Target :size="40" style="color: hsl(var(--muted-foreground) / 30%)" />
+            <p>召回测试结果将展示在这里</p>
           </div>
         </template>
       </Spin>
     </div>
+
+    <!-- 检索设置 Drawer -->
+    <Drawer
+      v-model:open="settingsOpen"
+      title="检索设置"
+      :width="300"
+      :get-container="false"
+      :style="{ position: 'absolute' }"
+      placement="right"
+    >
+      <div class="settings-drawer-body">
+        <div class="settings-item">
+          <div class="settings-item-label">检索方式</div>
+          <Radio.Group v-model:value="retrievalMode" class="settings-radio-group">
+            <Radio value="vector">向量检索</Radio>
+            <Radio value="keyword">关键词检索</Radio>
+            <Radio value="hybrid">混合检索</Radio>
+          </Radio.Group>
+        </div>
+
+        <div class="settings-item">
+          <div class="settings-item-label">
+            相似度阈值
+            <span class="settings-item-value">{{ scoreThreshold.toFixed(2) }}</span>
+          </div>
+          <Slider
+            v-model:value="scoreThreshold"
+            :min="0"
+            :max="1"
+            :step="0.01"
+          />
+          <div class="settings-item-hint">低于此阈值的结果将被过滤</div>
+        </div>
+
+        <div class="settings-item">
+          <div class="settings-item-label">召回数量（Top-K）</div>
+          <InputNumber
+            v-model:value="topK"
+            :min="1"
+            :max="20"
+            style="width: 100%"
+          />
+        </div>
+      </div>
+    </Drawer>
   </div>
 </template>
 
@@ -295,37 +333,47 @@ onMounted(() => {
 .recall-tab {
   display: flex;
   height: 100%;
-  min-height: 500px;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
 }
 
+/* ====== 左侧面板 ====== */
 .recall-left {
-  width: 380px;
+  width: 420px;
   flex-shrink: 0;
   border-right: 1px solid hsl(var(--border));
   padding: 20px 24px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  background: hsl(var(--card));
 }
 
-.recall-left-title {
+.recall-title {
   font-size: 16px;
   font-weight: 600;
   color: hsl(var(--foreground));
   margin-bottom: 4px;
 }
 
-.recall-left-desc {
+.recall-desc {
   font-size: 13px;
   color: hsl(var(--muted-foreground));
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
-.recall-input-area {
-  border: 1px solid hsl(var(--border));
+/* 输入卡片 */
+.recall-input-card {
+  border: 1px solid hsl(var(--primary) / 40%);
   border-radius: 10px;
   padding: 12px;
   margin-bottom: 20px;
+  transition: border-color 0.15s;
+}
+
+.recall-input-card:focus-within {
+  border-color: hsl(var(--primary) / 70%);
 }
 
 .recall-input-header {
@@ -333,120 +381,181 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 8px;
+}
+
+.recall-input-label {
   font-size: 13px;
   font-weight: 500;
   color: hsl(var(--foreground));
 }
 
-.recall-params {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid hsl(var(--border));
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.recall-param-row {
+.recall-input-header-right {
   display: flex;
   align-items: center;
-  gap: 10px;
 }
 
-.recall-param-label {
-  font-size: 12px;
-  color: hsl(var(--muted-foreground));
-  white-space: nowrap;
-  min-width: 90px;
-  display: flex;
+.recall-mode-btn {
+  display: inline-flex;
   align-items: center;
   gap: 4px;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted) / 40%);
+  border: 1px solid hsl(var(--border));
+  border-radius: 5px;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  line-height: 1.5;
 }
 
-.recall-param-value {
-  font-weight: 600;
+.recall-mode-btn:hover {
+  background: hsl(var(--muted) / 70%);
   color: hsl(var(--foreground));
 }
 
-.recall-param-slider {
-  flex: 1;
-  margin: 0;
+.recall-input-card :deep(.ant-input) {
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  resize: none;
+  font-size: 13px;
+}
+
+.recall-input-card :deep(.ant-input:focus) {
+  box-shadow: none;
+}
+
+.recall-input-card :deep(.ant-input-textarea-show-count::after) {
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
 }
 
 .recall-input-footer {
   display: flex;
   justify-content: flex-end;
   margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid hsl(var(--border) / 60%);
 }
 
+/* ====== 记录表格 ====== */
 .recall-history {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .recall-history-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 600;
   color: hsl(var(--foreground));
   margin-bottom: 10px;
 }
 
-.recall-history-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+.recall-history-table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
-.recall-history-item {
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid hsl(var(--border));
+.recall-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.recall-history-table thead th {
+  text-align: left;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  padding: 6px 8px;
+  border-bottom: 1px solid hsl(var(--border));
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  background: hsl(var(--card));
+}
+
+.recall-history-table .col-query {
+  width: 40%;
+}
+
+.recall-history-table .col-source {
+  width: 30%;
+}
+
+.recall-history-table .col-time {
+  width: 30%;
+}
+
+.history-row {
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background 0.1s;
 }
 
-.recall-history-item:hover {
-  background: hsl(var(--primary) / 4%);
-  border-color: hsl(var(--primary) / 30%);
+.history-row:hover {
+  background: hsl(var(--muted) / 40%);
 }
 
-.history-query {
-  font-size: 13px;
+.history-row td {
+  padding: 8px 8px;
+  border-bottom: 1px solid hsl(var(--border) / 50%);
   color: hsl(var(--foreground));
+  vertical-align: middle;
+}
+
+.history-query-text {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-bottom: 4px;
+  max-width: 140px;
 }
 
-.history-meta {
+.history-source-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: hsl(var(--muted-foreground) / 50%);
+  margin-right: 5px;
+  vertical-align: middle;
+}
+
+.recall-history-pagination {
+  padding-top: 8px;
   display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  color: hsl(var(--muted-foreground));
+  justify-content: flex-start;
 }
 
-.history-meta :deep(.ant-tag) {
-  margin: 0;
-  font-size: 10px;
-}
-
+/* ====== 右侧结果区 ====== */
 .recall-right {
   flex: 1;
   min-width: 0;
-  padding: 20px 24px;
-  overflow-y: auto;
-  background: hsl(var(--muted) / 30%);
+  display: flex;
+  flex-direction: column;
+  background: hsl(var(--muted) / 20%);
+  overflow: hidden;
 }
 
-.recall-results-header {
-  font-size: 15px;
-  margin-bottom: 16px;
+.recall-results-spin {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 24px;
+}
+
+.recall-results-spin :deep(.ant-spin-container) {
+  height: 100%;
+}
+
+.recall-results-count {
+  font-size: 13px;
+  font-weight: 500;
   color: hsl(var(--foreground));
+  margin-bottom: 12px;
 }
 
 .recall-results-list {
@@ -456,30 +565,27 @@ onMounted(() => {
 }
 
 .recall-result-card {
-  position: relative;
   background: hsl(var(--card));
   border: 1px solid hsl(var(--border));
   border-radius: 10px;
   padding: 16px;
 }
 
-.result-score-badge {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 4px;
-  border: 1px solid;
-  letter-spacing: 0.5px;
-}
-
 .result-chunk-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
   margin-bottom: 10px;
+}
+
+.result-chunk-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.result-hash-icon {
+  color: hsl(var(--muted-foreground));
 }
 
 .result-chunk-label {
@@ -489,13 +595,14 @@ onMounted(() => {
 }
 
 .result-chunk-chars {
-  font-size: 11px;
+  font-size: 12px;
   color: hsl(var(--muted-foreground));
 }
 
-.result-hit-count {
-  font-size: 11px;
-  color: hsl(var(--primary));
+.result-score {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
 }
 
 .result-content {
@@ -506,7 +613,6 @@ onMounted(() => {
   word-break: break-word;
   max-height: 200px;
   overflow-y: auto;
-  padding-right: 60px;
 }
 
 .result-content-image {
@@ -540,46 +646,88 @@ onMounted(() => {
 .result-source {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-top: 10px;
+  justify-content: space-between;
+  margin-top: 12px;
   padding-top: 10px;
   border-top: 1px solid hsl(var(--border));
   font-size: 12px;
   color: hsl(var(--muted-foreground));
 }
 
-.recall-empty {
-  padding: 60px 0;
-  text-align: center;
+.result-source-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
-.recall-empty-tips {
-  margin-top: 16px;
-  font-size: 13px;
-  color: hsl(var(--muted-foreground));
-  text-align: left;
-  max-width: 280px;
-  margin-left: auto;
-  margin-right: auto;
+.result-source-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  color: hsl(var(--primary));
+  cursor: pointer;
+  transition: opacity 0.15s;
 }
 
-.recall-empty-tips ul {
-  padding-left: 18px;
-  margin-top: 4px;
+.result-source-link:hover {
+  opacity: 0.8;
 }
 
-.recall-empty-tips li {
-  margin-bottom: 2px;
-}
-
+/* 空状态 */
 .recall-placeholder {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 300px;
-  gap: 12px;
+  height: 100%;
+  min-height: 260px;
+  gap: 10px;
   color: hsl(var(--muted-foreground));
-  font-size: 14px;
+  font-size: 13px;
+}
+
+.recall-placeholder p {
+  margin: 0;
+}
+
+.recall-placeholder-sub {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground) / 60%);
+}
+
+/* ====== 设置 Drawer ====== */
+.settings-drawer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.settings-item-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-item-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: hsl(var(--primary));
+}
+
+.settings-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-item-hint {
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+  margin-top: 4px;
 }
 </style>
