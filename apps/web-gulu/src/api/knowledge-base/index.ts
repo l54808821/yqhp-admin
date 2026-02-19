@@ -228,8 +228,19 @@ export async function uploadKnowledgeDocumentApi(kbId: number, file: File) {
   });
 }
 
-export async function getKnowledgeDocumentListApi(kbId: number) {
-  return requestClient.get<KnowledgeDocument[]>(`/knowledge-bases/${kbId}/documents`);
+export interface KnowledgeDocumentListParams {
+  keyword?: string;
+  status?: string;
+}
+
+export async function getKnowledgeDocumentListApi(
+  kbId: number,
+  params?: KnowledgeDocumentListParams,
+) {
+  return requestClient.get<KnowledgeDocument[]>(
+    `/knowledge-bases/${kbId}/documents`,
+    { params },
+  );
 }
 
 export async function deleteKnowledgeDocumentApi(kbId: number, docId: number) {

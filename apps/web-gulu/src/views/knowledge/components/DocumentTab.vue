@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import type { KnowledgeBase, KnowledgeDocument } from '#/api/knowledge-base';
 
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import {
   Button,
   Input,
   message,
   Popconfirm,
+  Select,
   Table,
   Tag,
 } from 'ant-design-vue';
@@ -22,6 +23,7 @@ import {
 import { useDocumentPolling } from '#/composables/useDocumentPolling';
 import {
   getStatusInfo,
+  INDEXING_STATUS_MAP,
   isProcessingStatus,
 } from '#/utils/knowledge';
 
@@ -43,6 +45,11 @@ const loading = ref(false);
 const selectedDoc = ref<KnowledgeDocument | null>(null);
 const wizardRef = ref<InstanceType<typeof DocumentUploadWizard>>();
 const searchKeyword = ref('');
+const statusFilter = ref<string[]>([]);
+
+const statusOptions = Object.entries(INDEXING_STATUS_MAP).map(
+  ([value, { text }]) => ({ label: text, value }),
+);
 
 const hasProcessing = computed(() =>
   documents.value.some((d) => isProcessingStatus(d.indexing_status)),
@@ -50,18 +57,24 @@ const hasProcessing = computed(() =>
 
 const { start: startPolling } = useDocumentPolling(
   async () => {
-    const res = await getKnowledgeDocumentListApi(props.kb.id);
+    const res = await getKnowledgeDocumentListApi(props.kb.id, {
+      keyword: searchKeyword.value.trim() || undefined,
+      status: statusFilter.value.length > 0 ? statusFilter.value.join(',') : undefined,
+    });
     documents.value = res || [];
     if (!hasProcessing.value) emit('change');
   },
   () => hasProcessing.value,
 );
 
-const filteredDocuments = computed(() => {
-  const kw = searchKeyword.value.trim().toLowerCase();
-  if (!kw) return documents.value;
-  return documents.value.filter((d) => d.name.toLowerCase().includes(kw));
-});
+let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+watch([searchKeyword, statusFilter], () => {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    loadDocuments();
+  }, 300);
+}, { deep: true });
+onUnmounted(() => clearTimeout(debounceTimer));
 
 const columns = [
   {
@@ -129,7 +142,10 @@ const getStatusTag = (status: string) => {
 async function loadDocuments() {
   loading.value = true;
   try {
-    const res = await getKnowledgeDocumentListApi(props.kb.id);
+    const res = await getKnowledgeDocumentListApi(props.kb.id, {
+      keyword: searchKeyword.value.trim() || undefined,
+      status: statusFilter.value.length > 0 ? statusFilter.value.join(',') : undefined,
+    });
     documents.value = res || [];
   } catch {
     message.error('加载文档列表失败');
@@ -195,12 +211,21 @@ onMounted(() => {
         <div class="doc-toolbar-left">
           <Input
             v-model:value="searchKeyword"
-            placeholder="搜索"
+            placeholder="搜索文档名称"
             allow-clear
             class="doc-search-input"
           >
             <template #prefix><Search :size="14" style="color: hsl(var(--muted-foreground))" /></template>
           </Input>
+          <Select
+            v-model:value="statusFilter"
+            mode="multiple"
+            placeholder="全部状态"
+            allow-clear
+            :max-tag-count="1"
+            :options="statusOptions"
+            class="doc-status-select"
+          />
         </div>
         <div class="doc-toolbar-right">
           <Button type="primary" @click="handleOpenWizard">
@@ -215,7 +240,7 @@ onMounted(() => {
     <div class="doc-table-area">
       <Table
         :columns="columns"
-        :data-source="filteredDocuments"
+        :data-source="documents"
         :loading="loading"
         :pagination="{
           showSizeChanger: true,
@@ -305,6 +330,11 @@ onMounted(() => {
 
 .doc-search-input {
   width: 220px;
+}
+
+.doc-status-select {
+  min-width: 140px;
+  max-width: 280px;
 }
 
 .doc-table-area {
