@@ -152,7 +152,7 @@ defineExpose({ resetPreview });
     </Col>
 
     <!-- 右侧：预览 -->
-    <Col :span="14">
+    <Col :span="14" class="preview-col">
       <div class="preview-section">
         <div class="preview-header">
           <span class="preview-title">预览</span>
@@ -195,7 +195,9 @@ defineExpose({ resetPreview });
 
 <style scoped>
 .chunk-panel {
-  height: 100%;
+  flex: 1;
+  min-height: 0;
+  align-items: stretch !important;
 }
 
 .settings-section {
@@ -253,8 +255,17 @@ defineExpose({ resetPreview });
   gap: 8px;
 }
 
+.preview-col {
+  position: relative;
+}
+
 /* 右侧预览 */
 .preview-section {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   border: 1px solid hsl(var(--border));
   border-radius: 10px;
   display: flex;
@@ -349,7 +360,8 @@ defineExpose({ resetPreview });
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 300px;
+  min-height: 200px;
+  flex: 1;
   color: hsl(var(--muted-foreground));
   font-size: 13px;
 }

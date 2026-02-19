@@ -82,6 +82,7 @@ defineExpose({ open });
     title="修改分段设置"
     :width="960"
     :destroyOnClose="true"
+    :body-style="{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }"
   >
     <div class="chunk-drawer-tip">
       修改分段设置后将重新处理文档 <strong>{{ docName }}</strong>，原有分块数据会被替换。
@@ -110,6 +111,7 @@ defineExpose({ open });
 
 <style scoped>
 .chunk-drawer-tip {
+  flex-shrink: 0;
   margin-bottom: 16px;
   padding: 8px 12px;
   font-size: 13px;
@@ -117,6 +119,16 @@ defineExpose({ open });
   background: hsl(var(--muted) / 30%);
   border-radius: 6px;
   line-height: 1.5;
+}
+
+:deep(.ant-drawer-wrapper-body) {
+  display: flex;
+  flex-direction: column;
+}
+
+:deep(.ant-drawer-body) {
+  flex: 1;
+  min-height: 0;
 }
 
 .chunk-drawer-footer {

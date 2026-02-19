@@ -126,6 +126,7 @@ defineExpose({ open });
     :destroyOnClose="true"
     :closable="currentStep < 2"
     :maskClosable="currentStep < 2"
+    :body-style="{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }"
   >
     <!-- Steps 导航 -->
     <Steps :current="currentStep" class="wizard-steps">
@@ -224,10 +225,24 @@ defineExpose({ open });
 <style scoped>
 .wizard-steps {
   margin-bottom: 24px;
+  flex-shrink: 0;
 }
 
 .wizard-step {
-  min-height: 400px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+:deep(.ant-drawer-wrapper-body) {
+  display: flex;
+  flex-direction: column;
+}
+
+:deep(.ant-drawer-body) {
+  flex: 1;
+  min-height: 0;
 }
 
 /* Step 1: 上传 */
