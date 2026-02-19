@@ -70,10 +70,10 @@ const currentModeLabel = computed(() => {
 async function loadHistory() {
   try {
     const res = await getQueryHistoryApi(props.kb.id, 100);
-    searchHistory.value = res || [];
+    searchHistory.value = Array.isArray(res) ? res : [];
     historyPage.value = 1;
-  } catch {
-    // ignore
+  } catch (e) {
+    console.warn('[RecallTest] loadHistory failed:', e);
   }
 }
 
