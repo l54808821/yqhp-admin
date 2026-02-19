@@ -5,7 +5,7 @@ import type { PageResult } from '#/api/types';
 export type KnowledgeBaseType = 'normal' | 'graph';
 
 /** 检索模式 */
-export type RetrievalMode = 'vector' | 'keyword' | 'hybrid';
+export type RetrievalMode = 'vector' | 'keyword' | 'hybrid' | 'graph' | 'hybrid_graph';
 
 /** 文档索引状态 */
 export type IndexingStatus = 'waiting' | 'parsing' | 'cleaning' | 'splitting' | 'indexing' | 'completed' | 'error' | 'paused';
@@ -23,6 +23,10 @@ export interface KnowledgeBase {
   embedding_model_id?: number;
   embedding_model_name: string;
   embedding_dimension: number;
+  multimodal_enabled: boolean;
+  multimodal_model_id?: number;
+  multimodal_model_name: string;
+  multimodal_dimension: number;
   chunk_size: number;
   chunk_overlap: number;
   similarity_threshold: number;
@@ -31,8 +35,11 @@ export interface KnowledgeBase {
   rerank_model_id?: number;
   rerank_enabled: boolean;
   qdrant_collection: string;
+  graph_extract_model_id?: number;
   document_count: number;
   chunk_count: number;
+  entity_count: number;
+  relation_count: number;
 }
 
 /** 创建知识库参数 */
@@ -43,11 +50,16 @@ export interface CreateKnowledgeBaseParams {
   embedding_model_id?: number;
   embedding_model_name?: string;
   embedding_dimension?: number;
+  multimodal_enabled?: boolean;
+  multimodal_model_id?: number;
+  multimodal_model_name?: string;
+  multimodal_dimension?: number;
   chunk_size?: number;
   chunk_overlap?: number;
   similarity_threshold?: number;
   top_k?: number;
   retrieval_mode?: RetrievalMode;
+  graph_extract_model_id?: number;
 }
 
 /** 更新知识库参数 */
@@ -57,6 +69,10 @@ export interface UpdateKnowledgeBaseParams {
   embedding_model_id?: number;
   embedding_model_name?: string;
   embedding_dimension?: number;
+  multimodal_enabled?: boolean;
+  multimodal_model_id?: number;
+  multimodal_model_name?: string;
+  multimodal_dimension?: number;
   chunk_size?: number;
   chunk_overlap?: number;
   similarity_threshold?: number;
@@ -64,6 +80,7 @@ export interface UpdateKnowledgeBaseParams {
   retrieval_mode?: RetrievalMode;
   rerank_model_id?: number;
   rerank_enabled?: boolean;
+  graph_extract_model_id?: number;
 }
 
 /** 知识库列表查询参数 */
@@ -127,6 +144,8 @@ export interface SegmentInfo {
   document_id: number;
   document_name: string;
   content: string;
+  content_type: 'text' | 'image';
+  image_path?: string;
   position: number;
   word_count: number;
   enabled: boolean;
@@ -144,15 +163,19 @@ export interface UpdateSegmentParams {
 /** 知识库检索参数 */
 export interface KnowledgeSearchParams {
   query: string;
+  query_type?: 'text' | 'image';
   top_k?: number;
   score?: number;
   retrieval_mode?: RetrievalMode;
+  search_fields?: 'text' | 'image' | 'all';
 }
 
 /** 知识库检索结果 */
 export interface KnowledgeSearchResult {
   segment_id: number;
   content: string;
+  content_type: 'text' | 'image';
+  image_path?: string;
   score: number;
   document_id: number;
   document_name: string;

@@ -87,6 +87,18 @@ const typeIcon = computed(() =>
           <span>{{ kb.chunk_count }} 分块</span>
         </div>
       </Tooltip>
+      <Tooltip v-if="kb.type === 'graph' && kb.entity_count > 0" title="实体数">
+        <div class="kb-card-stat">
+          <GitFork :size="14" />
+          <span>{{ kb.entity_count }} 实体</span>
+        </div>
+      </Tooltip>
+    </div>
+
+    <!-- 能力标签 -->
+    <div v-if="kb.multimodal_enabled || kb.type === 'graph'" class="kb-card-caps">
+      <Tag v-if="kb.multimodal_enabled" size="small" color="cyan">多模态</Tag>
+      <Tag v-if="kb.type === 'graph'" size="small" color="purple">知识图谱</Tag>
     </div>
 
     <!-- 底部 -->
@@ -188,6 +200,19 @@ const typeIcon = computed(() =>
   gap: 4px;
   font-size: 12px;
   color: hsl(var(--muted-foreground));
+}
+
+.kb-card-caps {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.kb-card-caps :deep(.ant-tag) {
+  margin: 0;
+  font-size: 10px;
+  line-height: 16px;
+  padding: 0 4px;
 }
 
 .kb-card-footer {

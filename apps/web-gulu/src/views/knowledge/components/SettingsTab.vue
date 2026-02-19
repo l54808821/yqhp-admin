@@ -42,11 +42,16 @@ const form = ref({
   embedding_model_id: undefined as number | undefined,
   embedding_model_name: '',
   embedding_dimension: 1536,
+  multimodal_enabled: false,
+  multimodal_model_id: undefined as number | undefined,
+  multimodal_model_name: '',
+  multimodal_dimension: 768,
   top_k: 5,
   similarity_threshold: 0.7,
   retrieval_mode: 'vector' as RetrievalMode,
   rerank_model_id: undefined as number | undefined,
   rerank_enabled: false,
+  graph_extract_model_id: undefined as number | undefined,
 });
 
 watch(
@@ -59,11 +64,16 @@ watch(
         embedding_model_id: kb.embedding_model_id,
         embedding_model_name: kb.embedding_model_name || '',
         embedding_dimension: kb.embedding_dimension || 1536,
+        multimodal_enabled: kb.multimodal_enabled || false,
+        multimodal_model_id: kb.multimodal_model_id,
+        multimodal_model_name: kb.multimodal_model_name || '',
+        multimodal_dimension: kb.multimodal_dimension || 768,
         top_k: kb.top_k || 5,
         similarity_threshold: kb.similarity_threshold || 0.7,
         retrieval_mode: kb.retrieval_mode || 'vector',
         rerank_model_id: kb.rerank_model_id,
         rerank_enabled: kb.rerank_enabled || false,
+        graph_extract_model_id: kb.graph_extract_model_id,
       };
     }
   },
@@ -84,6 +94,7 @@ async function loadModels() {
 
 const embeddingModels = ref<any[]>([]);
 const rerankModels = ref<any[]>([]);
+const llmModels = ref<any[]>([]);
 
 watch(modelList, (list) => {
   embeddingModels.value = list.filter(
@@ -100,6 +111,14 @@ watch(modelList, (list) => {
       m.capability_tags?.includes('rerank') ||
       m.model_id?.includes('rerank'),
   );
+  llmModels.value = list.filter(
+    (m: any) =>
+      !m.model_id?.includes('embedding') ||
+      m.capability_tags?.includes('chat'),
+  );
+  if (llmModels.value.length === 0) {
+    llmModels.value = list;
+  }
 });
 
 function handleModelChange(modelId: number) {
@@ -123,11 +142,16 @@ async function handleSave() {
       embedding_model_id: form.value.embedding_model_id,
       embedding_model_name: form.value.embedding_model_name,
       embedding_dimension: form.value.embedding_dimension,
+      multimodal_enabled: form.value.multimodal_enabled,
+      multimodal_model_id: form.value.multimodal_model_id,
+      multimodal_model_name: form.value.multimodal_model_name,
+      multimodal_dimension: form.value.multimodal_dimension,
       top_k: form.value.top_k,
       similarity_threshold: form.value.similarity_threshold,
       retrieval_mode: form.value.retrieval_mode,
       rerank_model_id: form.value.rerank_model_id,
       rerank_enabled: form.value.rerank_enabled,
+      graph_extract_model_id: form.value.graph_extract_model_id,
     });
     message.success('设置已保存');
     emit('updated');
@@ -218,6 +242,89 @@ onMounted(() => {
             </Form.Item>
           </Form>
         </Card>
+
+        <Card title="多模态配置" size="small" class="settings-card">
+          <div class="settings-card-desc">
+            开启后支持从文档中提取图片，并进行跨模态检索（以文搜图、以图搜文）。
+          </div>
+          <Form layout="vertical">
+            <Form.Item>
+              <div class="rerank-toggle">
+                <span>启用多模态</span>
+                <Switch v-model:checked="form.multimodal_enabled" />
+              </div>
+            </Form.Item>
+            <template v-if="form.multimodal_enabled">
+              <Form.Item label="多模态嵌入模型">
+                <Select
+                  v-model:value="form.multimodal_model_id"
+                  placeholder="选择多模态嵌入模型（如 CLIP、Jina-CLIP-v2）"
+                  allow-clear
+                  show-search
+                  :loading="modelLoading"
+                  :filter-option="(input: string, option: any) => (option?.label || '').toLowerCase().includes(input.toLowerCase())"
+                  @change="(id: number) => {
+                    const model = modelList.find((m: any) => m.id === id);
+                    if (model) form.multimodal_model_name = model.display_name || model.model_id;
+                  }"
+                >
+                  <Select.Option
+                    v-for="model in embeddingModels"
+                    :key="model.id"
+                    :value="model.id"
+                    :label="model.display_name || model.model_id"
+                  >
+                    {{ model.display_name || model.model_id }}
+                    <span class="model-provider">({{ model.provider }})</span>
+                  </Select.Option>
+                </Select>
+                <div class="form-hint">
+                  选择将图片和文本映射到同一向量空间的多模态嵌入模型。推荐：Jina-CLIP-v2、CLIP 系列。
+                </div>
+              </Form.Item>
+              <Form.Item label="多模态向量维度">
+                <InputNumber
+                  v-model:value="form.multimodal_dimension"
+                  :min="64"
+                  :max="8192"
+                  style="width: 100%"
+                />
+                <div class="form-hint">多模态嵌入模型的输出维度，如 CLIP 通常为 768。</div>
+              </Form.Item>
+            </template>
+          </Form>
+        </Card>
+
+        <Card v-if="kb.type === 'graph'" title="图谱配置" size="small" class="settings-card">
+          <div class="settings-card-desc">
+            图知识库使用 LLM 从文档中自动抽取实体和关系，构建知识图谱。
+          </div>
+          <Form layout="vertical">
+            <Form.Item label="实体抽取模型">
+              <Select
+                v-model:value="form.graph_extract_model_id"
+                placeholder="选择用于实体关系抽取的 LLM 模型"
+                allow-clear
+                show-search
+                :loading="modelLoading"
+                :filter-option="(input: string, option: any) => (option?.label || '').toLowerCase().includes(input.toLowerCase())"
+              >
+                <Select.Option
+                  v-for="model in llmModels"
+                  :key="model.id"
+                  :value="model.id"
+                  :label="model.display_name || model.model_id"
+                >
+                  {{ model.display_name || model.model_id }}
+                  <span class="model-provider">({{ model.provider }})</span>
+                </Select.Option>
+              </Select>
+              <div class="form-hint">
+                推荐使用能力较强的模型（如 GPT-4、Qwen-Max）以获得更好的抽取效果。
+              </div>
+            </Form.Item>
+          </Form>
+        </Card>
       </Col>
 
       <Col :span="12">
@@ -253,6 +360,24 @@ onMounted(() => {
                   <div class="retrieval-mode-title">混合检索</div>
                   <div class="retrieval-mode-desc">同时使用向量和关键词检索，合并结果</div>
                 </div>
+                <template v-if="kb.type === 'graph'">
+                  <div
+                    class="retrieval-mode-item"
+                    :class="{ active: form.retrieval_mode === 'graph' }"
+                    @click="form.retrieval_mode = 'graph'"
+                  >
+                    <div class="retrieval-mode-title">图谱检索</div>
+                    <div class="retrieval-mode-desc">通过知识图谱的实体和关系进行检索</div>
+                  </div>
+                  <div
+                    class="retrieval-mode-item"
+                    :class="{ active: form.retrieval_mode === 'hybrid_graph' }"
+                    @click="form.retrieval_mode = 'hybrid_graph'"
+                  >
+                    <div class="retrieval-mode-title">混合图谱</div>
+                    <div class="retrieval-mode-desc">同时使用向量检索和图谱检索，合并结果</div>
+                  </div>
+                </template>
               </div>
             </Form.Item>
 
@@ -345,6 +470,7 @@ onMounted(() => {
 
 .retrieval-modes {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
