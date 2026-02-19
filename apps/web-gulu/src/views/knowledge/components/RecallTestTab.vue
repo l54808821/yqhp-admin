@@ -15,7 +15,9 @@ import {
   Button,
   Empty,
   Input,
+  InputNumber,
   Radio,
+  Slider,
   Spin,
   Tag,
   message,
@@ -38,6 +40,9 @@ const results = ref<KnowledgeSearchResult[]>([]);
 const searching = ref(false);
 const hasSearched = ref(false);
 const retrievalMode = ref<RetrievalMode>(props.kb.retrieval_mode || 'vector');
+// 独立的阈值控件，默认 0（不过滤），与知识库全局配置解耦
+const scoreThreshold = ref(0);
+const topK = ref(props.kb.top_k || 5);
 
 const searchHistory = ref<QueryHistoryItem[]>([]);
 
@@ -64,8 +69,8 @@ async function handleSearch() {
   try {
     const res = await searchKnowledgeBaseApi(props.kb.id, {
       query: q,
-      top_k: props.kb.top_k || 5,
-      score: props.kb.similarity_threshold || 0,
+      top_k: topK.value,
+      score: scoreThreshold.value,
       retrieval_mode: retrievalMode.value,
     });
     results.value = res || [];
@@ -83,6 +88,18 @@ function handleHistoryClick(record: QueryHistoryItem) {
     retrievalMode.value = record.retrieval_mode as RetrievalMode;
   }
   handleSearch();
+}
+
+function renderContent(content: string): string {
+  if (!content) return '';
+  // 将 Markdown 图片语法 ![alt](url) 转为 <img> 标签
+  // 支持 https:// 绝对 URL 和 /api/... 相对路径
+  return content
+    .replace(
+      /!\[([^\]]*)\]\(((?:https?:\/\/|\/api\/)[^)]+)\)/g,
+      '<img src="$2" alt="$1" class="inline-result-image" loading="lazy" />',
+    )
+    .replace(/\n/g, '<br />');
 }
 
 function getScoreColor(score: number): string {
@@ -143,6 +160,31 @@ onMounted(() => {
           show-count
           @press-enter="handleSearch"
         />
+        <div class="recall-params">
+          <div class="recall-param-row">
+            <span class="recall-param-label">
+              相似度阈值
+              <span class="recall-param-value">{{ scoreThreshold.toFixed(2) }}</span>
+            </span>
+            <Slider
+              v-model:value="scoreThreshold"
+              :min="0"
+              :max="1"
+              :step="0.01"
+              class="recall-param-slider"
+            />
+          </div>
+          <div class="recall-param-row">
+            <span class="recall-param-label">召回数量</span>
+            <InputNumber
+              v-model:value="topK"
+              :min="1"
+              :max="20"
+              size="small"
+              style="width: 70px"
+            />
+          </div>
+        </div>
         <div class="recall-input-footer">
           <Button
             type="primary"
@@ -214,9 +256,19 @@ onMounted(() => {
                 </span>
               </div>
 
-              <div class="result-content">
-                {{ result.content }}
+              <div
+                v-if="result.content_type === 'image' && result.image_path"
+                class="result-content result-content-image"
+              >
+                <img
+                  :src="result.image_path"
+                  alt="图片内容"
+                  class="result-image"
+                  loading="lazy"
+                />
+                <p v-if="result.content" class="result-image-desc">{{ result.content }}</p>
               </div>
+              <div v-else class="result-content" v-html="renderContent(result.content)" />
 
               <div v-if="result.document_name" class="result-source">
                 <FileText :size="12" />
@@ -301,6 +353,41 @@ onMounted(() => {
   font-size: 13px;
   font-weight: 500;
   color: hsl(var(--foreground));
+}
+
+.recall-params {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid hsl(var(--border));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.recall-param-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.recall-param-label {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+  min-width: 90px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.recall-param-value {
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.recall-param-slider {
+  flex: 1;
+  margin: 0;
 }
 
 .recall-input-footer {
@@ -437,6 +524,34 @@ onMounted(() => {
   max-height: 200px;
   overflow-y: auto;
   padding-right: 60px;
+}
+
+.result-content-image {
+  white-space: normal;
+}
+
+.result-image {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 6px;
+  border: 1px solid hsl(var(--border));
+  display: block;
+}
+
+.result-image-desc {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  margin-top: 6px;
+  margin-bottom: 0;
+}
+
+:deep(.inline-result-image) {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 6px;
+  border: 1px solid hsl(var(--border));
+  display: block;
+  margin: 6px 0;
 }
 
 .result-source {
