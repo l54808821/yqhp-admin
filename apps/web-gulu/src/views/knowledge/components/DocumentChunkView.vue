@@ -22,6 +22,7 @@ import {
 import { ArrowLeft, Edit3, FileText } from 'lucide-vue-next';
 
 import { getDocumentSegmentsApi, updateSegmentApi } from '#/api/knowledge-base';
+import { formatDate, formatFileSize } from '#/utils/knowledge';
 
 interface Props {
   kb: KnowledgeBase;
@@ -45,17 +46,6 @@ const editContent = ref('');
 const editVisible = ref(false);
 const editSaving = ref(false);
 
-function formatSize(bytes: number): string {
-  if (!bytes) return '-';
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / 1024 / 1024).toFixed(1) + ' MB';
-}
-
-function formatDate(dateStr?: string): string {
-  if (!dateStr) return '-';
-  return new Date(dateStr).toLocaleString('zh-CN');
-}
 
 function avgChunkLength(): number {
   if (segments.value.length === 0) return 0;
@@ -199,7 +189,7 @@ onMounted(() => {
               {{ doc.name }}
             </Descriptions.Item>
             <Descriptions.Item label="文件大小">
-              {{ formatSize(doc.file_size) }}
+              {{ formatFileSize(doc.file_size) }}
             </Descriptions.Item>
             <Descriptions.Item label="字数">
               {{ doc.word_count || '-' }}
@@ -225,8 +215,8 @@ onMounted(() => {
             <Descriptions.Item label="段落数量">
               {{ total }}
             </Descriptions.Item>
-            <Descriptions.Item label="嵌入模型">
-              {{ kb.embedding_model_name || '-' }}
+            <Descriptions.Item label="嵌入模型 ID">
+              {{ kb.embedding_model_id || '-' }}
             </Descriptions.Item>
           </Descriptions>
         </Card>

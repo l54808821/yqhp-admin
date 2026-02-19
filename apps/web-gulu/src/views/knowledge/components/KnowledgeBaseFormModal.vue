@@ -17,6 +17,7 @@ import {
 } from 'ant-design-vue';
 
 import { getAiModelListApi } from '#/api/ai-model';
+import { useModelFilter } from '#/composables/useModelFilter';
 import {
   createKnowledgeBaseApi,
   updateKnowledgeBaseApi,
@@ -35,8 +36,6 @@ const isEdit = computed(() => editingId.value !== null);
 const modelList = ref<any[]>([]);
 const modelLoading = ref(false);
 
-// 模型列表（按类型分组）
-const llmModelList = ref<any[]>([]);
 
 // 表单数据（不含维度字段，维度由索引时自动检测写入）
 const form = ref<CreateKnowledgeBaseParams & UpdateKnowledgeBaseParams>({
@@ -73,23 +72,13 @@ function resetForm() {
   };
 }
 
+const { embeddingModels, llmModels: llmModelList } = useModelFilter(modelList);
+
 async function loadModels() {
   modelLoading.value = true;
   try {
     const res = await getAiModelListApi({ status: 1, pageSize: 100 });
-    const allModels = res.list || [];
-    modelList.value = allModels.filter(
-      (m: any) => m.capabilities?.includes('embedding') || m.model_id?.includes('embedding'),
-    );
-    if (modelList.value.length === 0) {
-      modelList.value = allModels;
-    }
-    llmModelList.value = allModels.filter(
-      (m: any) => !m.model_id?.includes('embedding') || m.capabilities?.includes('chat'),
-    );
-    if (llmModelList.value.length === 0) {
-      llmModelList.value = allModels;
-    }
+    modelList.value = res.list || [];
   } catch {
     // ignore
   } finally {
@@ -106,10 +95,10 @@ function open(record?: KnowledgeBase) {
       description: record.description,
       type: record.type,
       embedding_model_id: record.embedding_model_id,
-      embedding_model_name: record.embedding_model_name,
+      embedding_model_name: '',
       multimodal_enabled: record.multimodal_enabled || false,
       multimodal_model_id: record.multimodal_model_id,
-      multimodal_model_name: record.multimodal_model_name || '',
+      multimodal_model_name: '',
       chunk_size: record.chunk_size || 500,
       chunk_overlap: record.chunk_overlap || 50,
       similarity_threshold: record.similarity_threshold || 0.7,
@@ -201,7 +190,7 @@ defineExpose({ open });
               @change="handleModelChange"
             >
               <Select.Option
-                v-for="model in modelList"
+                v-for="model in embeddingModels"
                 :key="model.id"
                 :value="model.id"
                 :label="model.display_name || model.model_id"
@@ -240,12 +229,12 @@ defineExpose({ open });
                 :loading="modelLoading"
                 :filter-option="(input: string, option: any) => (option?.label || '').toLowerCase().includes(input.toLowerCase())"
                 @change="(id: any) => {
-                  const model = modelList.find((m: any) => m.id === id);
+                  const model = embeddingModels.find((m: any) => m.id === id);
                   if (model) form.multimodal_model_name = model.display_name || model.model_id;
                 }"
               >
                 <Select.Option
-                  v-for="model in modelList"
+                  v-for="model in embeddingModels"
                   :key="model.id"
                   :value="model.id"
                   :label="model.display_name || model.model_id"

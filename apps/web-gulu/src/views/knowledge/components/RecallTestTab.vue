@@ -28,6 +28,11 @@ import {
   getQueryHistoryApi,
   searchKnowledgeBaseApi,
 } from '#/api/knowledge-base';
+import {
+  formatTime,
+  renderChunkContent,
+  RETRIEVAL_MODE_LABELS,
+} from '#/utils/knowledge';
 
 interface Props {
   kb: KnowledgeBase;
@@ -90,17 +95,7 @@ function handleHistoryClick(record: QueryHistoryItem) {
   handleSearch();
 }
 
-function renderContent(content: string): string {
-  if (!content) return '';
-  // 将 Markdown 图片语法 ![alt](url) 转为 <img> 标签
-  // 支持 https:// 绝对 URL 和 /api/... 相对路径
-  return content
-    .replace(
-      /!\[([^\]]*)\]\(((?:https?:\/\/|\/api\/)[^)]+)\)/g,
-      '<img src="$2" alt="$1" class="inline-result-image" loading="lazy" />',
-    )
-    .replace(/\n/g, '<br />');
-}
+const renderContent = renderChunkContent;
 
 function getScoreColor(score: number): string {
   if (score >= 0.8) return '#52c41a';
@@ -116,19 +111,7 @@ function getScoreBg(score: number): string {
   return '#fff2f0';
 }
 
-const modeLabels: Record<string, string> = {
-  vector: '向量检索',
-  keyword: '关键词检索',
-  hybrid: '混合检索',
-};
-
-function formatTime(dateStr?: string) {
-  if (!dateStr) return '';
-  return new Date(dateStr).toLocaleTimeString('zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
+const modeLabels = RETRIEVAL_MODE_LABELS;
 
 onMounted(() => {
   loadHistory();

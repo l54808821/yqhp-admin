@@ -21,6 +21,7 @@ import {
 
 import { getAiModelListApi } from '#/api/ai-model';
 import { updateKnowledgeBaseApi } from '#/api/knowledge-base';
+import { useModelFilter } from '#/composables/useModelFilter';
 
 interface Props {
   kb: KnowledgeBase;
@@ -61,10 +62,10 @@ watch(
         chunk_size: kb.chunk_size || 500,
         chunk_overlap: kb.chunk_overlap || 50,
         embedding_model_id: kb.embedding_model_id,
-        embedding_model_name: kb.embedding_model_name || '',
+        embedding_model_name: '',
         multimodal_enabled: kb.multimodal_enabled || false,
         multimodal_model_id: kb.multimodal_model_id,
-        multimodal_model_name: kb.multimodal_model_name || '',
+        multimodal_model_name: '',
         top_k: kb.top_k || 5,
         similarity_threshold: kb.similarity_threshold || 0.7,
         retrieval_mode: kb.retrieval_mode || 'vector',
@@ -89,34 +90,7 @@ async function loadModels() {
   }
 }
 
-const embeddingModels = ref<any[]>([]);
-const rerankModels = ref<any[]>([]);
-const llmModels = ref<any[]>([]);
-
-watch(modelList, (list) => {
-  embeddingModels.value = list.filter(
-    (m: any) =>
-      m.capability_tags?.includes('embedding') ||
-      m.model_id?.includes('embedding'),
-  );
-  if (embeddingModels.value.length === 0) {
-    embeddingModels.value = list;
-  }
-  rerankModels.value = list.filter(
-    (m: any) =>
-      m.capability_tags?.includes('重排序') ||
-      m.capability_tags?.includes('rerank') ||
-      m.model_id?.includes('rerank'),
-  );
-  llmModels.value = list.filter(
-    (m: any) =>
-      !m.model_id?.includes('embedding') ||
-      m.capability_tags?.includes('chat'),
-  );
-  if (llmModels.value.length === 0) {
-    llmModels.value = list;
-  }
-});
+const { embeddingModels, rerankModels, llmModels } = useModelFilter(modelList);
 
 function handleEmbeddingModelChange(modelId: any) {
   const model = modelList.value.find((m: any) => m.id === modelId);

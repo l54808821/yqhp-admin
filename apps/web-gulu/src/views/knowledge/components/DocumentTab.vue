@@ -4,7 +4,7 @@
  */
 import type { KnowledgeBase, KnowledgeDocument } from '#/api/knowledge-base';
 
-import { onMounted, onUnmounted, ref, computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
 import {
   Button,
@@ -25,6 +25,13 @@ import {
   reprocessKnowledgeDocumentApi,
 } from '#/api/knowledge-base';
 
+import { useDocumentPolling } from '#/composables/useDocumentPolling';
+import {
+  formatFileSize,
+  getStatusInfo,
+  isProcessingStatus,
+} from '#/utils/knowledge';
+
 import DocumentChunkView from './DocumentChunkView.vue';
 import DocumentUploadWizard from './DocumentUploadWizard.vue';
 
@@ -43,12 +50,18 @@ const loading = ref(false);
 const selectedDoc = ref<KnowledgeDocument | null>(null);
 const wizardRef = ref<InstanceType<typeof DocumentUploadWizard>>();
 const selectedIds = ref<Set<number>>(new Set());
-let pollTimer: ReturnType<typeof setInterval> | null = null;
 
 const hasProcessing = computed(() =>
-  documents.value.some((d) =>
-    ['waiting', 'parsing', 'cleaning', 'splitting', 'indexing'].includes(d.indexing_status),
-  ),
+  documents.value.some((d) => isProcessingStatus(d.indexing_status)),
+);
+
+const { start: startPolling } = useDocumentPolling(
+  async () => {
+    const res = await getKnowledgeDocumentListApi(props.kb.id);
+    documents.value = res || [];
+    if (!hasProcessing.value) emit('change');
+  },
+  () => hasProcessing.value,
 );
 
 const allSelected = computed(() =>
@@ -80,27 +93,11 @@ function handleWizardDone() {
   emit('change');
 }
 
-const statusMap: Record<string, { color: string; label: string }> = {
-  waiting: { color: 'default', label: '等待中' },
-  parsing: { color: 'processing', label: '解析中' },
-  cleaning: { color: 'processing', label: '清洗中' },
-  splitting: { color: 'processing', label: '分块中' },
-  indexing: { color: 'processing', label: '索引中' },
-  completed: { color: 'success', label: '已完成' },
-  error: { color: 'error', label: '失败' },
-  paused: { color: 'warning', label: '已暂停' },
+// 使用公共工具替代本地重复定义
+const getStatusTag = (status: string) => {
+  const info = getStatusInfo(status);
+  return { color: info.color, label: info.text };
 };
-
-function getStatusTag(status: string) {
-  return statusMap[status] || { color: 'default', label: status };
-}
-
-function formatSize(bytes: number): string {
-  if (!bytes) return '-';
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / 1024 / 1024).toFixed(1) + ' MB';
-}
 
 async function loadDocuments() {
   loading.value = true;
@@ -114,32 +111,6 @@ async function loadDocuments() {
   }
 }
 
-function startPolling() {
-  stopPolling();
-  pollTimer = setInterval(async () => {
-    if (hasProcessing.value) {
-      try {
-        const res = await getKnowledgeDocumentListApi(props.kb.id);
-        documents.value = res || [];
-        if (!hasProcessing.value) {
-          stopPolling();
-          emit('change');
-        }
-      } catch {
-        // ignore
-      }
-    } else {
-      stopPolling();
-    }
-  }, 3000);
-}
-
-function stopPolling() {
-  if (pollTimer) {
-    clearInterval(pollTimer);
-    pollTimer = null;
-  }
-}
 
 async function handleDelete(docId: number) {
   try {
@@ -198,9 +169,7 @@ onMounted(() => {
   });
 });
 
-onUnmounted(() => {
-  stopPolling();
-});
+// useDocumentPolling 在 onUnmounted 时自动停止轮询
 </script>
 
 <template>
@@ -267,7 +236,7 @@ onUnmounted(() => {
                 </Tag>
                 <span v-if="doc.word_count">{{ doc.word_count }} 字</span>
                 <span v-if="doc.chunk_count">{{ doc.chunk_count }} 分块</span>
-                <span>{{ formatSize(doc.file_size) }}</span>
+                <span>{{ formatFileSize(doc.file_size) }}</span>
               </div>
               <div v-if="doc.indexing_status === 'error' && doc.error_message" class="doc-item-error">
                 {{ doc.error_message }}

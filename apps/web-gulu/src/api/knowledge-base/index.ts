@@ -17,29 +17,26 @@ export interface KnowledgeBase {
   updated_at?: string;
   created_by?: number;
   name: string;
-  description: string;
+  description?: string;
   type: KnowledgeBaseType;
   status: number;
   embedding_model_id?: number;
-  embedding_model_name: string;
-  embedding_dimension: number;
   multimodal_enabled: boolean;
   multimodal_model_id?: number;
-  multimodal_model_name: string;
-  multimodal_dimension: number;
+  graph_extract_model_id?: number;
+  qdrant_collection: string;
+  document_count: number;
+  chunk_count: number;
+  // 配置字段（来自 config JSON，服务端展开返回）
   chunk_size: number;
   chunk_overlap: number;
   similarity_threshold: number;
   top_k: number;
   retrieval_mode: RetrievalMode;
-  rerank_model_id?: number;
   rerank_enabled: boolean;
-  qdrant_collection: string;
-  graph_extract_model_id?: number;
-  document_count: number;
-  chunk_count: number;
-  entity_count: number;
-  relation_count: number;
+  rerank_model_id?: number;
+  embedding_dimension?: number;
+  multimodal_dimension?: number;
 }
 
 /** 创建知识库参数 */

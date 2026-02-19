@@ -8,7 +8,6 @@ import {
   Drawer,
   Empty,
   message,
-  Modal,
   Popconfirm,
   Space,
   Spin,
@@ -23,6 +22,7 @@ import {
   reprocessKnowledgeDocumentApi,
   uploadKnowledgeDocumentApi,
 } from '#/api/knowledge-base';
+import { formatFileSize, getStatusInfo } from '#/utils/knowledge';
 
 const emit = defineEmits<{
   (e: 'change'): void;
@@ -43,26 +43,10 @@ const columns = [
   { title: '操作', key: 'action', width: 140, fixed: 'right' as const },
 ];
 
-function formatSize(bytes: number): string {
-  if (!bytes) return '-';
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / 1024 / 1024).toFixed(1) + ' MB';
-}
-
-function getStatusTag(status: string) {
-  const map: Record<string, { color: string; label: string }> = {
-    waiting: { color: 'default', label: '等待中' },
-    parsing: { color: 'processing', label: '解析中' },
-    cleaning: { color: 'processing', label: '清洗中' },
-    splitting: { color: 'processing', label: '分块中' },
-    indexing: { color: 'processing', label: '索引中' },
-    completed: { color: 'success', label: '已完成' },
-    error: { color: 'error', label: '失败' },
-    paused: { color: 'warning', label: '已暂停' },
-  };
-  return map[status] || { color: 'default', label: status };
-}
+const getStatusTag = (status: string) => {
+  const info = getStatusInfo(status);
+  return { color: info.color, label: info.text };
+};
 
 async function loadDocuments() {
   if (!currentKB.value) return;
@@ -170,7 +154,7 @@ defineExpose({ open });
             </Tag>
           </template>
           <template v-if="column.key === 'file_size'">
-            {{ formatSize(record.file_size) }}
+            {{ formatFileSize(record.file_size) }}
           </template>
           <template v-if="column.key === 'action'">
             <Space>
