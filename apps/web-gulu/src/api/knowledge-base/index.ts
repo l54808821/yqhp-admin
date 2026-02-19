@@ -102,6 +102,7 @@ export interface KnowledgeDocument {
   token_count: number;
   parsing_completed_at?: string;
   indexing_completed_at?: string;
+  chunk_setting?: ChunkSetting;
 }
 
 /** 分段设置 */

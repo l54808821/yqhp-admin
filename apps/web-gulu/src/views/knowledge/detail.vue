@@ -7,12 +7,13 @@ import type { KnowledgeBase } from '#/api/knowledge-base';
 import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
-import { Button, message, Spin, Tabs, Tag } from 'ant-design-vue';
-import { ArrowLeft, Database, FileText, GitFork, Search, Settings } from 'lucide-vue-next';
+import { Dropdown, Menu, message, Modal, Spin, Tabs, Tag } from 'ant-design-vue';
+import { ArrowLeft, Database, FileText, GitFork, MoreHorizontal, Pencil, Search, Settings, Trash2 } from 'lucide-vue-next';
 
-import { getKnowledgeBaseApi } from '#/api/knowledge-base';
+import { deleteKnowledgeBaseApi, getKnowledgeBaseApi } from '#/api/knowledge-base';
 
 import DocumentTab from './components/DocumentTab.vue';
+import KnowledgeBaseFormModal from './components/KnowledgeBaseFormModal.vue';
 import RecallTestTab from './components/RecallTestTab.vue';
 import SettingsTab from './components/SettingsTab.vue';
 
@@ -23,6 +24,7 @@ const kbId = Number(route.params.kbId);
 const kb = ref<KnowledgeBase | null>(null);
 const loading = ref(false);
 const activeTab = ref('documents');
+const formModalRef = ref<InstanceType<typeof KnowledgeBaseFormModal>>();
 
 async function loadKB() {
   loading.value = true;
@@ -41,6 +43,30 @@ function handleBack() {
 
 function handleKBUpdated() {
   loadKB();
+}
+
+function handleMenuClick(info: any) {
+  const key = info.key as string;
+  if (key === 'edit') {
+    formModalRef.value?.open(kb.value!);
+  } else if (key === 'delete') {
+    Modal.confirm({
+      title: '确定删除知识库？',
+      content: '删除后知识库及其所有文档、分块数据将无法恢复，请谨慎操作。',
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      async onOk() {
+        try {
+          await deleteKnowledgeBaseApi(kbId);
+          message.success('知识库已删除');
+          router.back();
+        } catch (e: any) {
+          message.error('删除失败: ' + (e.message || '未知错误'));
+        }
+      },
+    });
+  }
 }
 
 onMounted(() => {
@@ -64,7 +90,24 @@ onMounted(() => {
             <component :is="kb.type === 'graph' ? GitFork : Database" :size="20" />
           </div>
           <div class="kb-detail-title-area">
-            <div class="kb-detail-name">{{ kb.name }}</div>
+            <div class="kb-detail-name">
+              <span>{{ kb.name }}</span>
+              <Dropdown :trigger="['click']" placement="bottomRight">
+                <button class="kb-name-more-btn" @click.stop>
+                  <MoreHorizontal :size="14" />
+                </button>
+                <template #overlay>
+                  <Menu @click="handleMenuClick">
+                    <Menu.Item key="edit">
+                      <div class="kb-menu-item"><Pencil :size="14" /> 编辑</div>
+                    </Menu.Item>
+                    <Menu.Item key="delete" danger>
+                      <div class="kb-menu-item"><Trash2 :size="14" /> 删除</div>
+                    </Menu.Item>
+                  </Menu>
+                </template>
+              </Dropdown>
+            </div>
             <div class="kb-detail-meta">
               <Tag :color="kb.type === 'graph' ? 'purple' : 'blue'" size="small">
                 {{ kb.type === 'graph' ? '图知识库' : '普通知识库' }}
@@ -120,6 +163,7 @@ onMounted(() => {
         </div>
       </template>
     </Spin>
+    <KnowledgeBaseFormModal ref="formModalRef" @success="handleKBUpdated" />
   </div>
 </template>
 
@@ -206,10 +250,43 @@ onMounted(() => {
 }
 
 .kb-detail-name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-size: 16px;
   font-weight: 600;
   color: hsl(var(--foreground));
   line-height: 1.2;
+}
+
+.kb-name-more-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+
+.kb-detail-name:hover .kb-name-more-btn {
+  opacity: 1;
+}
+
+.kb-name-more-btn:hover {
+  background: hsl(var(--muted) / 60%);
+  color: hsl(var(--foreground));
+}
+
+.kb-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .kb-detail-meta {

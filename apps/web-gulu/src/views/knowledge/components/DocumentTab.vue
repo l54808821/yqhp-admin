@@ -12,7 +12,7 @@ import {
   Table,
   Tag,
 } from 'ant-design-vue';
-import { Plus, Search, Trash2 } from 'lucide-vue-next';
+import { Plus, Search, Settings2, Trash2 } from 'lucide-vue-next';
 
 import {
   deleteKnowledgeDocumentApi,
@@ -27,6 +27,7 @@ import {
   isProcessingStatus,
 } from '#/utils/knowledge';
 
+import ChunkSettingModal from './ChunkSettingModal.vue';
 import DocumentChunkView from './DocumentChunkView.vue';
 import DocumentUploadWizard from './DocumentUploadWizard.vue';
 
@@ -44,6 +45,7 @@ const documents = ref<KnowledgeDocument[]>([]);
 const loading = ref(false);
 const selectedDoc = ref<KnowledgeDocument | null>(null);
 const wizardRef = ref<InstanceType<typeof DocumentUploadWizard>>();
+const chunkSettingRef = ref<InstanceType<typeof ChunkSettingModal>>();
 const searchKeyword = ref('');
 const statusFilter = ref<string[]>([]);
 
@@ -120,7 +122,7 @@ const columns = [
   {
     title: '操作',
     key: 'actions',
-    width: 70,
+    width: 120,
     align: 'center' as const,
   },
 ];
@@ -181,6 +183,15 @@ function formatDate(dateStr?: string) {
   const d = new Date(dateStr);
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function handleOpenChunkSetting(record: KnowledgeDocument) {
+  chunkSettingRef.value?.open(record);
+}
+
+function handleChunkSettingSuccess() {
+  loadDocuments();
+  startPolling();
 }
 
 function handleRowClick(record: KnowledgeDocument) {
@@ -281,6 +292,15 @@ onMounted(() => {
               >
                 重试
               </Button>
+              <Button
+                v-if="record.indexing_status === 'completed'"
+                type="text"
+                size="small"
+                title="分段设置"
+                @click="handleOpenChunkSetting(record as KnowledgeDocument)"
+              >
+                <Settings2 :size="14" />
+              </Button>
               <Popconfirm
                 title="确定删除该文档？"
                 @confirm="handleDelete(record.id)"
@@ -296,6 +316,7 @@ onMounted(() => {
     </div>
 
     <DocumentUploadWizard ref="wizardRef" :kb="props.kb" @done="handleWizardDone" />
+    <ChunkSettingModal ref="chunkSettingRef" :kb="props.kb" @success="handleChunkSettingSuccess" />
   </div>
 </template>
 
