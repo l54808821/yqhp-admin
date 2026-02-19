@@ -280,7 +280,7 @@ onMounted(() => {
 
 .kb-tabs :deep(.ant-tabs-tabpane) {
   height: 100%;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .tab-label {

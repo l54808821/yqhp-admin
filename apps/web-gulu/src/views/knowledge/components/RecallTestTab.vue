@@ -10,11 +10,12 @@ import { computed, onMounted, ref } from 'vue';
 
 import {
   Button,
+  Col,
   Drawer,
-  Input,
   InputNumber,
   Pagination,
   Radio,
+  Row,
   Slider,
   Spin,
   message,
@@ -127,50 +128,51 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="recall-tab">
-    <!-- 左侧面板 -->
-    <div class="recall-left">
-      <!-- 标题区 -->
-      <div class="recall-title">召回测试</div>
-      <div class="recall-desc">根据给定的查询文本测试知识的召回效果。</div>
+  <Row class="recall-tab" :gutter="0">
+    <!-- 左侧 10/24 -->
+    <Col :span="10" class="recall-col recall-col-left">
+      <div class="recall-left-scroll">
+        <!-- 标题区 -->
+        <div class="recall-title">召回测试</div>
+        <div class="recall-desc">根据给定的查询文本测试知识的召回效果。</div>
 
-      <!-- 输入卡片 -->
-      <div class="recall-input-card">
-        <div class="recall-input-header">
-          <span class="recall-input-label">源文本</span>
-          <div class="recall-input-header-right">
-            <button class="recall-mode-btn" @click="settingsOpen = true">
-              <Hash :size="12" />
-              {{ currentModeLabel }}
-              <SlidersHorizontal :size="12" />
-            </button>
+        <!-- 输入卡片 -->
+        <div class="recall-input-card">
+          <div class="recall-input-header">
+            <span class="recall-input-label">源文本</span>
+            <div class="recall-input-header-right">
+              <button class="recall-mode-btn" @click="settingsOpen = true">
+                <Hash :size="12" />
+                {{ currentModeLabel }}
+                <SlidersHorizontal :size="12" />
+              </button>
+            </div>
+          </div>
+          <textarea
+            v-model="query"
+            class="recall-textarea"
+            rows="8"
+            placeholder="请输入文本，建议使用简短的陈述句。"
+            maxlength="2000"
+            @keydown.enter.prevent="handleSearch"
+          />
+          <div class="recall-input-bottom">
+            <span class="recall-char-count">{{ query.length }} / 2000</span>
+            <Button
+              type="primary"
+              :loading="searching"
+              :disabled="!query.trim()"
+              @click="handleSearch"
+            >
+              <template #icon><Search :size="14" /></template>
+              测试
+            </Button>
           </div>
         </div>
-        <Input.TextArea
-          v-model:value="query"
-          :rows="6"
-          placeholder="请输入文本，建议使用简短的陈述句。"
-          :maxlength="2000"
-          show-count
-          @press-enter.prevent="handleSearch"
-        />
-        <div class="recall-input-footer">
-          <Button
-            type="primary"
-            :loading="searching"
-            :disabled="!query.trim()"
-            @click="handleSearch"
-          >
-            <template #icon><Search :size="14" /></template>
-            测试
-          </Button>
-        </div>
-      </div>
 
-      <!-- 记录表格 -->
-      <div v-if="searchHistory.length > 0" class="recall-history">
-        <div class="recall-history-title">记录</div>
-        <div class="recall-history-table-wrap">
+        <!-- 记录表格 -->
+        <div v-if="searchHistory.length > 0" class="recall-history">
+          <div class="recall-history-title">记录</div>
           <table class="recall-history-table">
             <thead>
               <tr>
@@ -197,98 +199,98 @@ onMounted(() => {
               </tr>
             </tbody>
           </table>
-        </div>
-        <div v-if="searchHistory.length > historyPageSize" class="recall-history-pagination">
-          <Pagination
-            v-model:current="historyPage"
-            :total="searchHistory.length"
-            :page-size="historyPageSize"
-            size="small"
-            simple
-          />
+          <div v-if="searchHistory.length > historyPageSize" class="recall-history-pagination">
+            <Pagination
+              v-model:current="historyPage"
+              :total="searchHistory.length"
+              :page-size="historyPageSize"
+              size="small"
+              simple
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </Col>
 
-    <!-- 右侧：结果区 -->
-    <div class="recall-right">
-      <Spin :spinning="searching" class="recall-results-spin">
-        <template v-if="hasSearched && results.length > 0">
-          <div class="recall-results-count">{{ results.length }} 个召回段落</div>
-          <div class="recall-results-list">
-            <div
-              v-for="(result, idx) in results"
-              :key="idx"
-              class="recall-result-card"
-            >
-              <div class="result-chunk-header">
-                <div class="result-chunk-left">
-                  <Hash :size="13" class="result-hash-icon" />
-                  <span class="result-chunk-label">
-                    Chunk-{{ String(result.chunk_index + 1).padStart(2, '0') }}
-                  </span>
-                  <span class="result-chunk-chars">{{ result.word_count }} 字符</span>
-                </div>
-                <span
-                  class="result-score"
-                  :style="{ color: getScoreColor(result.score) }"
-                >
-                  score {{ result.score.toFixed(2) }}
-                </span>
-              </div>
-
+    <!-- 右侧 14/24 -->
+    <Col :span="14" class="recall-col recall-col-right">
+      <div class="recall-right-scroll">
+        <Spin :spinning="searching">
+          <template v-if="hasSearched && results.length > 0">
+            <div class="recall-results-count">{{ results.length }} 个召回段落</div>
+            <div class="recall-results-list">
               <div
-                v-if="result.content_type === 'image' && result.image_path"
-                class="result-content result-content-image"
+                v-for="(result, idx) in results"
+                :key="idx"
+                class="recall-result-card"
               >
-                <img
-                  :src="result.image_path"
-                  alt="图片内容"
-                  class="result-image"
-                  loading="lazy"
-                />
-                <p v-if="result.content" class="result-image-desc">{{ result.content }}</p>
-              </div>
-              <div v-else class="result-content" v-html="renderContent(result.content)" />
-
-              <div v-if="result.document_name" class="result-source">
-                <div class="result-source-left">
-                  <FileText :size="12" />
-                  <span>{{ result.document_name }}</span>
+                <div class="result-chunk-header">
+                  <div class="result-chunk-left">
+                    <Hash :size="13" class="result-hash-icon" />
+                    <span class="result-chunk-label">
+                      Chunk-{{ String(result.chunk_index + 1).padStart(2, '0') }}
+                    </span>
+                    <span class="result-chunk-chars">{{ result.word_count }} 字符</span>
+                  </div>
+                  <span
+                    class="result-score"
+                    :style="{ color: getScoreColor(result.score) }"
+                  >
+                    score {{ result.score.toFixed(2) }}
+                  </span>
                 </div>
-                <a class="result-source-link" @click.stop>
-                  打开
-                  <ExternalLink :size="11" />
-                </a>
+
+                <div
+                  v-if="result.content_type === 'image' && result.image_path"
+                  class="result-content result-content-image"
+                >
+                  <img
+                    :src="result.image_path"
+                    alt="图片内容"
+                    class="result-image"
+                    loading="lazy"
+                  />
+                  <p v-if="result.content" class="result-image-desc">{{ result.content }}</p>
+                </div>
+                <div v-else class="result-content" v-html="renderContent(result.content)" />
+
+                <div v-if="result.document_name" class="result-source">
+                  <div class="result-source-left">
+                    <FileText :size="12" />
+                    <span>{{ result.document_name }}</span>
+                  </div>
+                  <a class="result-source-link" @click.stop>
+                    打开
+                    <ExternalLink :size="11" />
+                  </a>
+                </div>
               </div>
             </div>
-          </div>
-        </template>
+          </template>
 
-        <template v-else-if="hasSearched && !searching">
-          <div class="recall-placeholder">
-            <Target :size="40" style="color: hsl(var(--muted-foreground) / 40%)" />
-            <p>未找到与查询相关的内容</p>
-            <p class="recall-placeholder-sub">尝试调整关键词、切换检索方式或降低相似度阈值</p>
-          </div>
-        </template>
+          <template v-else-if="hasSearched && !searching">
+            <div class="recall-placeholder">
+              <Target :size="40" style="color: hsl(var(--muted-foreground) / 40%)" />
+              <p>未找到与查询相关的内容</p>
+              <p class="recall-placeholder-sub">尝试调整关键词、切换检索方式或降低相似度阈值</p>
+            </div>
+          </template>
 
-        <template v-else-if="!hasSearched">
-          <div class="recall-placeholder">
-            <Target :size="40" style="color: hsl(var(--muted-foreground) / 30%)" />
-            <p>召回测试结果将展示在这里</p>
-          </div>
-        </template>
-      </Spin>
-    </div>
+          <template v-else-if="!hasSearched">
+            <div class="recall-placeholder">
+              <Target :size="40" style="color: hsl(var(--muted-foreground) / 30%)" />
+              <p>召回测试结果将展示在这里</p>
+            </div>
+          </template>
+        </Spin>
+      </div>
+    </Col>
 
     <!-- 检索设置 Drawer -->
     <Drawer
       v-model:open="settingsOpen"
       title="检索设置"
       :width="300"
-      :get-container="false"
-      :style="{ position: 'absolute' }"
       placement="right"
     >
       <div class="settings-drawer-body">
@@ -326,28 +328,48 @@ onMounted(() => {
         </div>
       </div>
     </Drawer>
-  </div>
+  </Row>
 </template>
 
 <style scoped>
 .recall-tab {
-  display: flex;
   height: 100%;
-  min-height: 0;
-  position: relative;
-  overflow: hidden;
 }
 
-/* ====== 左侧面板 ====== */
-.recall-left {
-  width: 420px;
-  flex-shrink: 0;
+.recall-tab :deep(.ant-row) {
+  height: 100%;
+}
+
+/* 左右列共用：撑满高度 + 相对定位 */
+.recall-col {
+  position: relative;
+  height: 100%;
+}
+
+.recall-col-left {
   border-right: 1px solid hsl(var(--border));
-  padding: 20px 24px;
-  overflow-y: auto;
+  background: hsl(var(--card));
+}
+
+.recall-col-right {
+  background: hsl(var(--muted) / 20%);
+}
+
+/* 左侧：固定顶部 + 记录区域滚动 */
+.recall-left-scroll {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
-  background: hsl(var(--card));
+  overflow: hidden;
+  padding: 20px 24px 0;
+}
+
+.recall-right-scroll {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  padding: 14px 16px;
 }
 
 .recall-title {
@@ -368,8 +390,9 @@ onMounted(() => {
   border: 1px solid hsl(var(--primary) / 40%);
   border-radius: 10px;
   padding: 12px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   transition: border-color 0.15s;
+  flex-shrink: 0;
 }
 
 .recall-input-card:focus-within {
@@ -414,37 +437,40 @@ onMounted(() => {
   color: hsl(var(--foreground));
 }
 
-.recall-input-card :deep(.ant-input) {
+.recall-textarea {
+  width: 100%;
   border: none;
-  box-shadow: none;
-  padding: 0;
+  outline: none;
   resize: none;
   font-size: 13px;
+  line-height: 1.6;
+  color: hsl(var(--foreground));
+  background: transparent;
+  font-family: inherit;
 }
 
-.recall-input-card :deep(.ant-input:focus) {
-  box-shadow: none;
+.recall-textarea::placeholder {
+  color: hsl(var(--muted-foreground) / 50%);
 }
 
-.recall-input-card :deep(.ant-input-textarea-show-count::after) {
+.recall-input-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.recall-char-count {
   font-size: 11px;
   color: hsl(var(--muted-foreground));
-}
-
-.recall-input-footer {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid hsl(var(--border) / 60%);
 }
 
 /* ====== 记录表格 ====== */
 .recall-history {
   flex: 1;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
+  overflow-y: auto;
+  padding-bottom: 20px;
 }
 
 .recall-history-title {
@@ -452,12 +478,6 @@ onMounted(() => {
   font-weight: 600;
   color: hsl(var(--foreground));
   margin-bottom: 10px;
-}
-
-.recall-history-table-wrap {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
 }
 
 .recall-history-table {
@@ -531,29 +551,9 @@ onMounted(() => {
 }
 
 /* ====== 右侧结果区 ====== */
-.recall-right {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  background: hsl(var(--muted) / 20%);
-  overflow: hidden;
-}
-
-.recall-results-spin {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 20px 24px;
-}
-
-.recall-results-spin :deep(.ant-spin-container) {
-  height: 100%;
-}
-
 .recall-results-count {
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 600;
   color: hsl(var(--foreground));
   margin-bottom: 12px;
 }
