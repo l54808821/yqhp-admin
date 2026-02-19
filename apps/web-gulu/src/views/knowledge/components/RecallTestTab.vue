@@ -672,7 +672,7 @@ onMounted(() => {
 
 /* ====== 设置 Popover ====== */
 .recall-settings-popover-body {
-  width: 260px;
+  width: 380px;
   padding: 4px 0;
 }
 </style>
