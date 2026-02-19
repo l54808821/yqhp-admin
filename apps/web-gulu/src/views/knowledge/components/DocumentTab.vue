@@ -98,7 +98,7 @@ const columns = [
     customRender: ({ text }: { text: number }) => text || '-',
   },
   {
-    title: '召回次数',
+    title: '分块数量',
     dataIndex: 'chunk_count',
     key: 'chunk_count',
     width: 90,
@@ -252,13 +252,18 @@ onMounted(() => {
         :row-key="(record: KnowledgeDocument) => record.id"
         :scroll="{ y: 'calc(100% - 56px)' }"
         size="middle"
-        :custom-row="(record: KnowledgeDocument) => ({
-          onClick: () => handleRowClick(record),
-          style: { cursor: record.indexing_status === 'completed' ? 'pointer' : 'default' },
-        })"
+        
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'indexing_status'">
+          <template v-if="column.key === 'name'">
+            <a
+              v-if="record.indexing_status === 'completed'"
+              class="doc-name-link"
+              @click="handleRowClick(record as KnowledgeDocument)"
+            >{{ record.name }}</a>
+            <span v-else>{{ record.name }}</span>
+          </template>
+          <template v-else-if="column.key === 'indexing_status'">
             <Tag
               :color="getStatusTag(record.indexing_status).color"
               size="small"
@@ -379,6 +384,15 @@ onMounted(() => {
 .doc-table-area :deep(.ant-table-pagination) {
   margin: 12px 0 !important;
   flex-shrink: 0;
+}
+
+.doc-name-link {
+  color: hsl(var(--primary));
+  cursor: pointer;
+}
+
+.doc-name-link:hover {
+  text-decoration: underline;
 }
 
 .doc-actions {
