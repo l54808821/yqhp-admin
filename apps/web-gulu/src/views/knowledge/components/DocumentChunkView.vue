@@ -1,10 +1,8 @@
 <script setup lang="ts">
 /**
- * 文档分块详情视图 — Dify 风格
- * 左侧：分块列表（编号 + 字符数 + 内容）
- * 右侧：文档信息面板
+ * 文档分块详情视图 — 服务端分页 + 启用/禁用 + 内联编辑
  */
-import type { DocumentChunk, KnowledgeBase, KnowledgeDocument } from '#/api/knowledge-base';
+import type { KnowledgeBase, KnowledgeDocument, SegmentInfo } from '#/api/knowledge-base';
 
 import { onMounted, ref } from 'vue';
 
@@ -13,14 +11,17 @@ import {
   Card,
   Descriptions,
   Empty,
+  Input,
+  message,
+  Modal,
   Pagination,
   Spin,
+  Switch,
   Tag,
-  message,
 } from 'ant-design-vue';
-import { ArrowLeft, FileText } from 'lucide-vue-next';
+import { ArrowLeft, Edit3, FileText } from 'lucide-vue-next';
 
-import { getDocumentChunksApi } from '#/api/knowledge-base';
+import { getDocumentSegmentsApi, updateSegmentApi } from '#/api/knowledge-base';
 
 interface Props {
   kb: KnowledgeBase;
@@ -33,26 +34,16 @@ const emit = defineEmits<{
   (e: 'back'): void;
 }>();
 
-const chunks = ref<DocumentChunk[]>([]);
+const segments = ref<SegmentInfo[]>([]);
+const total = ref(0);
 const loading = ref(false);
-
-// 分页
 const currentPage = ref(1);
-const pageSize = ref(10);
+const pageSize = ref(20);
 
-const pagedChunks = ref<DocumentChunk[]>([]);
-
-function updatePagedChunks() {
-  const start = (currentPage.value - 1) * pageSize.value;
-  const end = start + pageSize.value;
-  pagedChunks.value = chunks.value.slice(start, end);
-}
-
-function handlePageChange(page: number, size: number) {
-  currentPage.value = page;
-  pageSize.value = size;
-  updatePagedChunks();
-}
+const editingSegment = ref<SegmentInfo | null>(null);
+const editContent = ref('');
+const editVisible = ref(false);
+const editSaving = ref(false);
 
 function formatSize(bytes: number): string {
   if (!bytes) return '-';
@@ -66,20 +57,23 @@ function formatDate(dateStr?: string): string {
   return new Date(dateStr).toLocaleString('zh-CN');
 }
 
-// 计算平均分块长度
 function avgChunkLength(): number {
-  if (chunks.value.length === 0) return 0;
-  const total = chunks.value.reduce((sum, c) => sum + c.char_count, 0);
-  return Math.round(total / chunks.value.length);
+  if (segments.value.length === 0) return 0;
+  const sum = segments.value.reduce((s, c) => s + c.word_count, 0);
+  return Math.round(sum / segments.value.length);
 }
 
-async function loadChunks() {
+async function loadSegments() {
   loading.value = true;
   try {
-    const res = await getDocumentChunksApi(props.kb.id, props.doc.id);
-    chunks.value = res || [];
-    currentPage.value = 1;
-    updatePagedChunks();
+    const res = await getDocumentSegmentsApi(
+      props.kb.id,
+      props.doc.id,
+      currentPage.value,
+      pageSize.value,
+    );
+    segments.value = res?.list || [];
+    total.value = res?.total || 0;
   } catch (e: any) {
     message.error('加载分块失败: ' + (e.message || '未知错误'));
   } finally {
@@ -87,14 +81,53 @@ async function loadChunks() {
   }
 }
 
+function handlePageChange(page: number, size: number) {
+  currentPage.value = page;
+  pageSize.value = size;
+  loadSegments();
+}
+
+async function handleToggleEnabled(seg: SegmentInfo) {
+  try {
+    await updateSegmentApi(props.kb.id, seg.id, { enabled: !seg.enabled });
+    seg.enabled = !seg.enabled;
+    seg.status = seg.enabled ? 'active' : 'disabled';
+    message.success(seg.enabled ? '已启用' : '已禁用');
+  } catch {
+    message.error('操作失败');
+  }
+}
+
+function openEditModal(seg: SegmentInfo) {
+  editingSegment.value = seg;
+  editContent.value = seg.content;
+  editVisible.value = true;
+}
+
+async function handleEditSave() {
+  if (!editingSegment.value) return;
+  editSaving.value = true;
+  try {
+    await updateSegmentApi(props.kb.id, editingSegment.value.id, {
+      content: editContent.value,
+    });
+    message.success('分块内容已更新，向量将自动重新生成');
+    editVisible.value = false;
+    await loadSegments();
+  } catch {
+    message.error('更新失败');
+  } finally {
+    editSaving.value = false;
+  }
+}
+
 onMounted(() => {
-  loadChunks();
+  loadSegments();
 });
 </script>
 
 <template>
   <div class="chunk-view">
-    <!-- 顶部 -->
     <div class="chunk-view-header">
       <Button type="text" @click="emit('back')">
         <ArrowLeft :size="16" />
@@ -106,69 +139,76 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- 内容区域 -->
     <div class="chunk-view-body">
-      <!-- 左侧：分块列表 -->
       <div class="chunk-list-panel">
         <div class="chunk-list-info">
-          <strong>{{ chunks.length }} 分段</strong>
+          <strong>{{ total }} 分段</strong>
         </div>
 
         <Spin :spinning="loading">
-          <div v-if="pagedChunks.length > 0" class="chunk-list">
+          <div v-if="segments.length > 0" class="chunk-list">
             <div
-              v-for="chunk in pagedChunks"
-              :key="chunk.chunk_index"
+              v-for="seg in segments"
+              :key="seg.id"
               class="chunk-card"
+              :class="{ 'chunk-disabled': !seg.enabled }"
             >
               <div class="chunk-card-header">
                 <span class="chunk-label">
-                  分段-{{ String(chunk.chunk_index + 1).padStart(2, '0') }}
+                  分段-{{ String(seg.position + 1).padStart(2, '0') }}
                 </span>
-                <span class="chunk-chars">{{ chunk.char_count }} 字符</span>
-                <Tag v-if="chunk.enabled" color="green" size="small">已启用</Tag>
+                <span class="chunk-chars">{{ seg.word_count }} 字</span>
+                <span v-if="seg.hit_count" class="chunk-hits">命中 {{ seg.hit_count }} 次</span>
+                <div class="chunk-actions">
+                  <Button type="text" size="small" @click="openEditModal(seg)">
+                    <Edit3 :size="12" />
+                  </Button>
+                  <Switch
+                    :checked="seg.enabled"
+                    size="small"
+                    @change="handleToggleEnabled(seg)"
+                  />
+                </div>
               </div>
               <div class="chunk-card-content">
-                {{ chunk.content }}
+                {{ seg.content }}
               </div>
             </div>
           </div>
           <Empty v-else-if="!loading" description="暂无分块数据" />
         </Spin>
 
-        <!-- 分页 -->
-        <div v-if="chunks.length > pageSize" class="chunk-pagination">
+        <div v-if="total > pageSize" class="chunk-pagination">
           <Pagination
             :current="currentPage"
             :page-size="pageSize"
-            :total="chunks.length"
+            :total="total"
             size="small"
-            :page-size-options="['10', '25', '50']"
+            :page-size-options="['10', '20', '50']"
             show-size-changer
             @change="handlePageChange"
           />
         </div>
       </div>
 
-      <!-- 右侧：文档信息 -->
       <div class="chunk-info-panel">
         <Card size="small" class="info-card">
           <template #title>文档信息</template>
           <Descriptions :column="1" size="small" :labelStyle="{ width: '90px', color: '#999' }">
-            <Descriptions.Item label="原始文件名称">
+            <Descriptions.Item label="文件名称">
               {{ doc.name }}
             </Descriptions.Item>
             <Descriptions.Item label="文件大小">
               {{ formatSize(doc.file_size) }}
             </Descriptions.Item>
+            <Descriptions.Item label="字数">
+              {{ doc.word_count || '-' }}
+            </Descriptions.Item>
             <Descriptions.Item label="上传日期">
               {{ formatDate(doc.created_at) }}
             </Descriptions.Item>
-            <Descriptions.Item label="最后更新">
-              {{ formatDate(doc.updated_at) }}
-            </Descriptions.Item>
-            <Descriptions.Item label="来源">
-              文件上传
+            <Descriptions.Item label="索引状态">
+              {{ doc.indexing_status }}
             </Descriptions.Item>
           </Descriptions>
         </Card>
@@ -176,22 +216,42 @@ onMounted(() => {
         <Card size="small" class="info-card">
           <template #title>技术参数</template>
           <Descriptions :column="1" size="small" :labelStyle="{ width: '90px', color: '#999' }">
-            <Descriptions.Item label="分段模式">
-              通用
-            </Descriptions.Item>
             <Descriptions.Item label="分段长度">
               {{ kb.chunk_size || 500 }}
             </Descriptions.Item>
             <Descriptions.Item label="平均段落长度">
-              {{ avgChunkLength() }} characters
+              {{ avgChunkLength() }} 字
             </Descriptions.Item>
             <Descriptions.Item label="段落数量">
-              {{ chunks.length }} paragraphs
+              {{ total }}
+            </Descriptions.Item>
+            <Descriptions.Item label="嵌入模型">
+              {{ kb.embedding_model_name || '-' }}
             </Descriptions.Item>
           </Descriptions>
         </Card>
       </div>
     </div>
+
+    <Modal
+      v-model:open="editVisible"
+      title="编辑分块内容"
+      :width="640"
+      @ok="handleEditSave"
+      :confirm-loading="editSaving"
+      ok-text="保存"
+      cancel-text="取消"
+    >
+      <div style="margin-bottom: 8px; font-size: 12px; color: #999">
+        修改内容后向量将自动重新生成。
+      </div>
+      <Input.TextArea
+        v-model:value="editContent"
+        :rows="10"
+        :maxlength="5000"
+        show-count
+      />
+    </Modal>
   </div>
 </template>
 
@@ -238,7 +298,6 @@ onMounted(() => {
   overflow: hidden;
 }
 
-/* 左侧分块列表 */
 .chunk-list-panel {
   flex: 1;
   min-width: 0;
@@ -263,6 +322,11 @@ onMounted(() => {
   border-radius: 10px;
   padding: 14px 16px;
   background: hsl(var(--card));
+  transition: opacity 0.2s;
+}
+
+.chunk-card.chunk-disabled {
+  opacity: 0.5;
 }
 
 .chunk-card-header {
@@ -283,9 +347,16 @@ onMounted(() => {
   color: hsl(var(--muted-foreground));
 }
 
-.chunk-card-header :deep(.ant-tag) {
-  margin: 0;
+.chunk-hits {
+  font-size: 11px;
+  color: hsl(var(--primary));
+}
+
+.chunk-actions {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .chunk-card-content {
@@ -304,7 +375,6 @@ onMounted(() => {
   padding: 16px 0;
 }
 
-/* 右侧信息面板 */
 .chunk-info-panel {
   width: 280px;
   flex-shrink: 0;

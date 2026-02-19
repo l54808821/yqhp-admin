@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
- * 设置 Tab — 分段设置 + 嵌入模型 + 检索参数
+ * 设置 Tab — 分段设置 + 嵌入模型 + 检索参数 + 检索方式 + Rerank
  */
-import type { KnowledgeBase } from '#/api/knowledge-base';
+import type { KnowledgeBase, RetrievalMode } from '#/api/knowledge-base';
 
 import { onMounted, ref, watch } from 'vue';
 
@@ -16,6 +16,7 @@ import {
   Row,
   Select,
   Slider,
+  Switch,
 } from 'ant-design-vue';
 
 import { getAiModelListApi } from '#/api/ai-model';
@@ -43,6 +44,9 @@ const form = ref({
   embedding_dimension: 1536,
   top_k: 5,
   similarity_threshold: 0.7,
+  retrieval_mode: 'vector' as RetrievalMode,
+  rerank_model_id: undefined as number | undefined,
+  rerank_enabled: false,
 });
 
 watch(
@@ -57,6 +61,9 @@ watch(
         embedding_dimension: kb.embedding_dimension || 1536,
         top_k: kb.top_k || 5,
         similarity_threshold: kb.similarity_threshold || 0.7,
+        retrieval_mode: kb.retrieval_mode || 'vector',
+        rerank_model_id: kb.rerank_model_id,
+        rerank_enabled: kb.rerank_enabled || false,
       };
     }
   },
@@ -67,18 +74,33 @@ async function loadModels() {
   modelLoading.value = true;
   try {
     const res = await getAiModelListApi({ status: 1, pageSize: 100 });
-    modelList.value = (res.list || []).filter(
-      (m: any) => m.capabilities?.includes('embedding') || m.model_id?.includes('embedding'),
-    );
-    if (modelList.value.length === 0) {
-      modelList.value = res.list || [];
-    }
+    modelList.value = res.list || [];
   } catch {
     // ignore
   } finally {
     modelLoading.value = false;
   }
 }
+
+const embeddingModels = ref<any[]>([]);
+const rerankModels = ref<any[]>([]);
+
+watch(modelList, (list) => {
+  embeddingModels.value = list.filter(
+    (m: any) =>
+      m.capability_tags?.includes('embedding') ||
+      m.model_id?.includes('embedding'),
+  );
+  if (embeddingModels.value.length === 0) {
+    embeddingModels.value = list;
+  }
+  rerankModels.value = list.filter(
+    (m: any) =>
+      m.capability_tags?.includes('重排序') ||
+      m.capability_tags?.includes('rerank') ||
+      m.model_id?.includes('rerank'),
+  );
+});
 
 function handleModelChange(modelId: number) {
   const model = modelList.value.find((m: any) => m.id === modelId);
@@ -88,6 +110,11 @@ function handleModelChange(modelId: number) {
 }
 
 async function handleSave() {
+  if (form.value.chunk_overlap >= form.value.chunk_size) {
+    message.warning('分段重叠长度必须小于分段最大长度');
+    return;
+  }
+
   saving.value = true;
   try {
     await updateKnowledgeBaseApi(props.kb.id, {
@@ -98,6 +125,9 @@ async function handleSave() {
       embedding_dimension: form.value.embedding_dimension,
       top_k: form.value.top_k,
       similarity_threshold: form.value.similarity_threshold,
+      retrieval_mode: form.value.retrieval_mode,
+      rerank_model_id: form.value.rerank_model_id,
+      rerank_enabled: form.value.rerank_enabled,
     });
     message.success('设置已保存');
     emit('updated');
@@ -116,7 +146,6 @@ onMounted(() => {
 <template>
   <div class="settings-tab">
     <Row :gutter="24">
-      <!-- 左列：分段设置 -->
       <Col :span="12">
         <Card title="分段设置" size="small" class="settings-card">
           <div class="settings-card-desc">
@@ -165,7 +194,7 @@ onMounted(() => {
                 @change="handleModelChange"
               >
                 <Select.Option
-                  v-for="model in modelList"
+                  v-for="model in embeddingModels"
                   :key="model.id"
                   :value="model.id"
                   :label="model.display_name || model.model_id"
@@ -191,7 +220,6 @@ onMounted(() => {
         </Card>
       </Col>
 
-      <!-- 右列：检索设置 -->
       <Col :span="12">
         <Card title="检索设置" size="small" class="settings-card">
           <div class="settings-card-desc">
@@ -200,62 +228,79 @@ onMounted(() => {
 
           <Form layout="vertical">
             <Form.Item label="检索方式">
-              <div class="retrieval-mode">
-                <div class="retrieval-mode-item active">
-                  <div class="retrieval-mode-icon">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1" opacity="0.3"/></svg>
-                  </div>
-                  <div>
-                    <div class="retrieval-mode-title">向量检索</div>
-                    <div class="retrieval-mode-desc">
-                      通过嵌入模型将查询转为向量，搜索语义最相似的文本分块。
-                    </div>
-                  </div>
+              <div class="retrieval-modes">
+                <div
+                  class="retrieval-mode-item"
+                  :class="{ active: form.retrieval_mode === 'vector' }"
+                  @click="form.retrieval_mode = 'vector'"
+                >
+                  <div class="retrieval-mode-title">向量检索</div>
+                  <div class="retrieval-mode-desc">通过嵌入模型搜索语义最相似的文本分块</div>
+                </div>
+                <div
+                  class="retrieval-mode-item"
+                  :class="{ active: form.retrieval_mode === 'keyword' }"
+                  @click="form.retrieval_mode = 'keyword'"
+                >
+                  <div class="retrieval-mode-title">关键词检索</div>
+                  <div class="retrieval-mode-desc">基于全文索引匹配包含关键词的文本分块</div>
+                </div>
+                <div
+                  class="retrieval-mode-item"
+                  :class="{ active: form.retrieval_mode === 'hybrid' }"
+                  @click="form.retrieval_mode = 'hybrid'"
+                >
+                  <div class="retrieval-mode-title">混合检索</div>
+                  <div class="retrieval-mode-desc">同时使用向量和关键词检索，合并结果</div>
                 </div>
               </div>
             </Form.Item>
 
             <Form.Item label="Top K">
               <div class="slider-with-input">
-                <Slider
-                  v-model:value="form.top_k"
-                  :min="1"
-                  :max="20"
-                  style="flex: 1"
-                />
-                <InputNumber
-                  v-model:value="form.top_k"
-                  :min="1"
-                  :max="20"
-                  size="small"
-                  style="width: 60px"
-                />
-              </div>
-              <div class="form-hint">
-                每次检索返回的最大结果数。
+                <Slider v-model:value="form.top_k" :min="1" :max="20" style="flex: 1" />
+                <InputNumber v-model:value="form.top_k" :min="1" :max="20" size="small" style="width: 60px" />
               </div>
             </Form.Item>
 
             <Form.Item label="Score 阈值">
               <div class="slider-with-input">
-                <Slider
-                  v-model:value="form.similarity_threshold"
-                  :min="0"
-                  :max="1"
-                  :step="0.05"
-                  style="flex: 1"
-                />
-                <InputNumber
-                  v-model:value="form.similarity_threshold"
-                  :min="0"
-                  :max="1"
-                  :step="0.05"
-                  size="small"
-                  style="width: 60px"
-                />
+                <Slider v-model:value="form.similarity_threshold" :min="0" :max="1" :step="0.05" style="flex: 1" />
+                <InputNumber v-model:value="form.similarity_threshold" :min="0" :max="1" :step="0.05" size="small" style="width: 60px" />
               </div>
-              <div class="form-hint">
-                低于此分数的结果将被过滤。建议 0.5 ~ 0.8。
+              <div class="form-hint">低于此分数的结果将被过滤。建议 0.5 ~ 0.8。</div>
+            </Form.Item>
+          </Form>
+        </Card>
+
+        <Card title="Rerank 重排序" size="small" class="settings-card">
+          <div class="settings-card-desc">
+            在初始检索后使用重排序模型提升结果质量。
+          </div>
+          <Form layout="vertical">
+            <Form.Item>
+              <div class="rerank-toggle">
+                <span>启用 Rerank</span>
+                <Switch v-model:checked="form.rerank_enabled" />
+              </div>
+            </Form.Item>
+            <Form.Item v-if="form.rerank_enabled" label="重排序模型">
+              <Select
+                v-model:value="form.rerank_model_id"
+                placeholder="选择重排序模型"
+                allow-clear
+                :loading="modelLoading"
+              >
+                <Select.Option
+                  v-for="model in rerankModels"
+                  :key="model.id"
+                  :value="model.id"
+                >
+                  {{ model.display_name || model.model_id }}
+                </Select.Option>
+              </Select>
+              <div v-if="rerankModels.length === 0" class="form-hint" style="color: #faad14">
+                暂无可用的 Rerank 模型，请先在 AI 模型管理中添加。
               </div>
             </Form.Item>
           </Form>
@@ -298,18 +343,15 @@ onMounted(() => {
   margin-left: 4px;
 }
 
-/* 检索方式卡片 */
-.retrieval-mode {
+.retrieval-modes {
   display: flex;
   gap: 10px;
 }
 
 .retrieval-mode-item {
-  display: flex;
-  gap: 10px;
-  padding: 12px;
+  padding: 10px 12px;
   border: 2px solid hsl(var(--border));
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
   flex: 1;
   transition: all 0.15s;
@@ -318,13 +360,6 @@ onMounted(() => {
 .retrieval-mode-item.active {
   border-color: hsl(var(--primary));
   background: hsl(var(--primary) / 4%);
-}
-
-.retrieval-mode-icon {
-  display: flex;
-  align-items: flex-start;
-  padding-top: 2px;
-  color: hsl(var(--primary));
 }
 
 .retrieval-mode-title {
@@ -337,14 +372,19 @@ onMounted(() => {
 .retrieval-mode-desc {
   font-size: 11px;
   color: hsl(var(--muted-foreground));
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
-/* Slider + Input 组合 */
 .slider-with-input {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.rerank-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .settings-save {

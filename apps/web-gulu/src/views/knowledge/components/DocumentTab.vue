@@ -1,13 +1,14 @@
 <script setup lang="ts">
 /**
- * 文档管理 Tab — 文档列表 + 上传 + 分块预览
+ * 文档管理 Tab — 文档列表 + 状态轮询 + 批量操作
  */
 import type { KnowledgeBase, KnowledgeDocument } from '#/api/knowledge-base';
 
-import { onMounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref, computed } from 'vue';
 
 import {
   Button,
+  Checkbox,
   Empty,
   message,
   Popconfirm,
@@ -17,6 +18,8 @@ import {
 import { FileText, RefreshCw, Trash2 } from 'lucide-vue-next';
 
 import {
+  batchDeleteDocumentsApi,
+  batchReprocessDocumentsApi,
   deleteKnowledgeDocumentApi,
   getKnowledgeDocumentListApi,
   reprocessKnowledgeDocumentApi,
@@ -39,6 +42,34 @@ const documents = ref<KnowledgeDocument[]>([]);
 const loading = ref(false);
 const selectedDoc = ref<KnowledgeDocument | null>(null);
 const wizardRef = ref<InstanceType<typeof DocumentUploadWizard>>();
+const selectedIds = ref<Set<number>>(new Set());
+let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+const hasProcessing = computed(() =>
+  documents.value.some((d) =>
+    ['waiting', 'parsing', 'cleaning', 'splitting', 'indexing'].includes(d.indexing_status),
+  ),
+);
+
+const allSelected = computed(() =>
+  documents.value.length > 0 && selectedIds.value.size === documents.value.length,
+);
+
+function toggleSelectAll() {
+  if (allSelected.value) {
+    selectedIds.value.clear();
+  } else {
+    documents.value.forEach((d) => selectedIds.value.add(d.id));
+  }
+}
+
+function toggleSelect(id: number) {
+  if (selectedIds.value.has(id)) {
+    selectedIds.value.delete(id);
+  } else {
+    selectedIds.value.add(id);
+  }
+}
 
 function handleOpenWizard() {
   wizardRef.value?.open();
@@ -49,14 +80,19 @@ function handleWizardDone() {
   emit('change');
 }
 
+const statusMap: Record<string, { color: string; label: string }> = {
+  waiting: { color: 'default', label: '等待中' },
+  parsing: { color: 'processing', label: '解析中' },
+  cleaning: { color: 'processing', label: '清洗中' },
+  splitting: { color: 'processing', label: '分块中' },
+  indexing: { color: 'processing', label: '索引中' },
+  completed: { color: 'success', label: '已完成' },
+  error: { color: 'error', label: '失败' },
+  paused: { color: 'warning', label: '已暂停' },
+};
+
 function getStatusTag(status: string) {
-  const map: Record<string, { color: string; label: string }> = {
-    pending: { color: 'default', label: '待处理' },
-    processing: { color: 'processing', label: '处理中' },
-    ready: { color: 'success', label: '就绪' },
-    failed: { color: 'error', label: '失败' },
-  };
-  return map[status] || { color: 'default', label: status };
+  return statusMap[status] || { color: 'default', label: status };
 }
 
 function formatSize(bytes: number): string {
@@ -64,10 +100,6 @@ function formatSize(bytes: number): string {
   if (bytes < 1024) return bytes + ' B';
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
   return (bytes / 1024 / 1024).toFixed(1) + ' MB';
-}
-
-function getFileTypeIcon(_type: string) {
-  return FileText;
 }
 
 async function loadDocuments() {
@@ -82,14 +114,56 @@ async function loadDocuments() {
   }
 }
 
+function startPolling() {
+  stopPolling();
+  pollTimer = setInterval(async () => {
+    if (hasProcessing.value) {
+      try {
+        const res = await getKnowledgeDocumentListApi(props.kb.id);
+        documents.value = res || [];
+        if (!hasProcessing.value) {
+          stopPolling();
+          emit('change');
+        }
+      } catch {
+        // ignore
+      }
+    } else {
+      stopPolling();
+    }
+  }, 3000);
+}
+
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+}
+
 async function handleDelete(docId: number) {
   try {
     await deleteKnowledgeDocumentApi(props.kb.id, docId);
     message.success('删除成功');
+    selectedIds.value.delete(docId);
     await loadDocuments();
     emit('change');
   } catch {
     message.error('删除失败');
+  }
+}
+
+async function handleBatchDelete() {
+  const ids = Array.from(selectedIds.value);
+  if (ids.length === 0) return;
+  try {
+    await batchDeleteDocumentsApi(props.kb.id, ids);
+    message.success(`已删除 ${ids.length} 个文档`);
+    selectedIds.value.clear();
+    await loadDocuments();
+    emit('change');
+  } catch {
+    message.error('批量删除失败');
   }
 }
 
@@ -98,18 +172,38 @@ async function handleReprocess(docId: number) {
     await reprocessKnowledgeDocumentApi(props.kb.id, docId);
     message.success('已提交重新处理');
     await loadDocuments();
+    startPolling();
   } catch {
     message.error('重新处理失败');
   }
 }
 
+async function handleBatchReprocess() {
+  const ids = Array.from(selectedIds.value);
+  if (ids.length === 0) return;
+  try {
+    await batchReprocessDocumentsApi(props.kb.id, ids);
+    message.success(`已提交 ${ids.length} 个文档重处理`);
+    selectedIds.value.clear();
+    await loadDocuments();
+    startPolling();
+  } catch {
+    message.error('批量重处理失败');
+  }
+}
+
 onMounted(() => {
-  loadDocuments();
+  loadDocuments().then(() => {
+    if (hasProcessing.value) startPolling();
+  });
+});
+
+onUnmounted(() => {
+  stopPolling();
 });
 </script>
 
 <template>
-  <!-- 分块详情视图 -->
   <DocumentChunkView
     v-if="selectedDoc"
     :kb="props.kb"
@@ -117,53 +211,71 @@ onMounted(() => {
     @back="selectedDoc = null"
   />
 
-  <!-- 文档列表视图 -->
   <div v-else class="doc-tab">
-    <!-- 操作栏 -->
     <div class="doc-tab-toolbar">
       <Button type="primary" @click="handleOpenWizard">+ 添加文件</Button>
       <span class="doc-tab-hint">
         支持 PDF、TXT、Markdown、Word、HTML、CSV、JSON 等格式
       </span>
       <div style="flex: 1" />
+      <template v-if="selectedIds.size > 0">
+        <Popconfirm
+          :title="`确定批量删除 ${selectedIds.size} 个文档？`"
+          @confirm="handleBatchDelete"
+        >
+          <Button danger size="small">批量删除 ({{ selectedIds.size }})</Button>
+        </Popconfirm>
+        <Button size="small" @click="handleBatchReprocess">
+          批量重处理 ({{ selectedIds.size }})
+        </Button>
+      </template>
       <Button :loading="loading" @click="loadDocuments">
         <template #icon><RefreshCw :size="14" /></template>
         刷新
       </Button>
     </div>
 
-    <!-- 文档列表 -->
     <Spin :spinning="loading">
       <div v-if="documents.length > 0" class="doc-list">
+        <div class="doc-list-header">
+          <Checkbox :checked="allSelected" @change="toggleSelectAll" />
+          <span class="doc-list-header-text">共 {{ documents.length }} 个文档</span>
+        </div>
         <div
           v-for="doc in documents"
           :key="doc.id"
           class="doc-item"
-          @click="doc.status === 'ready' ? (selectedDoc = doc) : undefined"
-          :style="{ cursor: doc.status === 'ready' ? 'pointer' : 'default' }"
+          @click="doc.indexing_status === 'completed' ? (selectedDoc = doc) : undefined"
+          :style="{ cursor: doc.indexing_status === 'completed' ? 'pointer' : 'default' }"
         >
           <div class="doc-item-main">
+            <div class="doc-item-check" @click.stop>
+              <Checkbox
+                :checked="selectedIds.has(doc.id)"
+                @change="toggleSelect(doc.id)"
+              />
+            </div>
             <div class="doc-item-icon">
-              <component :is="getFileTypeIcon(doc.file_type)" :size="18" />
+              <FileText :size="18" />
             </div>
             <div class="doc-item-info">
               <div class="doc-item-name">{{ doc.name }}</div>
               <div class="doc-item-meta">
                 <Tag size="small">{{ doc.file_type || '-' }}</Tag>
-                <Tag :color="getStatusTag(doc.status).color" size="small">
-                  {{ getStatusTag(doc.status).label }}
+                <Tag :color="getStatusTag(doc.indexing_status).color" size="small">
+                  {{ getStatusTag(doc.indexing_status).label }}
                 </Tag>
+                <span v-if="doc.word_count">{{ doc.word_count }} 字</span>
                 <span v-if="doc.chunk_count">{{ doc.chunk_count }} 分块</span>
-                <span v-if="doc.token_count">{{ doc.token_count }} 字符</span>
                 <span>{{ formatSize(doc.file_size) }}</span>
               </div>
-              <div v-if="doc.status === 'failed' && doc.error_message" class="doc-item-error">
+              <div v-if="doc.indexing_status === 'error' && doc.error_message" class="doc-item-error">
                 {{ doc.error_message }}
               </div>
             </div>
             <div class="doc-item-actions" @click.stop>
               <Button
-                v-if="doc.status === 'failed'"
+                v-if="doc.indexing_status === 'error'"
                 type="link"
                 size="small"
                 @click="handleReprocess(doc.id)"
@@ -185,11 +297,10 @@ onMounted(() => {
         </div>
       </div>
       <div v-else-if="!loading" class="doc-empty">
-        <Empty description="暂无文档，点击上方「上传文档」添加" />
+        <Empty description="暂无文档，点击上方「添加文件」上传" />
       </div>
     </Spin>
 
-    <!-- 上传向导 -->
     <DocumentUploadWizard ref="wizardRef" :kb="props.kb" @done="handleWizardDone" />
   </div>
 </template>
@@ -211,10 +322,23 @@ onMounted(() => {
   color: hsl(var(--muted-foreground));
 }
 
+.doc-list-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+}
+
+.doc-list-header-text {
+  font-size: 12px;
+}
+
 .doc-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .doc-item {
@@ -234,6 +358,10 @@ onMounted(() => {
   align-items: center;
   padding: 14px 16px;
   gap: 12px;
+}
+
+.doc-item-check {
+  flex-shrink: 0;
 }
 
 .doc-item-icon {

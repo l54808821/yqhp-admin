@@ -37,7 +37,7 @@ const documents = ref<KnowledgeDocument[]>([]);
 const columns = [
   { title: '文档名称', dataIndex: 'name', key: 'name', ellipsis: true },
   { title: '类型', dataIndex: 'file_type', key: 'file_type', width: 80 },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
+  { title: '状态', dataIndex: 'indexing_status', key: 'indexing_status', width: 90 },
   { title: '分块数', dataIndex: 'chunk_count', key: 'chunk_count', width: 80 },
   { title: '大小', dataIndex: 'file_size', key: 'file_size', width: 80 },
   { title: '操作', key: 'action', width: 140, fixed: 'right' as const },
@@ -52,10 +52,14 @@ function formatSize(bytes: number): string {
 
 function getStatusTag(status: string) {
   const map: Record<string, { color: string; label: string }> = {
-    pending: { color: 'default', label: '待处理' },
-    processing: { color: 'processing', label: '处理中' },
-    ready: { color: 'success', label: '就绪' },
-    failed: { color: 'error', label: '失败' },
+    waiting: { color: 'default', label: '等待中' },
+    parsing: { color: 'processing', label: '解析中' },
+    cleaning: { color: 'processing', label: '清洗中' },
+    splitting: { color: 'processing', label: '分块中' },
+    indexing: { color: 'processing', label: '索引中' },
+    completed: { color: 'success', label: '已完成' },
+    error: { color: 'error', label: '失败' },
+    paused: { color: 'warning', label: '已暂停' },
   };
   return map[status] || { color: 'default', label: status };
 }
@@ -160,9 +164,9 @@ defineExpose({ open });
           <template v-if="column.key === 'file_type'">
             <Tag size="small">{{ record.file_type || '-' }}</Tag>
           </template>
-          <template v-if="column.key === 'status'">
-            <Tag :color="getStatusTag(record.status).color" size="small">
-              {{ getStatusTag(record.status).label }}
+          <template v-if="column.key === 'indexing_status'">
+            <Tag :color="getStatusTag(record.indexing_status).color" size="small">
+              {{ getStatusTag(record.indexing_status).label }}
             </Tag>
           </template>
           <template v-if="column.key === 'file_size'">
@@ -171,7 +175,7 @@ defineExpose({ open });
           <template v-if="column.key === 'action'">
             <Space>
               <Button
-                v-if="record.status === 'failed'"
+                v-if="record.indexing_status === 'error'"
                 type="link"
                 size="small"
                 @click="handleReprocess(record.id)"

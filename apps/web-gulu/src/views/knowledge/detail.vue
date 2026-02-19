@@ -127,6 +127,20 @@ onMounted(() => {
   overflow: hidden;
 }
 
+.kb-detail-page :deep(> .ant-spin-nested-loading) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.kb-detail-page :deep(> .ant-spin-nested-loading > .ant-spin-container) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .kb-detail-header {
   display: flex;
   align-items: center;
@@ -206,17 +220,26 @@ onMounted(() => {
 
 .kb-tabs {
   height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .kb-tabs :deep(.ant-tabs-nav) {
+  flex-shrink: 0;
   padding: 0 24px;
   margin-bottom: 0;
   background: hsl(var(--card));
   border-bottom: 1px solid hsl(var(--border));
 }
 
+.kb-tabs :deep(.ant-tabs-content-holder) {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .kb-tabs :deep(.ant-tabs-content) {
-  height: calc(100% - 46px);
+  height: 100%;
 }
 
 .kb-tabs :deep(.ant-tabs-tabpane) {

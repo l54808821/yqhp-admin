@@ -4,6 +4,12 @@ import type { PageResult } from '#/api/types';
 /** 知识库类型 */
 export type KnowledgeBaseType = 'normal' | 'graph';
 
+/** 检索模式 */
+export type RetrievalMode = 'vector' | 'keyword' | 'hybrid';
+
+/** 文档索引状态 */
+export type IndexingStatus = 'waiting' | 'parsing' | 'cleaning' | 'splitting' | 'indexing' | 'completed' | 'error' | 'paused';
+
 /** 知识库信息 */
 export interface KnowledgeBase {
   id: number;
@@ -21,6 +27,9 @@ export interface KnowledgeBase {
   chunk_overlap: number;
   similarity_threshold: number;
   top_k: number;
+  retrieval_mode: RetrievalMode;
+  rerank_model_id?: number;
+  rerank_enabled: boolean;
   qdrant_collection: string;
   document_count: number;
   chunk_count: number;
@@ -38,6 +47,7 @@ export interface CreateKnowledgeBaseParams {
   chunk_overlap?: number;
   similarity_threshold?: number;
   top_k?: number;
+  retrieval_mode?: RetrievalMode;
 }
 
 /** 更新知识库参数 */
@@ -51,6 +61,9 @@ export interface UpdateKnowledgeBaseParams {
   chunk_overlap?: number;
   similarity_threshold?: number;
   top_k?: number;
+  retrieval_mode?: RetrievalMode;
+  rerank_model_id?: number;
+  rerank_enabled?: boolean;
 }
 
 /** 知识库列表查询参数 */
@@ -71,25 +84,13 @@ export interface KnowledgeDocument {
   name: string;
   file_type: string;
   file_size: number;
-  status: string;
+  word_count: number;
+  indexing_status: IndexingStatus;
   error_message: string;
   chunk_count: number;
   token_count: number;
-}
-
-/** 创建文档参数（文本模式） */
-export interface CreateDocumentParams {
-  name: string;
-  file_type?: string;
-  content?: string;
-}
-
-/** 文档分块信息 */
-export interface DocumentChunk {
-  chunk_index: number;
-  content: string;
-  char_count: number;
-  enabled: boolean;
+  parsing_completed_at?: string;
+  indexing_completed_at?: string;
 }
 
 /** 分段设置 */
@@ -120,72 +121,88 @@ export interface ProcessDocumentParams {
   chunk_setting?: ChunkSetting;
 }
 
+/** 分块信息 */
+export interface SegmentInfo {
+  id: number;
+  document_id: number;
+  document_name: string;
+  content: string;
+  position: number;
+  word_count: number;
+  enabled: boolean;
+  hit_count: number;
+  status: string;
+  created_at?: string;
+}
+
+/** 更新分块参数 */
+export interface UpdateSegmentParams {
+  content?: string;
+  enabled?: boolean;
+}
+
 /** 知识库检索参数 */
 export interface KnowledgeSearchParams {
   query: string;
   top_k?: number;
   score?: number;
+  retrieval_mode?: RetrievalMode;
 }
 
 /** 知识库检索结果 */
 export interface KnowledgeSearchResult {
+  segment_id: number;
   content: string;
   score: number;
   document_id: number;
   document_name: string;
   chunk_index: number;
+  word_count: number;
+  hit_count: number;
   metadata?: Record<string, unknown>;
 }
 
+/** 查询历史 */
+export interface QueryHistoryItem {
+  id: number;
+  query_text: string;
+  retrieval_mode: string;
+  result_count: number;
+  created_at?: string;
+}
+
 // -----------------------------------------------
-// API 方法
+// 知识库 CRUD
 // -----------------------------------------------
 
-/**
- * 创建知识库
- */
 export async function createKnowledgeBaseApi(params: CreateKnowledgeBaseParams) {
   return requestClient.post<KnowledgeBase>('/knowledge-bases', params);
 }
 
-/**
- * 获取知识库列表
- */
 export async function getKnowledgeBaseListApi(params?: KnowledgeBaseListParams) {
   return requestClient.get<PageResult<KnowledgeBase>>('/knowledge-bases', { params });
 }
 
-/**
- * 获取知识库详情
- */
 export async function getKnowledgeBaseApi(id: number) {
   return requestClient.get<KnowledgeBase>(`/knowledge-bases/${id}`);
 }
 
-/**
- * 更新知识库
- */
 export async function updateKnowledgeBaseApi(id: number, params: UpdateKnowledgeBaseParams) {
   return requestClient.put(`/knowledge-bases/${id}`, params);
 }
 
-/**
- * 删除知识库
- */
 export async function deleteKnowledgeBaseApi(id: number) {
   return requestClient.delete(`/knowledge-bases/${id}`);
 }
 
-/**
- * 更新知识库状态
- */
 export async function updateKnowledgeBaseStatusApi(id: number, status: number) {
   return requestClient.put(`/knowledge-bases/${id}/status`, { status });
 }
 
-/**
- * 上传知识库文档（文件模式）
- */
+// -----------------------------------------------
+// 文档管理
+// -----------------------------------------------
+
 export async function uploadKnowledgeDocumentApi(kbId: number, file: File) {
   const formData = new FormData();
   formData.append('file', file);
@@ -194,58 +211,64 @@ export async function uploadKnowledgeDocumentApi(kbId: number, file: File) {
   });
 }
 
-/**
- * 创建知识库文档（文本模式）
- */
-export async function createKnowledgeDocumentApi(kbId: number, params: CreateDocumentParams) {
-  return requestClient.post<KnowledgeDocument>(`/knowledge-bases/${kbId}/documents`, params);
-}
-
-/**
- * 获取知识库文档列表
- */
 export async function getKnowledgeDocumentListApi(kbId: number) {
   return requestClient.get<KnowledgeDocument[]>(`/knowledge-bases/${kbId}/documents`);
 }
 
-/**
- * 删除知识库文档
- */
 export async function deleteKnowledgeDocumentApi(kbId: number, docId: number) {
   return requestClient.delete(`/knowledge-bases/${kbId}/documents/${docId}`);
 }
 
-/**
- * 预览文档分块（不保存到 Qdrant）
- */
-export async function previewDocumentChunksApi(kbId: number, params: PreviewChunksParams) {
-  return requestClient.post<PreviewChunkItem[]>(`/knowledge-bases/${kbId}/documents/preview-chunks`, params);
-}
-
-/**
- * 确认分段参数并开始处理文档
- */
-export async function processDocumentApi(kbId: number, docId: number, params: ProcessDocumentParams) {
-  return requestClient.put(`/knowledge-bases/${kbId}/documents/${docId}/process`, params);
-}
-
-/**
- * 获取文档分块列表
- */
-export async function getDocumentChunksApi(kbId: number, docId: number) {
-  return requestClient.get<DocumentChunk[]>(`/knowledge-bases/${kbId}/documents/${docId}/chunks`);
-}
-
-/**
- * 重新处理知识库文档
- */
 export async function reprocessKnowledgeDocumentApi(kbId: number, docId: number) {
   return requestClient.post(`/knowledge-bases/${kbId}/documents/${docId}/reprocess`);
 }
 
-/**
- * 知识库检索测试
- */
+export async function previewDocumentChunksApi(kbId: number, params: PreviewChunksParams) {
+  return requestClient.post<PreviewChunkItem[]>(`/knowledge-bases/${kbId}/documents/preview-chunks`, params);
+}
+
+export async function processDocumentApi(kbId: number, docId: number, params: ProcessDocumentParams) {
+  return requestClient.put(`/knowledge-bases/${kbId}/documents/${docId}/process`, params);
+}
+
+// -----------------------------------------------
+// 批量操作
+// -----------------------------------------------
+
+export async function batchDeleteDocumentsApi(kbId: number, documentIds: number[]) {
+  return requestClient.post(`/knowledge-bases/${kbId}/documents/batch-delete`, { document_ids: documentIds });
+}
+
+export async function batchReprocessDocumentsApi(kbId: number, documentIds: number[]) {
+  return requestClient.post(`/knowledge-bases/${kbId}/documents/batch-reprocess`, { document_ids: documentIds });
+}
+
+export async function getIndexingStatusApi(kbId: number) {
+  return requestClient.get<KnowledgeDocument[]>(`/knowledge-bases/${kbId}/indexing-status`);
+}
+
+// -----------------------------------------------
+// 分块管理
+// -----------------------------------------------
+
+export async function getDocumentSegmentsApi(kbId: number, docId: number, page = 1, pageSize = 20) {
+  return requestClient.get<PageResult<SegmentInfo>>(`/knowledge-bases/${kbId}/documents/${docId}/segments`, {
+    params: { page, pageSize },
+  });
+}
+
+export async function updateSegmentApi(kbId: number, segId: number, params: UpdateSegmentParams) {
+  return requestClient.patch(`/knowledge-bases/${kbId}/segments/${segId}`, params);
+}
+
+// -----------------------------------------------
+// 检索与查询历史
+// -----------------------------------------------
+
 export async function searchKnowledgeBaseApi(kbId: number, params: KnowledgeSearchParams) {
   return requestClient.post<KnowledgeSearchResult[]>(`/knowledge-bases/${kbId}/search`, params);
+}
+
+export async function getQueryHistoryApi(kbId: number, limit = 20) {
+  return requestClient.get<QueryHistoryItem[]>(`/knowledge-bases/${kbId}/queries`, { params: { limit } });
 }
