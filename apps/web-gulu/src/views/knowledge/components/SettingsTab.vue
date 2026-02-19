@@ -207,40 +207,41 @@ onMounted(() => {
         <Divider />
 
         <!-- 多模态配置 -->
-        <div class="section-label">多模态配置</div>
-        <div class="section-desc">开启后支持从文档中提取图片，并进行跨模态检索（以文搜图、以图搜文）。</div>
-
-        <Form.Item>
-          <div class="toggle-row">
-            <span class="toggle-label">启用多模态</span>
+        <div class="feature-panel">
+          <div class="feature-panel-header">
+            <div>
+              <div class="feature-panel-title">多模态配置</div>
+              <div class="feature-panel-desc">开启后支持从文档中提取图片，并进行跨模态检索（以文搜图、以图搜文）</div>
+            </div>
             <Switch v-model:checked="form.multimodal_enabled" />
           </div>
-        </Form.Item>
-
-        <template v-if="form.multimodal_enabled">
-          <Form.Item label="多模态嵌入模型">
-            <Select
-              v-model:value="form.multimodal_model_id"
-              placeholder="选择多模态嵌入模型（如 CLIP、Jina-CLIP-v2）"
-              allow-clear
-              show-search
-              :loading="modelLoading"
-              :filter-option="(input: string, option: any) => (option?.label || '').toLowerCase().includes(input.toLowerCase())"
-              @change="handleMultimodalModelChange"
-            >
-              <Select.Option
-                v-for="model in embeddingModels"
-                :key="model.id"
-                :value="model.id"
-                :label="model.display_name || model.model_id"
-              >
-                {{ model.display_name || model.model_id }}
-                <span class="model-provider">({{ model.provider }})</span>
-              </Select.Option>
-            </Select>
-            <div class="form-hint">推荐：Jina-CLIP-v2、CLIP 系列。</div>
-          </Form.Item>
-        </template>
+          <template v-if="form.multimodal_enabled">
+            <div class="feature-panel-body">
+              <Form.Item label="多模态嵌入模型" style="margin-bottom: 0">
+                <Select
+                  v-model:value="form.multimodal_model_id"
+                  placeholder="选择多模态嵌入模型（如 CLIP、Jina-CLIP-v2）"
+                  allow-clear
+                  show-search
+                  :loading="modelLoading"
+                  :filter-option="(input: string, option: any) => (option?.label || '').toLowerCase().includes(input.toLowerCase())"
+                  @change="handleMultimodalModelChange"
+                >
+                  <Select.Option
+                    v-for="model in embeddingModels"
+                    :key="model.id"
+                    :value="model.id"
+                    :label="model.display_name || model.model_id"
+                  >
+                    {{ model.display_name || model.model_id }}
+                    <span class="model-provider">({{ model.provider }})</span>
+                  </Select.Option>
+                </Select>
+                <div class="form-hint">推荐：Jina-CLIP-v2、CLIP 系列。</div>
+              </Form.Item>
+            </div>
+          </template>
+        </div>
 
         <!-- 图谱配置（仅 graph 类型） -->
         <template v-if="kb.type === 'graph'">
@@ -334,40 +335,40 @@ onMounted(() => {
         <Divider />
 
         <!-- Rerank 重排序 -->
-        <div class="section-label">Rerank 重排序</div>
-        <div class="section-desc">在初始检索后使用重排序模型提升结果质量。</div>
-
-        <Form.Item>
-          <div class="toggle-row">
-            <span class="toggle-label">启用 Rerank</span>
+        <div class="feature-panel">
+          <div class="feature-panel-header">
+            <div>
+              <div class="feature-panel-title">Rerank 重排序</div>
+              <div class="feature-panel-desc">在初始检索后使用重排序模型对结果重新打分排序</div>
+            </div>
             <Switch v-model:checked="form.rerank_enabled" />
           </div>
-        </Form.Item>
-
-        <Form.Item v-if="form.rerank_enabled" label="重排序模型">
-          <Select
-            v-model:value="form.rerank_model_id"
-            placeholder="选择重排序模型"
-            allow-clear
-            :loading="modelLoading"
-          >
-            <Select.Option
-              v-for="model in rerankModels"
-              :key="model.id"
-              :value="model.id"
-            >
-              {{ model.display_name || model.model_id }}
-            </Select.Option>
-          </Select>
-          <div v-if="rerankModels.length === 0" class="form-hint form-hint-warn">
-            暂无可用的 Rerank 模型，请先在 AI 模型管理中添加。
-          </div>
-        </Form.Item>
+          <template v-if="form.rerank_enabled">
+            <div class="feature-panel-body">
+              <Form.Item label="重排序模型" style="margin-bottom: 0">
+                <Select
+                  v-model:value="form.rerank_model_id"
+                  placeholder="选择重排序模型"
+                  allow-clear
+                  :loading="modelLoading"
+                >
+                  <Select.Option
+                    v-for="model in rerankModels"
+                    :key="model.id"
+                    :value="model.id"
+                  >
+                    {{ model.display_name || model.model_id }}
+                  </Select.Option>
+                </Select>
+                <div v-if="rerankModels.length === 0" class="form-hint form-hint-warn">
+                  暂无可用的 Rerank 模型，请先在 AI 模型管理中添加。
+                </div>
+              </Form.Item>
+            </div>
+          </template>
+        </div>
 
         <Divider />
-
-        <!-- 召回参数 -->
-        <div class="section-label">召回参数</div>
 
         <div class="form-row">
           <Form.Item label="Top K" class="form-item-half">
@@ -464,16 +465,38 @@ onMounted(() => {
   margin-left: 4px;
 }
 
-/* 开关行 */
-.toggle-row {
+/* 功能面板（含 toggle header + 可展开 body） */
+.feature-panel {
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.feature-panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 12px 14px;
+  background: hsl(var(--muted) / 30%);
 }
 
-.toggle-label {
+.feature-panel-title {
   font-size: 13px;
+  font-weight: 500;
   color: hsl(var(--foreground));
+  margin-bottom: 2px;
+}
+
+.feature-panel-desc {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.4;
+}
+
+.feature-panel-body {
+  padding: 14px;
+  border-top: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
 }
 
 /* 检索方式选项卡 */
