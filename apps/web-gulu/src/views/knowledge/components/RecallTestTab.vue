@@ -110,7 +110,6 @@ function handleHistoryClick(record: QueryHistoryItem) {
   if (record.retrieval_mode) {
     retrievalMode.value = record.retrieval_mode as RetrievalMode;
   }
-  handleSearch();
 }
 
 const renderContent = renderChunkContent;
