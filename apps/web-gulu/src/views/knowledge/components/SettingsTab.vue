@@ -402,8 +402,7 @@ onMounted(() => {
 
 <style scoped>
 .settings-tab {
-  padding: 20px 24px;
-  max-width: 800px;
+  padding: 20px 28px;
 }
 
 .settings-card {

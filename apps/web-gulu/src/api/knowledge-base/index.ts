@@ -21,6 +21,7 @@ export interface KnowledgeBase {
   type: KnowledgeBaseType;
   status: number;
   embedding_model_id?: number;
+  embedding_model_name?: string;
   multimodal_enabled: boolean;
   multimodal_model_id?: number;
   graph_extract_model_id?: number;

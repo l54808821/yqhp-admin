@@ -182,29 +182,32 @@ onMounted(() => {
 
   <div v-else class="doc-tab">
     <div class="doc-tab-toolbar">
-      <Button type="primary" @click="handleOpenWizard">+ 添加文件</Button>
-      <span class="doc-tab-hint">
-        支持 PDF、TXT、Markdown、Word、HTML、CSV、JSON 等格式
-      </span>
-      <div style="flex: 1" />
-      <template v-if="selectedIds.size > 0">
-        <Popconfirm
-          :title="`确定批量删除 ${selectedIds.size} 个文档？`"
-          @confirm="handleBatchDelete"
-        >
-          <Button danger size="small">批量删除 ({{ selectedIds.size }})</Button>
-        </Popconfirm>
-        <Button size="small" @click="handleBatchReprocess">
-          批量重处理 ({{ selectedIds.size }})
+      <div class="doc-tab-toolbar-left">
+        <Button type="primary" @click="handleOpenWizard">+ 添加文件</Button>
+        <span class="doc-tab-hint">
+          支持 PDF、TXT、Markdown、Word、HTML、CSV、JSON 等格式
+        </span>
+      </div>
+      <div class="doc-tab-toolbar-right">
+        <template v-if="selectedIds.size > 0">
+          <Popconfirm
+            :title="`确定批量删除 ${selectedIds.size} 个文档？`"
+            @confirm="handleBatchDelete"
+          >
+            <Button danger size="small">批量删除 ({{ selectedIds.size }})</Button>
+          </Popconfirm>
+          <Button size="small" @click="handleBatchReprocess">
+            批量重处理 ({{ selectedIds.size }})
+          </Button>
+        </template>
+        <Button :loading="loading" @click="loadDocuments">
+          <template #icon><RefreshCw :size="14" /></template>
+          刷新
         </Button>
-      </template>
-      <Button :loading="loading" @click="loadDocuments">
-        <template #icon><RefreshCw :size="14" /></template>
-        刷新
-      </Button>
+      </div>
     </div>
 
-    <Spin :spinning="loading">
+    <Spin :spinning="loading" class="doc-tab-content">
       <div v-if="documents.length > 0" class="doc-list">
         <div class="doc-list-header">
           <Checkbox :checked="allSelected" @change="toggleSelectAll" />
@@ -276,14 +279,32 @@ onMounted(() => {
 
 <style scoped>
 .doc-tab {
-  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .doc-tab-toolbar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  margin-bottom: 20px;
+  padding: 12px 28px;
+  background: hsl(var(--card));
+  border-bottom: 1px solid hsl(var(--border));
+  flex-shrink: 0;
+}
+
+.doc-tab-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.doc-tab-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .doc-tab-hint {
@@ -302,6 +323,17 @@ onMounted(() => {
 
 .doc-list-header-text {
   font-size: 12px;
+}
+
+.doc-tab-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 28px;
+}
+
+.doc-tab-content :deep(.ant-spin-container) {
+  height: 100%;
 }
 
 .doc-list {

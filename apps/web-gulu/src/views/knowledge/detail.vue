@@ -52,30 +52,39 @@ onMounted(() => {
   <div class="kb-detail-page">
     <Spin :spinning="loading">
       <template v-if="kb">
-        <!-- 顶部导航 -->
+        <!-- 面包屑导航条 -->
+        <div class="kb-breadcrumb">
+          <button class="kb-breadcrumb-btn" @click="handleBack">
+            <ArrowLeft :size="14" />
+            返回知识库列表
+          </button>
+        </div>
+
+        <!-- 知识库信息 Header -->
         <div class="kb-detail-header">
-          <div class="kb-detail-header__left">
-            <Button type="text" class="back-btn" @click="handleBack">
-              <ArrowLeft :size="18" />
-            </Button>
-            <div class="kb-detail-icon" :class="kb.type === 'graph' ? 'icon-graph' : 'icon-normal'">
-              <component :is="kb.type === 'graph' ? GitFork : Database" :size="22" />
-            </div>
-            <div class="kb-detail-title-area">
-              <div class="kb-detail-name">{{ kb.name }}</div>
-              <div class="kb-detail-meta">
-                <Tag :color="kb.type === 'graph' ? 'purple' : 'blue'" size="small">
-                  {{ kb.type === 'graph' ? '图知识库' : '普通知识库' }}
-                </Tag>
-                <span class="kb-detail-stat">
-                  <FileText :size="12" />
-                  {{ kb.document_count }} 文档
-                </span>
-                <span class="kb-detail-stat">{{ kb.chunk_count }} 分块</span>
-                <Tag v-if="kb.embedding_model_name" size="small" color="default">
-                  {{ kb.embedding_model_name }}
-                </Tag>
-              </div>
+          <div
+            class="kb-detail-icon"
+            :class="kb.type === 'graph' ? 'icon-graph' : 'icon-normal'"
+          >
+            <component :is="kb.type === 'graph' ? GitFork : Database" :size="26" />
+          </div>
+          <div class="kb-detail-title-area">
+            <div class="kb-detail-name">{{ kb.name }}</div>
+            <div class="kb-detail-meta">
+              <Tag :color="kb.type === 'graph' ? 'purple' : 'blue'" size="small">
+                {{ kb.type === 'graph' ? '图知识库' : '普通知识库' }}
+              </Tag>
+              <span class="meta-dot">·</span>
+              <span class="kb-detail-stat">
+                <FileText :size="12" />
+                {{ kb.document_count }} 文档
+              </span>
+              <span class="meta-dot">·</span>
+              <span class="kb-detail-stat">{{ kb.chunk_count }} 分块</span>
+              <template v-if="kb.embedding_model_name">
+                <span class="meta-dot">·</span>
+                <span class="kb-detail-stat kb-detail-model">{{ kb.embedding_model_name }}</span>
+              </template>
             </div>
           </div>
         </div>
@@ -141,64 +150,88 @@ onMounted(() => {
   flex-direction: column;
 }
 
+/* 面包屑导航条 */
+.kb-breadcrumb {
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  height: 38px;
+  flex-shrink: 0;
+  border-bottom: 1px solid hsl(var(--border) / 50%);
+  background: hsl(var(--background));
+}
+
+.kb-breadcrumb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 5px;
+  transition: background 0.15s, color 0.15s;
+  line-height: 1;
+}
+
+.kb-breadcrumb-btn:hover {
+  background: hsl(var(--muted) / 60%);
+  color: hsl(var(--foreground));
+}
+
+/* 知识库信息 Header */
 .kb-detail-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 16px 24px;
-  border-bottom: 1px solid hsl(var(--border));
+  gap: 16px;
+  padding: 20px 28px;
   background: hsl(var(--card));
+  box-shadow: 0 1px 0 hsl(var(--border));
   flex-shrink: 0;
-}
-
-.kb-detail-header__left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.back-btn {
-  padding: 4px 8px;
-  color: hsl(var(--muted-foreground));
 }
 
 .kb-detail-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 10px;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
   flex-shrink: 0;
 }
 
 .icon-normal {
-  background: hsl(217 91% 60% / 10%);
-  color: hsl(217 91% 60%);
+  background: linear-gradient(135deg, hsl(217 91% 62% / 18%), hsl(217 91% 62% / 8%));
+  color: hsl(217 91% 55%);
+  box-shadow: 0 0 0 1px hsl(217 91% 60% / 20%);
 }
 
 .icon-graph {
-  background: hsl(270 67% 47% / 10%);
-  color: hsl(270 67% 47%);
+  background: linear-gradient(135deg, hsl(270 67% 52% / 18%), hsl(270 67% 52% / 8%));
+  color: hsl(270 67% 48%);
+  box-shadow: 0 0 0 1px hsl(270 67% 47% / 20%);
 }
 
 .kb-detail-title-area {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .kb-detail-name {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
   color: hsl(var(--foreground));
+  line-height: 1.2;
 }
 
 .kb-detail-meta {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
+  gap: 6px;
+  font-size: 13px;
   color: hsl(var(--muted-foreground));
 }
 
@@ -206,12 +239,25 @@ onMounted(() => {
   margin: 0;
 }
 
+.meta-dot {
+  color: hsl(var(--border));
+  font-size: 14px;
+  line-height: 1;
+  user-select: none;
+}
+
 .kb-detail-stat {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 3px;
 }
 
+.kb-detail-model {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground) / 80%);
+}
+
+/* Tab 区域 */
 .kb-detail-body {
   flex: 1;
   min-height: 0;
@@ -226,10 +272,15 @@ onMounted(() => {
 
 .kb-tabs :deep(.ant-tabs-nav) {
   flex-shrink: 0;
-  padding: 0 24px;
+  padding: 0 28px;
   margin-bottom: 0;
   background: hsl(var(--card));
   border-bottom: 1px solid hsl(var(--border));
+}
+
+.kb-tabs :deep(.ant-tabs-tab) {
+  padding: 14px 4px;
+  font-size: 13px;
 }
 
 .kb-tabs :deep(.ant-tabs-content-holder) {
