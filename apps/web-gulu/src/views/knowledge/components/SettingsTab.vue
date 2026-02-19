@@ -41,11 +41,9 @@ const form = ref({
   chunk_overlap: 50,
   embedding_model_id: undefined as number | undefined,
   embedding_model_name: '',
-  embedding_dimension: 1536,
   multimodal_enabled: false,
   multimodal_model_id: undefined as number | undefined,
   multimodal_model_name: '',
-  multimodal_dimension: 768,
   top_k: 5,
   similarity_threshold: 0.7,
   retrieval_mode: 'vector' as RetrievalMode,
@@ -53,6 +51,7 @@ const form = ref({
   rerank_enabled: false,
   graph_extract_model_id: undefined as number | undefined,
 });
+
 
 watch(
   () => props.kb,
@@ -63,11 +62,9 @@ watch(
         chunk_overlap: kb.chunk_overlap || 50,
         embedding_model_id: kb.embedding_model_id,
         embedding_model_name: kb.embedding_model_name || '',
-        embedding_dimension: kb.embedding_dimension || 1536,
         multimodal_enabled: kb.multimodal_enabled || false,
         multimodal_model_id: kb.multimodal_model_id,
         multimodal_model_name: kb.multimodal_model_name || '',
-        multimodal_dimension: kb.multimodal_dimension || 768,
         top_k: kb.top_k || 5,
         similarity_threshold: kb.similarity_threshold || 0.7,
         retrieval_mode: kb.retrieval_mode || 'vector',
@@ -121,10 +118,17 @@ watch(modelList, (list) => {
   }
 });
 
-function handleModelChange(modelId: number) {
+function handleEmbeddingModelChange(modelId: any) {
   const model = modelList.value.find((m: any) => m.id === modelId);
   if (model) {
     form.value.embedding_model_name = model.display_name || model.model_id || model.name;
+  }
+}
+
+function handleMultimodalModelChange(modelId: any) {
+  const model = modelList.value.find((m: any) => m.id === modelId);
+  if (model) {
+    form.value.multimodal_model_name = model.display_name || model.model_id || model.name;
   }
 }
 
@@ -141,11 +145,10 @@ async function handleSave() {
       chunk_overlap: form.value.chunk_overlap,
       embedding_model_id: form.value.embedding_model_id,
       embedding_model_name: form.value.embedding_model_name,
-      embedding_dimension: form.value.embedding_dimension,
+      // 维度由索引时自动写入，此处不手动传（与 Dify 一致）
       multimodal_enabled: form.value.multimodal_enabled,
       multimodal_model_id: form.value.multimodal_model_id,
       multimodal_model_name: form.value.multimodal_model_name,
-      multimodal_dimension: form.value.multimodal_dimension,
       top_k: form.value.top_k,
       similarity_threshold: form.value.similarity_threshold,
       retrieval_mode: form.value.retrieval_mode,
@@ -215,7 +218,7 @@ onMounted(() => {
                 show-search
                 :loading="modelLoading"
                 :filter-option="(input: string, option: any) => (option?.label || '').toLowerCase().includes(input.toLowerCase())"
-                @change="handleModelChange"
+                @change="handleEmbeddingModelChange"
               >
                 <Select.Option
                   v-for="model in embeddingModels"
@@ -229,17 +232,6 @@ onMounted(() => {
               </Select>
             </Form.Item>
 
-            <Form.Item label="向量维度">
-              <InputNumber
-                v-model:value="form.embedding_dimension"
-                :min="64"
-                :max="8192"
-                style="width: 100%"
-              />
-              <div class="form-hint">
-                必须与嵌入模型的输出维度一致。修改后已有文档需重新处理。
-              </div>
-            </Form.Item>
           </Form>
         </Card>
 
@@ -263,10 +255,7 @@ onMounted(() => {
                   show-search
                   :loading="modelLoading"
                   :filter-option="(input: string, option: any) => (option?.label || '').toLowerCase().includes(input.toLowerCase())"
-                  @change="(id: number) => {
-                    const model = modelList.find((m: any) => m.id === id);
-                    if (model) form.multimodal_model_name = model.display_name || model.model_id;
-                  }"
+                  @change="handleMultimodalModelChange"
                 >
                   <Select.Option
                     v-for="model in embeddingModels"
@@ -281,15 +270,6 @@ onMounted(() => {
                 <div class="form-hint">
                   选择将图片和文本映射到同一向量空间的多模态嵌入模型。推荐：Jina-CLIP-v2、CLIP 系列。
                 </div>
-              </Form.Item>
-              <Form.Item label="多模态向量维度">
-                <InputNumber
-                  v-model:value="form.multimodal_dimension"
-                  :min="64"
-                  :max="8192"
-                  style="width: 100%"
-                />
-                <div class="form-hint">多模态嵌入模型的输出维度，如 CLIP 通常为 768。</div>
               </Form.Item>
             </template>
           </Form>
@@ -467,6 +447,7 @@ onMounted(() => {
   color: #999;
   margin-left: 4px;
 }
+
 
 .retrieval-modes {
   display: flex;

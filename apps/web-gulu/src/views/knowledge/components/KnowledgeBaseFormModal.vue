@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { KnowledgeBase, CreateKnowledgeBaseParams, UpdateKnowledgeBaseParams } from '#/api/knowledge-base';
 
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 
 import {
   Button,
@@ -12,6 +12,7 @@ import {
   message,
   Select,
   Slider,
+  Switch,
   Tabs,
 } from 'ant-design-vue';
 
@@ -37,18 +38,16 @@ const modelLoading = ref(false);
 // 模型列表（按类型分组）
 const llmModelList = ref<any[]>([]);
 
-// 表单数据
+// 表单数据（不含维度字段，维度由索引时自动检测写入）
 const form = ref<CreateKnowledgeBaseParams & UpdateKnowledgeBaseParams>({
   name: '',
   description: '',
   type: 'normal',
   embedding_model_id: undefined,
   embedding_model_name: '',
-  embedding_dimension: 1536,
   multimodal_enabled: false,
   multimodal_model_id: undefined,
   multimodal_model_name: '',
-  multimodal_dimension: 768,
   chunk_size: 500,
   chunk_overlap: 50,
   similarity_threshold: 0.7,
@@ -63,11 +62,9 @@ function resetForm() {
     type: 'normal',
     embedding_model_id: undefined,
     embedding_model_name: '',
-    embedding_dimension: 1536,
     multimodal_enabled: false,
     multimodal_model_id: undefined,
     multimodal_model_name: '',
-    multimodal_dimension: 768,
     chunk_size: 500,
     chunk_overlap: 50,
     similarity_threshold: 0.7,
@@ -110,11 +107,9 @@ function open(record?: KnowledgeBase) {
       type: record.type,
       embedding_model_id: record.embedding_model_id,
       embedding_model_name: record.embedding_model_name,
-      embedding_dimension: record.embedding_dimension || 1536,
       multimodal_enabled: record.multimodal_enabled || false,
       multimodal_model_id: record.multimodal_model_id,
       multimodal_model_name: record.multimodal_model_name || '',
-      multimodal_dimension: record.multimodal_dimension || 768,
       chunk_size: record.chunk_size || 500,
       chunk_overlap: record.chunk_overlap || 50,
       similarity_threshold: record.similarity_threshold || 0.7,
@@ -152,7 +147,7 @@ async function handleSubmit() {
   }
 }
 
-function handleModelChange(modelId: number) {
+function handleModelChange(modelId: any) {
   const model = modelList.value.find((m: any) => m.id === modelId);
   if (model) {
     form.value.embedding_model_name = model.display_name || model.model_id || model.name;
@@ -225,13 +220,12 @@ defineExpose({ open });
       <Tabs.TabPane key="multimodal" tab="多模态">
         <Form layout="vertical">
           <Form.Item label="启用多模态">
-            <Select
-              v-model:value="form.multimodal_enabled"
-              :options="[
-                { label: '关闭', value: false },
-                { label: '开启（支持图文混合检索）', value: true },
-              ]"
-            />
+            <div style="display: flex; align-items: center; gap: 8px">
+              <Switch v-model:checked="form.multimodal_enabled" />
+              <span style="font-size: 13px; color: #666">
+                {{ form.multimodal_enabled ? '已开启（支持图文混合检索）' : '关闭' }}
+              </span>
+            </div>
             <div class="form-hint">
               开启后支持从文档中提取图片，并进行跨模态检索（以文搜图、以图搜文）。
             </div>
@@ -245,7 +239,7 @@ defineExpose({ open });
                 show-search
                 :loading="modelLoading"
                 :filter-option="(input: string, option: any) => (option?.label || '').toLowerCase().includes(input.toLowerCase())"
-                @change="(id: number) => {
+                @change="(id: any) => {
                   const model = modelList.find((m: any) => m.id === id);
                   if (model) form.multimodal_model_name = model.display_name || model.model_id;
                 }"
@@ -263,15 +257,6 @@ defineExpose({ open });
               <div class="form-hint">
                 选择将图片和文本映射到同一向量空间的多模态嵌入模型。推荐：Jina-CLIP-v2、CLIP 系列。
               </div>
-            </Form.Item>
-            <Form.Item label="多模态向量维度">
-              <InputNumber
-                v-model:value="form.multimodal_dimension"
-                :min="64"
-                :max="8192"
-                style="width: 100%"
-              />
-              <div class="form-hint">多模态嵌入模型的输出维度，如 CLIP 通常为 768。</div>
             </Form.Item>
           </template>
         </Form>
@@ -307,17 +292,6 @@ defineExpose({ open });
 
       <Tabs.TabPane key="params" tab="检索参数">
         <Form layout="vertical">
-          <Form.Item label="向量维度">
-            <InputNumber
-              v-model:value="form.embedding_dimension"
-              :min="64"
-              :max="8192"
-              style="width: 100%"
-            />
-            <div class="form-hint">
-              与嵌入模型的输出维度保持一致。text-embedding-3-small 默认 1536。
-            </div>
-          </Form.Item>
           <Form.Item label="分块大小（字符数）">
             <InputNumber
               v-model:value="form.chunk_size"

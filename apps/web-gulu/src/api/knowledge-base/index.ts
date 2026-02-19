@@ -49,11 +49,9 @@ export interface CreateKnowledgeBaseParams {
   type?: KnowledgeBaseType;
   embedding_model_id?: number;
   embedding_model_name?: string;
-  embedding_dimension?: number;
   multimodal_enabled?: boolean;
   multimodal_model_id?: number;
   multimodal_model_name?: string;
-  multimodal_dimension?: number;
   chunk_size?: number;
   chunk_overlap?: number;
   similarity_threshold?: number;
@@ -68,11 +66,9 @@ export interface UpdateKnowledgeBaseParams {
   description?: string;
   embedding_model_id?: number;
   embedding_model_name?: string;
-  embedding_dimension?: number;
   multimodal_enabled?: boolean;
   multimodal_model_id?: number;
   multimodal_model_name?: string;
-  multimodal_dimension?: number;
   chunk_size?: number;
   chunk_overlap?: number;
   similarity_threshold?: number;
