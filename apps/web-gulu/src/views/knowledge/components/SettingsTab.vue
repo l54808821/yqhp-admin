@@ -1,7 +1,4 @@
 <script setup lang="ts">
-/**
- * 设置 Tab — 分段设置 + 嵌入模型 + 检索参数 + 检索方式 + Rerank
- */
 import type { KnowledgeBase, RetrievalMode } from '#/api/knowledge-base';
 
 import { onMounted, ref, watch } from 'vue';
@@ -9,11 +6,10 @@ import { onMounted, ref, watch } from 'vue';
 import {
   Button,
   Card,
-  Col,
+  Divider,
   Form,
   InputNumber,
   message,
-  Row,
   Select,
   Slider,
   Switch,
@@ -52,7 +48,6 @@ const form = ref({
   rerank_enabled: false,
   graph_extract_model_id: undefined as number | undefined,
 });
-
 
 watch(
   () => props.kb,
@@ -119,7 +114,6 @@ async function handleSave() {
       chunk_overlap: form.value.chunk_overlap,
       embedding_model_id: form.value.embedding_model_id,
       embedding_model_name: form.value.embedding_model_name,
-      // 维度由索引时自动写入，此处不手动传（与 Dify 一致）
       multimodal_enabled: form.value.multimodal_enabled,
       multimodal_model_id: form.value.multimodal_model_id,
       multimodal_model_name: form.value.multimodal_model_name,
@@ -146,268 +140,312 @@ onMounted(() => {
 
 <template>
   <div class="settings-tab">
-    <Row :gutter="24">
-      <Col :span="12">
-        <Card title="分段设置" size="small" class="settings-card">
-          <div class="settings-card-desc">
-            设置文档文本的分段方式，影响检索的粒度和效果。
-          </div>
 
-          <Form layout="vertical">
-            <Form.Item label="分段最大长度（字符）">
-              <InputNumber
-                v-model:value="form.chunk_size"
-                :min="100"
-                :max="5000"
-                :step="100"
-                style="width: 100%"
-              />
-              <div class="form-hint">
-                每个文本分块的最大字符数。推荐 500 ~ 1024。
-              </div>
-            </Form.Item>
+    <!-- 索引配置 -->
+    <Card class="settings-card">
+      <template #title>
+        <span class="card-title">索引配置</span>
+        <span class="card-title-desc">控制文档如何被切分并向量化存储</span>
+      </template>
 
-            <Form.Item label="分段重叠长度（字符）">
-              <InputNumber
-                v-model:value="form.chunk_overlap"
-                :min="0"
-                :max="500"
-                :step="10"
-                style="width: 100%"
-              />
-              <div class="form-hint">
-                相邻分块的重叠字符数，避免信息在边界丢失。
-              </div>
-            </Form.Item>
-          </Form>
-        </Card>
+      <Form layout="vertical">
+        <!-- 分段设置 -->
+        <div class="section-label">分段设置</div>
+        <div class="section-desc">设置文档文本的分段方式，影响检索的粒度和效果。</div>
 
-        <Card title="Embedding 模型" size="small" class="settings-card">
-          <Form layout="vertical">
-            <Form.Item label="嵌入模型">
-              <Select
-                v-model:value="form.embedding_model_id"
-                placeholder="选择嵌入模型"
-                allow-clear
-                show-search
-                :loading="modelLoading"
-                :filter-option="(input: string, option: any) => (option?.label || '').toLowerCase().includes(input.toLowerCase())"
-                @change="handleEmbeddingModelChange"
-              >
-                <Select.Option
-                  v-for="model in embeddingModels"
-                  :key="model.id"
-                  :value="model.id"
-                  :label="model.display_name || model.model_id"
-                >
-                  {{ model.display_name || model.model_id }}
-                  <span class="model-provider">({{ model.provider }})</span>
-                </Select.Option>
-              </Select>
-            </Form.Item>
+        <div class="form-row">
+          <Form.Item label="分段最大长度（字符）" class="form-item-half">
+            <InputNumber
+              v-model:value="form.chunk_size"
+              :min="100"
+              :max="5000"
+              :step="100"
+              style="width: 100%"
+            />
+            <div class="form-hint">每个文本分块的最大字符数。推荐 500 ~ 1024。</div>
+          </Form.Item>
 
-          </Form>
-        </Card>
-
-        <Card title="多模态配置" size="small" class="settings-card">
-          <div class="settings-card-desc">
-            开启后支持从文档中提取图片，并进行跨模态检索（以文搜图、以图搜文）。
-          </div>
-          <Form layout="vertical">
-            <Form.Item>
-              <div class="rerank-toggle">
-                <span>启用多模态</span>
-                <Switch v-model:checked="form.multimodal_enabled" />
-              </div>
-            </Form.Item>
-            <template v-if="form.multimodal_enabled">
-              <Form.Item label="多模态嵌入模型">
-                <Select
-                  v-model:value="form.multimodal_model_id"
-                  placeholder="选择多模态嵌入模型（如 CLIP、Jina-CLIP-v2）"
-                  allow-clear
-                  show-search
-                  :loading="modelLoading"
-                  :filter-option="(input: string, option: any) => (option?.label || '').toLowerCase().includes(input.toLowerCase())"
-                  @change="handleMultimodalModelChange"
-                >
-                  <Select.Option
-                    v-for="model in embeddingModels"
-                    :key="model.id"
-                    :value="model.id"
-                    :label="model.display_name || model.model_id"
-                  >
-                    {{ model.display_name || model.model_id }}
-                    <span class="model-provider">({{ model.provider }})</span>
-                  </Select.Option>
-                </Select>
-                <div class="form-hint">
-                  选择将图片和文本映射到同一向量空间的多模态嵌入模型。推荐：Jina-CLIP-v2、CLIP 系列。
-                </div>
-              </Form.Item>
-            </template>
-          </Form>
-        </Card>
-
-        <Card v-if="kb.type === 'graph'" title="图谱配置" size="small" class="settings-card">
-          <div class="settings-card-desc">
-            图知识库使用 LLM 从文档中自动抽取实体和关系，构建知识图谱。
-          </div>
-          <Form layout="vertical">
-            <Form.Item label="实体抽取模型">
-              <Select
-                v-model:value="form.graph_extract_model_id"
-                placeholder="选择用于实体关系抽取的 LLM 模型"
-                allow-clear
-                show-search
-                :loading="modelLoading"
-                :filter-option="(input: string, option: any) => (option?.label || '').toLowerCase().includes(input.toLowerCase())"
-              >
-                <Select.Option
-                  v-for="model in llmModels"
-                  :key="model.id"
-                  :value="model.id"
-                  :label="model.display_name || model.model_id"
-                >
-                  {{ model.display_name || model.model_id }}
-                  <span class="model-provider">({{ model.provider }})</span>
-                </Select.Option>
-              </Select>
-              <div class="form-hint">
-                推荐使用能力较强的模型（如 GPT-4、Qwen-Max）以获得更好的抽取效果。
-              </div>
-            </Form.Item>
-          </Form>
-        </Card>
-      </Col>
-
-      <Col :span="12">
-        <Card title="检索设置" size="small" class="settings-card">
-          <div class="settings-card-desc">
-            设置检索相关参数，影响 AI 节点挂载知识库时的召回效果。
-          </div>
-
-          <Form layout="vertical">
-            <Form.Item label="检索方式">
-              <div class="retrieval-modes">
-                <div
-                  class="retrieval-mode-item"
-                  :class="{ active: form.retrieval_mode === 'vector' }"
-                  @click="form.retrieval_mode = 'vector'"
-                >
-                  <div class="retrieval-mode-title">向量检索</div>
-                  <div class="retrieval-mode-desc">通过嵌入模型搜索语义最相似的文本分块</div>
-                </div>
-                <div
-                  class="retrieval-mode-item"
-                  :class="{ active: form.retrieval_mode === 'keyword' }"
-                  @click="form.retrieval_mode = 'keyword'"
-                >
-                  <div class="retrieval-mode-title">关键词检索</div>
-                  <div class="retrieval-mode-desc">基于全文索引匹配包含关键词的文本分块</div>
-                </div>
-                <div
-                  class="retrieval-mode-item"
-                  :class="{ active: form.retrieval_mode === 'hybrid' }"
-                  @click="form.retrieval_mode = 'hybrid'"
-                >
-                  <div class="retrieval-mode-title">混合检索</div>
-                  <div class="retrieval-mode-desc">同时使用向量和关键词检索，合并结果</div>
-                </div>
-                <template v-if="kb.type === 'graph'">
-                  <div
-                    class="retrieval-mode-item"
-                    :class="{ active: form.retrieval_mode === 'graph' }"
-                    @click="form.retrieval_mode = 'graph'"
-                  >
-                    <div class="retrieval-mode-title">图谱检索</div>
-                    <div class="retrieval-mode-desc">通过知识图谱的实体和关系进行检索</div>
-                  </div>
-                  <div
-                    class="retrieval-mode-item"
-                    :class="{ active: form.retrieval_mode === 'hybrid_graph' }"
-                    @click="form.retrieval_mode = 'hybrid_graph'"
-                  >
-                    <div class="retrieval-mode-title">混合图谱</div>
-                    <div class="retrieval-mode-desc">同时使用向量检索和图谱检索，合并结果</div>
-                  </div>
-                </template>
-              </div>
-            </Form.Item>
-
-            <Form.Item label="Top K">
-              <div class="slider-with-input">
-                <Slider v-model:value="form.top_k" :min="1" :max="20" style="flex: 1" />
-                <InputNumber v-model:value="form.top_k" :min="1" :max="20" size="small" style="width: 60px" />
-              </div>
-            </Form.Item>
-
-            <Form.Item label="Score 阈值">
-              <div class="slider-with-input">
-                <Slider v-model:value="form.similarity_threshold" :min="0" :max="1" :step="0.05" style="flex: 1" />
-                <InputNumber v-model:value="form.similarity_threshold" :min="0" :max="1" :step="0.05" size="small" style="width: 60px" />
-              </div>
-              <div class="form-hint">低于此分数的结果将被过滤。建议 0.5 ~ 0.8。</div>
-            </Form.Item>
-          </Form>
-        </Card>
-
-        <Card title="Rerank 重排序" size="small" class="settings-card">
-          <div class="settings-card-desc">
-            在初始检索后使用重排序模型提升结果质量。
-          </div>
-          <Form layout="vertical">
-            <Form.Item>
-              <div class="rerank-toggle">
-                <span>启用 Rerank</span>
-                <Switch v-model:checked="form.rerank_enabled" />
-              </div>
-            </Form.Item>
-            <Form.Item v-if="form.rerank_enabled" label="重排序模型">
-              <Select
-                v-model:value="form.rerank_model_id"
-                placeholder="选择重排序模型"
-                allow-clear
-                :loading="modelLoading"
-              >
-                <Select.Option
-                  v-for="model in rerankModels"
-                  :key="model.id"
-                  :value="model.id"
-                >
-                  {{ model.display_name || model.model_id }}
-                </Select.Option>
-              </Select>
-              <div v-if="rerankModels.length === 0" class="form-hint" style="color: #faad14">
-                暂无可用的 Rerank 模型，请先在 AI 模型管理中添加。
-              </div>
-            </Form.Item>
-          </Form>
-        </Card>
-
-        <div class="settings-save">
-          <Button type="primary" :loading="saving" @click="handleSave">
-            保存设置
-          </Button>
+          <Form.Item label="分段重叠长度（字符）" class="form-item-half">
+            <InputNumber
+              v-model:value="form.chunk_overlap"
+              :min="0"
+              :max="500"
+              :step="10"
+              style="width: 100%"
+            />
+            <div class="form-hint">相邻分块的重叠字符数，避免信息在边界丢失。</div>
+          </Form.Item>
         </div>
-      </Col>
-    </Row>
+
+        <Divider />
+
+        <!-- 嵌入模型 -->
+        <div class="section-label">嵌入模型</div>
+
+        <Form.Item label="Embedding 模型">
+          <Select
+            v-model:value="form.embedding_model_id"
+            placeholder="选择嵌入模型"
+            allow-clear
+            show-search
+            :loading="modelLoading"
+            :filter-option="(input: string, option: any) => (option?.label || '').toLowerCase().includes(input.toLowerCase())"
+            @change="handleEmbeddingModelChange"
+          >
+            <Select.Option
+              v-for="model in embeddingModels"
+              :key="model.id"
+              :value="model.id"
+              :label="model.display_name || model.model_id"
+            >
+              {{ model.display_name || model.model_id }}
+              <span class="model-provider">({{ model.provider }})</span>
+            </Select.Option>
+          </Select>
+        </Form.Item>
+
+        <Divider />
+
+        <!-- 多模态配置 -->
+        <div class="section-label">多模态配置</div>
+        <div class="section-desc">开启后支持从文档中提取图片，并进行跨模态检索（以文搜图、以图搜文）。</div>
+
+        <Form.Item>
+          <div class="toggle-row">
+            <span class="toggle-label">启用多模态</span>
+            <Switch v-model:checked="form.multimodal_enabled" />
+          </div>
+        </Form.Item>
+
+        <template v-if="form.multimodal_enabled">
+          <Form.Item label="多模态嵌入模型">
+            <Select
+              v-model:value="form.multimodal_model_id"
+              placeholder="选择多模态嵌入模型（如 CLIP、Jina-CLIP-v2）"
+              allow-clear
+              show-search
+              :loading="modelLoading"
+              :filter-option="(input: string, option: any) => (option?.label || '').toLowerCase().includes(input.toLowerCase())"
+              @change="handleMultimodalModelChange"
+            >
+              <Select.Option
+                v-for="model in embeddingModels"
+                :key="model.id"
+                :value="model.id"
+                :label="model.display_name || model.model_id"
+              >
+                {{ model.display_name || model.model_id }}
+                <span class="model-provider">({{ model.provider }})</span>
+              </Select.Option>
+            </Select>
+            <div class="form-hint">推荐：Jina-CLIP-v2、CLIP 系列。</div>
+          </Form.Item>
+        </template>
+
+        <!-- 图谱配置（仅 graph 类型） -->
+        <template v-if="kb.type === 'graph'">
+          <Divider />
+          <div class="section-label">图谱配置</div>
+          <div class="section-desc">图知识库使用 LLM 从文档中自动抽取实体和关系，构建知识图谱。</div>
+
+          <Form.Item label="实体抽取模型">
+            <Select
+              v-model:value="form.graph_extract_model_id"
+              placeholder="选择用于实体关系抽取的 LLM 模型"
+              allow-clear
+              show-search
+              :loading="modelLoading"
+              :filter-option="(input: string, option: any) => (option?.label || '').toLowerCase().includes(input.toLowerCase())"
+            >
+              <Select.Option
+                v-for="model in llmModels"
+                :key="model.id"
+                :value="model.id"
+                :label="model.display_name || model.model_id"
+              >
+                {{ model.display_name || model.model_id }}
+                <span class="model-provider">({{ model.provider }})</span>
+              </Select.Option>
+            </Select>
+            <div class="form-hint">推荐使用能力较强的模型（如 GPT-4、Qwen-Max）以获得更好的抽取效果。</div>
+          </Form.Item>
+        </template>
+      </Form>
+    </Card>
+
+    <!-- 检索配置 -->
+    <Card class="settings-card">
+      <template #title>
+        <span class="card-title">检索配置</span>
+        <span class="card-title-desc">控制 AI 节点挂载知识库时的召回策略与效果</span>
+      </template>
+
+      <Form layout="vertical">
+        <!-- 检索方式 -->
+        <div class="section-label">检索方式</div>
+
+        <Form.Item>
+          <div class="retrieval-modes">
+            <div
+              class="retrieval-mode-item"
+              :class="{ active: form.retrieval_mode === 'vector' }"
+              @click="form.retrieval_mode = 'vector'"
+            >
+              <div class="retrieval-mode-title">向量检索</div>
+              <div class="retrieval-mode-desc">通过嵌入模型搜索语义最相似的文本分块</div>
+            </div>
+            <div
+              class="retrieval-mode-item"
+              :class="{ active: form.retrieval_mode === 'keyword' }"
+              @click="form.retrieval_mode = 'keyword'"
+            >
+              <div class="retrieval-mode-title">关键词检索</div>
+              <div class="retrieval-mode-desc">基于全文索引匹配包含关键词的文本分块</div>
+            </div>
+            <div
+              class="retrieval-mode-item"
+              :class="{ active: form.retrieval_mode === 'hybrid' }"
+              @click="form.retrieval_mode = 'hybrid'"
+            >
+              <div class="retrieval-mode-title">混合检索</div>
+              <div class="retrieval-mode-desc">同时使用向量和关键词检索，合并结果</div>
+            </div>
+            <template v-if="kb.type === 'graph'">
+              <div
+                class="retrieval-mode-item"
+                :class="{ active: form.retrieval_mode === 'graph' }"
+                @click="form.retrieval_mode = 'graph'"
+              >
+                <div class="retrieval-mode-title">图谱检索</div>
+                <div class="retrieval-mode-desc">通过知识图谱的实体和关系进行检索</div>
+              </div>
+              <div
+                class="retrieval-mode-item"
+                :class="{ active: form.retrieval_mode === 'hybrid_graph' }"
+                @click="form.retrieval_mode = 'hybrid_graph'"
+              >
+                <div class="retrieval-mode-title">混合图谱</div>
+                <div class="retrieval-mode-desc">同时使用向量检索和图谱检索，合并结果</div>
+              </div>
+            </template>
+          </div>
+        </Form.Item>
+
+        <Divider />
+
+        <!-- Rerank 重排序 -->
+        <div class="section-label">Rerank 重排序</div>
+        <div class="section-desc">在初始检索后使用重排序模型提升结果质量。</div>
+
+        <Form.Item>
+          <div class="toggle-row">
+            <span class="toggle-label">启用 Rerank</span>
+            <Switch v-model:checked="form.rerank_enabled" />
+          </div>
+        </Form.Item>
+
+        <Form.Item v-if="form.rerank_enabled" label="重排序模型">
+          <Select
+            v-model:value="form.rerank_model_id"
+            placeholder="选择重排序模型"
+            allow-clear
+            :loading="modelLoading"
+          >
+            <Select.Option
+              v-for="model in rerankModels"
+              :key="model.id"
+              :value="model.id"
+            >
+              {{ model.display_name || model.model_id }}
+            </Select.Option>
+          </Select>
+          <div v-if="rerankModels.length === 0" class="form-hint form-hint-warn">
+            暂无可用的 Rerank 模型，请先在 AI 模型管理中添加。
+          </div>
+        </Form.Item>
+
+        <Divider />
+
+        <!-- 召回参数 -->
+        <div class="section-label">召回参数</div>
+
+        <div class="form-row">
+          <Form.Item label="Top K" class="form-item-half">
+            <div class="slider-with-input">
+              <Slider v-model:value="form.top_k" :min="1" :max="20" style="flex: 1" />
+              <InputNumber v-model:value="form.top_k" :min="1" :max="20" size="small" style="width: 64px" />
+            </div>
+            <div class="form-hint">最多返回的文本分块数量。</div>
+          </Form.Item>
+
+          <Form.Item label="Score 阈值" class="form-item-half">
+            <div class="slider-with-input">
+              <Slider v-model:value="form.similarity_threshold" :min="0" :max="1" :step="0.05" style="flex: 1" />
+              <InputNumber v-model:value="form.similarity_threshold" :min="0" :max="1" :step="0.05" size="small" style="width: 64px" />
+            </div>
+            <div class="form-hint">低于此分数的结果将被过滤。建议 0.5 ~ 0.8。</div>
+          </Form.Item>
+        </div>
+      </Form>
+    </Card>
+
+    <!-- 保存按钮 -->
+    <div class="settings-save">
+      <Button type="primary" :loading="saving" @click="handleSave">
+        保存设置
+      </Button>
+    </div>
+
   </div>
 </template>
 
 <style scoped>
 .settings-tab {
   padding: 20px 24px;
+  max-width: 800px;
 }
 
 .settings-card {
   margin-bottom: 16px;
 }
 
-.settings-card-desc {
+/* 卡片标题行 */
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  margin-right: 8px;
+}
+
+.card-title-desc {
+  font-size: 12px;
+  font-weight: 400;
+  color: hsl(var(--muted-foreground));
+}
+
+/* 卡片内子分组标题 */
+.section-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+  margin-bottom: 4px;
+}
+
+.section-desc {
   font-size: 12px;
   color: hsl(var(--muted-foreground));
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+}
+
+/* 两列并排的表单行 */
+.form-row {
+  display: flex;
+  gap: 16px;
+}
+
+.form-item-half {
+  flex: 1;
+  min-width: 0;
 }
 
 .form-hint {
@@ -416,13 +454,29 @@ onMounted(() => {
   margin-top: 4px;
 }
 
+.form-hint-warn {
+  color: #faad14;
+}
+
 .model-provider {
   font-size: 11px;
   color: #999;
   margin-left: 4px;
 }
 
+/* 开关行 */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
 
+.toggle-label {
+  font-size: 13px;
+  color: hsl(var(--foreground));
+}
+
+/* 检索方式选项卡 */
 .retrieval-modes {
   display: flex;
   flex-wrap: wrap;
@@ -435,6 +489,7 @@ onMounted(() => {
   border-radius: 8px;
   cursor: pointer;
   flex: 1;
+  min-width: 120px;
   transition: all 0.15s;
 }
 
@@ -456,21 +511,17 @@ onMounted(() => {
   line-height: 1.4;
 }
 
+/* 滑块 + 输入框组合 */
 .slider-with-input {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.rerank-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
+/* 保存按钮 */
 .settings-save {
   display: flex;
   justify-content: flex-end;
-  padding-top: 8px;
+  padding-top: 4px;
 }
 </style>
