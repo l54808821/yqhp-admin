@@ -13,19 +13,26 @@ const Ban = createIconifyIcon('lucide:ban');
 const CircleCheck = createIconifyIcon('lucide:circle-check');
 // 分支图标（从上往下分叉的形状）
 const GitFork = createIconifyIcon('lucide:git-fork');
+const Variable = createIconifyIcon('lucide:variable');
+const ListTree = createIconifyIcon('lucide:list-tree');
 
 import {
+  Badge,
   Button,
   Checkbox,
   Dropdown,
   Menu,
   Popconfirm,
+  Popover,
   Tooltip,
   Tree,
 } from 'ant-design-vue';
 import type { TreeProps } from 'ant-design-vue';
 
 import { getNodeTypeConfig, getNodeTypes } from './node-types';
+import WorkflowVariablesPanel from '../components/WorkflowVariablesPanel.vue';
+import WorkflowParamsPanel from '../components/WorkflowParamsPanel.vue';
+import type { WorkflowParam } from '../components/WorkflowParamsPanel.vue';
 
 export interface StepNode {
   id: string;
@@ -69,11 +76,11 @@ export interface StepNode {
 }
 
 interface Props {
-  definition: { name: string; steps: StepNode[] };
+  definition: { name: string; steps: StepNode[]; [key: string]: any };
   readonly?: boolean;
   expandedKeys?: string[];
   selectedKeys?: string[];
-  checkedKeys?: string[];  // 外部传入的勾选状态
+  checkedKeys?: string[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -88,8 +95,24 @@ const emit = defineEmits<{
   (e: 'select', node: StepNode | null): void;
   (e: 'update:expandedKeys', keys: string[]): void;
   (e: 'update:selectedKeys', keys: string[]): void;
-  (e: 'update:checkedKeys', keys: string[]): void;  // 勾选状态变化
+  (e: 'update:checkedKeys', keys: string[]): void;
+  (e: 'update:variables', variables: Record<string, any>): void;
+  (e: 'update:params', params: WorkflowParam[]): void;
 }>();
+
+const variablesPopoverOpen = ref(false);
+const paramsPopoverOpen = ref(false);
+
+const variableCount = computed(() => Object.keys(props.definition.variables || {}).length);
+const paramCount = computed(() => (props.definition.params || []).length);
+
+function handleVariablesUpdate(variables: Record<string, any>) {
+  emit('update:variables', variables);
+}
+
+function handleParamsUpdate(params: WorkflowParam[]) {
+  emit('update:params', params);
+}
 
 // 本地状态，从 props 初始化
 const localExpandedKeys = ref<string[]>([...props.expandedKeys]);
@@ -1050,6 +1073,48 @@ function renderInsertMenu(nodeId: string, nodeType: string, canHaveChildren: boo
           <component :is="renderAddMenu()" />
         </template>
       </Dropdown>
+      <Popover
+        v-model:open="variablesPopoverOpen"
+        trigger="click"
+        placement="bottomLeft"
+        overlay-class-name="workflow-settings-popover"
+      >
+        <Badge :count="variableCount" :offset="[-8, 0]" size="small">
+          <Button size="small">
+            <template #icon><Variable class="size-3.5" /></template>
+            变量
+          </Button>
+        </Badge>
+        <template #content>
+          <div class="popover-panel">
+            <WorkflowVariablesPanel
+              :variables="definition.variables || {}"
+              @update:variables="handleVariablesUpdate"
+            />
+          </div>
+        </template>
+      </Popover>
+      <Popover
+        v-model:open="paramsPopoverOpen"
+        trigger="click"
+        placement="bottomLeft"
+        overlay-class-name="workflow-settings-popover"
+      >
+        <Badge :count="paramCount" :offset="[-8, 0]" size="small">
+          <Button size="small">
+            <template #icon><ListTree class="size-3.5" /></template>
+            参数
+          </Button>
+        </Badge>
+        <template #content>
+          <div class="popover-panel">
+            <WorkflowParamsPanel
+              :params="definition.params || []"
+              @update:params="handleParamsUpdate"
+            />
+          </div>
+        </template>
+      </Popover>
     </div>
 
     <!-- 树形结构 -->
@@ -1422,5 +1487,17 @@ function renderInsertMenu(nodeId: string, nodeType: string, canHaveChildren: boo
 .children-toggle .toggle-count {
   font-size: 11px;
   font-weight: 500;
+}
+
+.popover-panel {
+  min-width: 440px;
+  max-height: 450px;
+  overflow-y: auto;
+}
+</style>
+
+<style>
+.workflow-settings-popover .ant-popover-inner-content {
+  padding: 6px 8px;
 }
 </style>

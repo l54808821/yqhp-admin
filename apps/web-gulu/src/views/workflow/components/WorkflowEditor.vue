@@ -18,6 +18,7 @@ import ExecutionModal from './ExecutionModal.vue';
 import EditorToolbar from './EditorToolbar.vue';
 import ExecuteModal from './ExecuteModal.vue';
 import DebugContextDrawer from './DebugContextDrawer.vue';
+import type { WorkflowParam } from './WorkflowParamsPanel.vue';
 
 interface Props {
   workflowId: number;
@@ -43,7 +44,14 @@ const debugModalOpen = ref(false);
 const debugContextDrawerOpen = ref(false);
 const debugRunning = ref(false);
 const showPropertyPanel = ref(false);
-const workflowDefinition = ref<{ name: string; steps: StepNode[] }>({ name: '', steps: [] });
+interface WorkflowDefinitionData {
+  name: string;
+  variables?: Record<string, any>;
+  params?: WorkflowParam[];
+  steps: StepNode[];
+}
+
+const workflowDefinition = ref<WorkflowDefinitionData>({ name: '', steps: [] });
 const historyStack = ref<string[]>([]);
 const historyIndex = ref(-1);
 const isModified = ref(false);
@@ -179,10 +187,12 @@ async function loadWorkflow() {
         const parsed = JSON.parse(workflow.value.definition);
         workflowDefinition.value = {
           name: parsed.name || '',
+          variables: parsed.variables || {},
+          params: parsed.params || [],
           steps: backendToFrontend(parsed.steps || []),
         };
       } catch {
-        workflowDefinition.value = { name: workflow.value.name, steps: [] };
+        workflowDefinition.value = { name: workflow.value.name, variables: {}, params: [], steps: [] };
       }
     }
     // 初始化历史记录
@@ -296,10 +306,16 @@ async function handleSave() {
     saving.value = true;
 
     // 转换为后端格式
-    const backendDefinition = {
+    const backendDefinition: Record<string, any> = {
       name: workflowDefinition.value.name,
       steps: frontendToBackend(workflowDefinition.value.steps),
     };
+    if (workflowDefinition.value.variables && Object.keys(workflowDefinition.value.variables).length > 0) {
+      backendDefinition.variables = workflowDefinition.value.variables;
+    }
+    if (workflowDefinition.value.params && workflowDefinition.value.params.length > 0) {
+      backendDefinition.params = workflowDefinition.value.params;
+    }
 
     // 验证工作流
     const validationResult = await validateWorkflowDefinitionApi(
@@ -346,7 +362,17 @@ function handleClosePropertyPanel() {
 }
 
 function handleDefinitionUpdate(def: { name: string; steps: StepNode[] }) {
-  workflowDefinition.value = def;
+  workflowDefinition.value = { ...workflowDefinition.value, ...def };
+  pushHistory();
+}
+
+function handleVariablesUpdate(variables: Record<string, any>) {
+  workflowDefinition.value = { ...workflowDefinition.value, variables };
+  pushHistory();
+}
+
+function handleParamsUpdate(params: WorkflowParam[]) {
+  workflowDefinition.value = { ...workflowDefinition.value, params };
   pushHistory();
 }
 
@@ -640,6 +666,8 @@ async function handleRename(newName: string) {
               @update:expanded-keys="handleExpandedKeysChange"
               @update:selected-keys="handleSelectedKeysChange"
               @update:checked-keys="handleCheckedKeysChange"
+              @update:variables="handleVariablesUpdate"
+              @update:params="handleParamsUpdate"
             />
           </template>
           <template #right>
@@ -664,6 +692,8 @@ async function handleRename(newName: string) {
           @update:expanded-keys="handleExpandedKeysChange"
           @update:selected-keys="handleSelectedKeysChange"
           @update:checked-keys="handleCheckedKeysChange"
+          @update:variables="handleVariablesUpdate"
+          @update:params="handleParamsUpdate"
         />
       </Spin>
     </div>
@@ -693,6 +723,7 @@ async function handleRename(newName: string) {
       v-model:open="debugContextDrawerOpen"
       :workflow-id="workflow.id"
     />
+
   </div>
 </template>
 

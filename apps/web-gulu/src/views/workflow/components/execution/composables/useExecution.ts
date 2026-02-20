@@ -505,11 +505,14 @@ export function useExecution(options: UseExecutionOptions) {
       };
 
       if (definition?.value) {
-        // 过滤掉禁用的步骤，使用 workflow 字段
+        const def = definition.value as any;
         params.workflow = {
-          ...definition.value,
-          steps: filterDisabledSteps(definition.value.steps || []),
+          ...def,
+          steps: filterDisabledSteps(def.steps || []),
         };
+        if (def.variables && Object.keys(def.variables).length > 0) {
+          params.workflow.variables = def.variables;
+        }
       }
 
       if (selectedSteps?.value && selectedSteps.value.length > 0) {
