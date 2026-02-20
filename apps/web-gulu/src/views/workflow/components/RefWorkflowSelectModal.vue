@@ -1,17 +1,20 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, h, ref, watch } from 'vue';
 
-import { Input, Modal, Spin } from 'ant-design-vue';
+import { Input, Modal, Spin, Tree } from 'ant-design-vue';
+import type { TreeProps } from 'ant-design-vue';
 
-import type { Workflow } from '#/api/workflow';
-import { getWorkflowsByProjectApi } from '#/api/workflow';
 import type { CategoryTreeNode } from '#/api/category';
 import { useCategoryStore } from '#/store/category';
 
 import { createIconifyIcon } from '@vben/icons';
+import {
+  File,
+  Folder,
+  FolderOpen,
+} from '#/components/icons';
+
 const Search = createIconifyIcon('lucide:search');
-const Check = createIconifyIcon('lucide:check');
-const FolderIcon = createIconifyIcon('lucide:folder');
 
 interface Props {
   open: boolean;
@@ -28,56 +31,90 @@ const emit = defineEmits<{
 
 const categoryStore = useCategoryStore();
 
-const workflows = ref<Workflow[]>([]);
 const loading = ref(false);
 const searchText = ref('');
-const selectedId = ref<number | null>(null);
-const workflowPaths = ref<Record<number, string>>({});
+const selectedKeys = ref<(string | number)[]>([]);
+const expandedKeys = ref<(string | number)[]>([]);
+const selectedWorkflow = ref<{ id: number; name: string } | null>(null);
 
-const filteredWorkflows = ref<Workflow[]>([]);
+const treeData = computed(() => {
+  return buildTreeData(categoryStore.categories, searchText.value);
+});
 
-function buildWorkflowPaths() {
-  const paths: Record<number, string> = {};
-
-  function traverse(nodes: CategoryTreeNode[], parentPath: string) {
-    for (const node of nodes) {
-      if (node.type === 'workflow' && node.source_id) {
-        paths[node.source_id] = parentPath || '/';
+function buildTreeData(
+  categories: CategoryTreeNode[],
+  search: string,
+): TreeProps['treeData'] {
+  return categories
+    .filter((cat) => {
+      if (cat.type === 'workflow' && cat.source_id === props.currentWorkflowId) {
+        return false;
       }
-      if (node.children?.length) {
-        const currentPath = parentPath ? `${parentPath}/${node.name}` : `/${node.name}`;
-        traverse(node.children, node.type === 'folder' ? currentPath : parentPath);
+      if (!search) return true;
+      return (
+        cat.name.toLowerCase().includes(search.toLowerCase()) ||
+        (cat.children && hasMatchingChild(cat.children, search))
+      );
+    })
+    .map((cat) => ({
+      key: cat.type === 'workflow' ? `wf_${cat.source_id}` : `folder_${cat.id}`,
+      title: cat.name,
+      icon:
+        cat.type === 'folder'
+          ? expandedKeys.value.includes(`folder_${cat.id}`)
+            ? () => h(FolderOpen, { class: 'tree-icon folder-icon' })
+            : () => h(Folder, { class: 'tree-icon folder-icon' })
+          : () => h(File, { class: 'tree-icon file-icon' }),
+      children: cat.children ? buildTreeData(cat.children, search) : undefined,
+      isLeaf: cat.type === 'workflow',
+      selectable: cat.type === 'workflow',
+      data: cat,
+    }));
+}
+
+function hasMatchingChild(children: CategoryTreeNode[], search: string): boolean {
+  return children.some(
+    (child) =>
+      child.name.toLowerCase().includes(search.toLowerCase()) ||
+      (child.children && hasMatchingChild(child.children, search)),
+  );
+}
+
+function getMatchingKeys(categories: CategoryTreeNode[], search: string): string[] {
+  const keys: string[] = [];
+  for (const cat of categories) {
+    if (
+      cat.name.toLowerCase().includes(search.toLowerCase()) ||
+      (cat.children && hasMatchingChild(cat.children, search))
+    ) {
+      keys.push(cat.type === 'workflow' ? `wf_${cat.source_id}` : `folder_${cat.id}`);
+      if (cat.children) {
+        keys.push(...getMatchingKeys(cat.children, search));
       }
     }
   }
-
-  traverse(categoryStore.categories, '');
-  workflowPaths.value = paths;
+  return keys;
 }
 
-function filterWorkflows(keyword: string) {
-  const k = keyword.trim().toLowerCase();
-  if (!k) return workflows.value;
-  return workflows.value.filter(
-    (w) =>
-      w.name.toLowerCase().includes(k) ||
-      (w.code || '').toLowerCase().includes(k) ||
-      (w.description || '').toLowerCase().includes(k) ||
-      (workflowPaths.value[w.id] || '').toLowerCase().includes(k),
-  );
+function getAllFolderKeys(categories: CategoryTreeNode[]): string[] {
+  const keys: string[] = [];
+  for (const cat of categories) {
+    if (cat.type === 'folder') {
+      keys.push(`folder_${cat.id}`);
+      if (cat.children) {
+        keys.push(...getAllFolderKeys(cat.children));
+      }
+    }
+  }
+  return keys;
 }
 
 watch(
   () => searchText.value,
-  (text) => {
-    filteredWorkflows.value = filterWorkflows(text);
-  },
-);
-
-watch(
-  () => workflows.value,
-  () => {
-    filteredWorkflows.value = filterWorkflows(searchText.value);
+  (val) => {
+    if (val) {
+      expandedKeys.value = getMatchingKeys(categoryStore.categories, val);
+    }
   },
 );
 
@@ -85,37 +122,35 @@ watch(
   () => props.open,
   async (isOpen) => {
     if (isOpen) {
-      selectedId.value = null;
+      selectedKeys.value = [];
+      selectedWorkflow.value = null;
       searchText.value = '';
-      await loadWorkflows();
-      buildWorkflowPaths();
+      loading.value = true;
+      try {
+        if (!categoryStore.categories.length && props.projectId) {
+          await categoryStore.loadCategories(props.projectId);
+        }
+        expandedKeys.value = getAllFolderKeys(categoryStore.categories);
+      } finally {
+        loading.value = false;
+      }
     }
   },
 );
 
-async function loadWorkflows() {
-  if (!props.projectId) return;
-  loading.value = true;
-  try {
-    const list = await getWorkflowsByProjectApi(props.projectId);
-    workflows.value = (list || []).filter((w) => w.id !== props.currentWorkflowId);
-  } catch {
-    workflows.value = [];
-  } finally {
-    loading.value = false;
+function handleSelect(keys: (string | number)[], info: any) {
+  selectedKeys.value = keys;
+  const node = info.node;
+  if (node.data?.type === 'workflow' && node.data?.source_id) {
+    selectedWorkflow.value = { id: node.data.source_id, name: node.data.name };
+  } else {
+    selectedWorkflow.value = null;
   }
-}
-
-function handleSelect(wf: Workflow) {
-  selectedId.value = wf.id;
 }
 
 function handleConfirm() {
-  if (!selectedId.value) return;
-  const wf = workflows.value.find((w) => w.id === selectedId.value);
-  if (wf) {
-    emit('confirm', wf.id, wf.name);
-  }
+  if (!selectedWorkflow.value) return;
+  emit('confirm', selectedWorkflow.value.id, selectedWorkflow.value.name);
   emit('update:open', false);
 }
 
@@ -131,7 +166,7 @@ function handleCancel() {
     :width="480"
     ok-text="确认"
     cancel-text="取消"
-    :ok-button-props="{ disabled: !selectedId }"
+    :ok-button-props="{ disabled: !selectedWorkflow }"
     @ok="handleConfirm"
     @cancel="handleCancel"
   >
@@ -149,26 +184,17 @@ function handleCancel() {
       </Input>
 
       <Spin :spinning="loading">
-        <div class="workflow-list">
-          <div
-            v-for="wf in filteredWorkflows"
-            :key="wf.id"
-            class="workflow-item"
-            :class="{ selected: selectedId === wf.id }"
-            @click="handleSelect(wf)"
-          >
-            <div class="workflow-info">
-              <div class="workflow-name">{{ wf.name }}</div>
-              <div class="workflow-path">
-                <FolderIcon class="path-icon" />
-                <span class="path-text">{{ workflowPaths[wf.id] || '/' }}</span>
-              </div>
-            </div>
-            <div class="check-indicator">
-              <Check v-if="selectedId === wf.id" class="check-icon" />
-            </div>
-          </div>
-          <div v-if="!loading && filteredWorkflows.length === 0" class="empty-state">
+        <div class="tree-wrapper">
+          <Tree
+            v-if="treeData && treeData.length > 0"
+            v-model:expandedKeys="expandedKeys"
+            :selected-keys="selectedKeys"
+            :tree-data="treeData"
+            :show-icon="true"
+            block-node
+            @select="handleSelect"
+          />
+          <div v-else class="empty-state">
             {{ searchText ? '未找到匹配的工作流' : '暂无可引用的工作流' }}
           </div>
         </div>
@@ -188,88 +214,80 @@ function handleCancel() {
   margin-bottom: 2px;
 }
 
-.workflow-list {
-  max-height: 340px;
+.tree-wrapper {
+  max-height: 380px;
   overflow-y: auto;
-  border: 1px solid hsl(var(--border) / 60%);
+  border: 1px solid hsl(var(--border) / 50%);
   border-radius: 8px;
+  padding: 6px 4px;
 }
 
-.workflow-item {
+.tree-wrapper :deep(.ant-tree) {
+  background: transparent;
+}
+
+.tree-wrapper :deep(.ant-tree-treenode) {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  cursor: pointer;
+  padding: 2px 0;
+}
+
+.tree-wrapper :deep(.ant-tree-switcher) {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tree-wrapper :deep(.ant-tree-switcher-noop) {
+  width: 20px;
+}
+
+.tree-wrapper :deep(.ant-tree-node-content-wrapper) {
+  display: flex !important;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  border-radius: 6px;
   transition: background 0.15s ease;
 }
 
-.workflow-item + .workflow-item {
-  border-top: 1px solid hsl(var(--border) / 30%);
+.tree-wrapper :deep(.ant-tree-iconEle) {
+  display: inline-flex !important;
+  align-items: center;
+  flex-shrink: 0;
 }
 
-.workflow-item:hover {
-  background: hsl(var(--accent) / 40%);
-}
-
-.workflow-item.selected {
-  background: hsl(var(--primary) / 7%);
-}
-
-.workflow-info {
+.tree-wrapper :deep(.ant-tree-title) {
   flex: 1;
   min-width: 0;
 }
 
-.workflow-name {
-  font-size: 13px;
-  font-weight: 500;
-  color: hsl(var(--foreground));
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.tree-wrapper :deep(.ant-tree-indent-unit) {
+  width: 16px;
 }
 
-.workflow-item.selected .workflow-name {
+.tree-wrapper :deep(.ant-tree-node-selected) {
+  background: hsl(var(--primary) / 10%) !important;
   color: hsl(var(--primary));
+  font-weight: 500;
 }
 
-.workflow-path {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 2px;
-}
-
-.path-icon {
-  width: 12px;
-  height: 12px;
-  color: hsl(var(--muted-foreground) / 60%);
-  flex-shrink: 0;
-}
-
-.path-text {
-  font-size: 12px;
-  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
-  color: hsl(var(--muted-foreground) / 70%);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.check-indicator {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.check-icon {
+.tree-wrapper :deep(.tree-icon) {
   width: 16px;
   height: 16px;
-  color: hsl(var(--primary));
+}
+
+.tree-wrapper :deep(.folder-icon) {
+  color: hsl(var(--muted-foreground) / 70%);
+}
+
+.tree-wrapper :deep(.file-icon) {
+  color: hsl(270 50% 55%);
+}
+
+.tree-wrapper :deep(.ant-tree-treenode[aria-selected="false"] .ant-tree-node-content-wrapper) {
+  cursor: default;
 }
 
 .empty-state {
