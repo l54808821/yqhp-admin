@@ -4,8 +4,10 @@ import { Alert, Card, Descriptions, Tag } from 'ant-design-vue';
 import type { StepResult, TreeNode } from './types';
 
 import AIStepDetail from './step-details/AIStepDetail.vue';
+import DatabaseStepDetail from './step-details/DatabaseStepDetail.vue';
 import HttpStepDetail from './step-details/HttpStepDetail.vue';
 import MqStepDetail from './step-details/MqStepDetail.vue';
+import RefWorkflowStepDetail from './step-details/RefWorkflowStepDetail.vue';
 import ScriptStepDetail from './step-details/ScriptStepDetail.vue';
 import ConditionStepDetail from './step-details/ConditionStepDetail.vue';
 import LoopStepDetail from './step-details/LoopStepDetail.vue';
@@ -102,6 +104,12 @@ function formatDuration(ms?: number) {
             :step-result="selectedStep"
           />
 
+          <!-- 数据库步骤使用专用组件（引擎类型为 db） -->
+          <DatabaseStepDetail
+            v-else-if="selectedStep.stepType === 'db' || selectedStep.stepType === 'database'"
+            :step-result="selectedStep"
+          />
+
           <!-- AI 步骤使用专用组件 -->
           <AIStepDetail
             v-else-if="selectedStep.stepType === 'ai'"
@@ -109,6 +117,12 @@ function formatDuration(ms?: number) {
             :ai-content="aiContent"
             :ai-tool-calls="aiToolCalls"
             :current-a-i-step-id="currentAIStepId"
+          />
+
+          <!-- 引用工作流步骤使用专用组件 -->
+          <RefWorkflowStepDetail
+            v-else-if="selectedStep.stepType === 'ref_workflow'"
+            :step-result="selectedStep"
           />
 
           <!-- 其他步骤类型使用通用展示 -->

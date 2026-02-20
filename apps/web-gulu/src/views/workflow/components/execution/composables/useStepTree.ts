@@ -143,6 +143,18 @@ export function useStepTree(options: UseStepTreeOptions) {
           }
         }
       }
+
+      // 引用工作流节点：直接将子步骤挂到节点下
+      if (result.stepType === 'ref_workflow' && parentChildMap.has(result.stepId)) {
+        const nodeKey = generateNodeKey(result);
+        const parentNode = nodeMap.get(nodeKey);
+        if (parentNode) {
+          const iterMap = parentChildMap.get(result.stepId)!;
+          for (const children of iterMap.values()) {
+            parentNode.children!.push(...children);
+          }
+        }
+      }
     }
 
     return rootNodes;

@@ -95,6 +95,7 @@ function handleUpdateExpandedKeys(keys: (string | number)[]) {
               </Tag>
               <Tag v-else-if="type === 'loop'" color="purple" size="small">循环</Tag>
               <Tag v-if="type === 'ai'" color="blue" size="small">AI</Tag>
+              <Tag v-if="type === 'ref_workflow'" color="purple" size="small">引用</Tag>
               <Tag v-if="type === 'iteration'" color="cyan" size="small">迭代</Tag>
               <Tag v-if="status === 'running'" color="processing" size="small">执行中</Tag>
               <Tag v-else-if="status === 'success' || status === 'completed'" color="success" size="small">
