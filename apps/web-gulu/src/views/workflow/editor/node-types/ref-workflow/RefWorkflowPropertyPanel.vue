@@ -304,6 +304,10 @@ watch(
   transition: box-shadow 0.2s ease;
 }
 
+.mapping-card + .mapping-card {
+  margin-top: 14px;
+}
+
 .mapping-card:hover {
   box-shadow: 0 3px 12px hsl(var(--foreground) / 7%);
 }
