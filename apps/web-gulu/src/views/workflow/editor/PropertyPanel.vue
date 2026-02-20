@@ -70,8 +70,11 @@ const isAiNode = computed(() => localNode.value?.type === 'ai');
 // 是否是数据库节点（使用特殊布局）
 const isDatabaseNode = computed(() => localNode.value?.type === 'database');
 
+// 是否是 MQ 节点（使用特殊布局）
+const isMqNode = computed(() => localNode.value?.type === 'mq');
+
 // 是否使用特殊布局（无 padding）
-const useSpecialLayout = computed(() => isHttpNode.value || isScriptNode.value || isAiNode.value || isDatabaseNode.value);
+const useSpecialLayout = computed(() => isHttpNode.value || isScriptNode.value || isAiNode.value || isDatabaseNode.value || isMqNode.value);
 
 // 是否是条件分支节点（不显示通用的节点名称字段）
 const isConditionBranch = computed(() => localNode.value?.type === 'condition_branch');
@@ -190,6 +193,29 @@ function handleDelete(node: any) {
         />
       </template>
 
+      <!-- MQ 节点使用特殊布局 -->
+      <template v-else-if="isMqNode">
+        <div class="panel-header mq-header">
+          <Input
+            v-model:value="localNode.name"
+            class="node-name-input"
+            placeholder="节点名称"
+            @blur="handleUpdate()"
+          />
+          <Button type="text" size="small" @click="handleClose">
+            <template #icon><X class="size-4" /></template>
+          </Button>
+        </div>
+        <component
+          :is="propertyComponent"
+          :node="localNode"
+          :env-id="envId"
+          :workflow-id="workflowId"
+          class="mq-panel-wrapper"
+          @update="handleUpdate"
+        />
+      </template>
+
       <!-- 其他节点使用原有布局 -->
       <template v-else>
         <div class="panel-header">
@@ -255,7 +281,8 @@ function handleDelete(node: any) {
 .panel-header.http-header,
 .panel-header.script-header,
 .panel-header.ai-header,
-.panel-header.database-header {
+.panel-header.database-header,
+.panel-header.mq-header {
   height: 49px;
   padding: 0 16px;
   margin-bottom: 0;
@@ -291,7 +318,8 @@ function handleDelete(node: any) {
 .http-panel-wrapper,
 .script-panel-wrapper,
 .ai-panel-wrapper,
-.database-panel-wrapper {
+.database-panel-wrapper,
+.mq-panel-wrapper {
   flex: 1;
   min-height: 0;
   overflow: hidden;

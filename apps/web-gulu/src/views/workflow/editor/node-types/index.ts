@@ -16,7 +16,7 @@ import ConditionBranchProperty from './ConditionBranchProperty.vue';
 import DatabasePropertyPanel from './database/DatabasePropertyPanel.vue';
 import HttpPropertyPanel from './http/HttpPropertyPanel.vue';
 import LoopProperty from './LoopProperty.vue';
-import MqProperty from './MqProperty.vue';
+import MqPropertyPanel from './mq/MqPropertyPanel.vue';
 import ScriptPropertyPanel from './ScriptPropertyPanel.vue';
 import WaitProperty from './WaitProperty.vue';
 
@@ -225,11 +225,33 @@ export const nodeTypeRegistry: Record<string, NodeTypeConfig> = {
     label: 'MQ消息',
     icon: MessageSquare,
     color: '#faad14',
-    propertyComponent: MqProperty,
+    propertyComponent: MqPropertyPanel,
     defaultConfig: () => ({
-      config: { mq_config: '', action: 'send', topic: '', message: '' },
+      config: {
+        mqConfigCode: '',
+        action: 'send',
+        topic: '',
+        queue: '',
+        message: '',
+        key: '',
+        headers: [],
+        settings: {
+          timeout: 30000,
+          groupId: '',
+          format: 'json',
+          count: 1,
+        },
+      },
+      preProcessors: [],
+      postProcessors: [],
     }),
-    getDescription: (node) => node.config?.topic || '',
+    getDescription: (node) => {
+      const config = node.config;
+      if (!config) return '';
+      const action = config.action === 'receive' ? '接收' : '发送';
+      const target = config.topic || config.queue || '';
+      return target ? `${action} ${target}` : '';
+    },
   },
 };
 

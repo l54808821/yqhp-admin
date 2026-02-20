@@ -53,8 +53,8 @@ const typeIcon = computed(() =>
         <div class="kb-card-name">{{ kb.name }}</div>
         <Tag :color="typeColor" size="small">{{ typeLabel }}</Tag>
       </div>
-      <Dropdown :trigger="['click']" placement="bottomRight">
-        <Button type="text" size="small" class="kb-card-more">
+      <Dropdown :trigger="['click']" placement="bottomRight" @click.stop>
+        <Button type="text" size="small" class="kb-card-more" @click.stop>
           <EllipsisVertical :size="16" />
         </Button>
         <template #overlay>
@@ -112,6 +112,7 @@ const typeIcon = computed(() =>
       <Switch
         :checked="kb.status === 1"
         size="small"
+        @click.stop
         @change="(checked: boolean) => emit('statusChange', kb.id, checked)"
       />
     </div>

@@ -5,6 +5,7 @@ import type { StepResult, TreeNode } from './types';
 
 import AIStepDetail from './step-details/AIStepDetail.vue';
 import HttpStepDetail from './step-details/HttpStepDetail.vue';
+import MqStepDetail from './step-details/MqStepDetail.vue';
 import ScriptStepDetail from './step-details/ScriptStepDetail.vue';
 import ConditionStepDetail from './step-details/ConditionStepDetail.vue';
 import LoopStepDetail from './step-details/LoopStepDetail.vue';
@@ -92,6 +93,12 @@ function formatDuration(ms?: number) {
           <!-- 循环步骤使用专用组件 -->
           <LoopStepDetail
             v-else-if="selectedStep.stepType === 'loop'"
+            :step-result="selectedStep"
+          />
+
+          <!-- MQ 步骤使用专用组件 -->
+          <MqStepDetail
+            v-else-if="selectedStep.stepType === 'mq'"
             :step-result="selectedStep"
           />
 
