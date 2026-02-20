@@ -626,8 +626,11 @@ function handleAddNode(type: string, parentId?: string) {
   doAddNode(type, parentId);
 }
 
-function doAddNode(type: string, parentId?: string, extraConfig?: Record<string, any>) {
+function doAddNode(type: string, parentId?: string, extraConfig?: Record<string, any>, nodeName?: string) {
   const newNode = createNode(type);
+  if (nodeName) {
+    newNode.name = nodeName;
+  }
   if (extraConfig && newNode.config) {
     Object.assign(newNode.config, extraConfig);
   }
@@ -649,7 +652,7 @@ function handleRefWorkflowConfirm(workflowId: number, workflowName: string) {
   doAddNode('ref_workflow', pendingRefWorkflowParentId.value, {
     workflow_id: workflowId,
     workflow_name: workflowName,
-  });
+  }, `${workflowName}-引用`);
 }
 
 function addNodeToParent(steps: StepNode[], node: StepNode, parentId: string) {

@@ -5,10 +5,13 @@ import { Input, Modal, Spin } from 'ant-design-vue';
 
 import type { Workflow } from '#/api/workflow';
 import { getWorkflowsByProjectApi } from '#/api/workflow';
+import type { CategoryTreeNode } from '#/api/category';
+import { useCategoryStore } from '#/store/category';
 
 import { createIconifyIcon } from '@vben/icons';
 const Search = createIconifyIcon('lucide:search');
-const WorkflowIcon = createIconifyIcon('lucide:workflow');
+const Check = createIconifyIcon('lucide:check');
+const FolderIcon = createIconifyIcon('lucide:folder');
 
 interface Props {
   open: boolean;
@@ -23,42 +26,58 @@ const emit = defineEmits<{
   (e: 'confirm', workflowId: number, workflowName: string): void;
 }>();
 
+const categoryStore = useCategoryStore();
+
 const workflows = ref<Workflow[]>([]);
 const loading = ref(false);
 const searchText = ref('');
 const selectedId = ref<number | null>(null);
+const workflowPaths = ref<Record<number, string>>({});
 
 const filteredWorkflows = ref<Workflow[]>([]);
+
+function buildWorkflowPaths() {
+  const paths: Record<number, string> = {};
+
+  function traverse(nodes: CategoryTreeNode[], parentPath: string) {
+    for (const node of nodes) {
+      if (node.type === 'workflow' && node.source_id) {
+        paths[node.source_id] = parentPath || '/';
+      }
+      if (node.children?.length) {
+        const currentPath = parentPath ? `${parentPath}/${node.name}` : `/${node.name}`;
+        traverse(node.children, node.type === 'folder' ? currentPath : parentPath);
+      }
+    }
+  }
+
+  traverse(categoryStore.categories, '');
+  workflowPaths.value = paths;
+}
+
+function filterWorkflows(keyword: string) {
+  const k = keyword.trim().toLowerCase();
+  if (!k) return workflows.value;
+  return workflows.value.filter(
+    (w) =>
+      w.name.toLowerCase().includes(k) ||
+      (w.code || '').toLowerCase().includes(k) ||
+      (w.description || '').toLowerCase().includes(k) ||
+      (workflowPaths.value[w.id] || '').toLowerCase().includes(k),
+  );
+}
 
 watch(
   () => searchText.value,
   (text) => {
-    const keyword = text.trim().toLowerCase();
-    if (!keyword) {
-      filteredWorkflows.value = workflows.value;
-    } else {
-      filteredWorkflows.value = workflows.value.filter(
-        (w) =>
-          w.name.toLowerCase().includes(keyword) ||
-          (w.description || '').toLowerCase().includes(keyword),
-      );
-    }
+    filteredWorkflows.value = filterWorkflows(text);
   },
 );
 
 watch(
   () => workflows.value,
   () => {
-    const keyword = searchText.value.trim().toLowerCase();
-    if (!keyword) {
-      filteredWorkflows.value = workflows.value;
-    } else {
-      filteredWorkflows.value = workflows.value.filter(
-        (w) =>
-          w.name.toLowerCase().includes(keyword) ||
-          (w.description || '').toLowerCase().includes(keyword),
-      );
-    }
+    filteredWorkflows.value = filterWorkflows(searchText.value);
   },
 );
 
@@ -69,6 +88,7 @@ watch(
       selectedId.value = null;
       searchText.value = '';
       await loadWorkflows();
+      buildWorkflowPaths();
     }
   },
 );
@@ -108,7 +128,7 @@ function handleCancel() {
   <Modal
     :open="open"
     title="选择工作流"
-    :width="520"
+    :width="480"
     ok-text="确认"
     cancel-text="取消"
     :ok-button-props="{ disabled: !selectedId }"
@@ -118,8 +138,9 @@ function handleCancel() {
     <div class="select-modal-body">
       <Input
         v-model:value="searchText"
-        placeholder="搜索工作流名称..."
+        placeholder="搜索工作流..."
         allow-clear
+        size="middle"
         class="search-input"
       >
         <template #prefix>
@@ -136,12 +157,15 @@ function handleCancel() {
             :class="{ selected: selectedId === wf.id }"
             @click="handleSelect(wf)"
           >
-            <div class="workflow-icon">
-              <WorkflowIcon class="size-5" />
-            </div>
             <div class="workflow-info">
               <div class="workflow-name">{{ wf.name }}</div>
-              <div v-if="wf.description" class="workflow-desc">{{ wf.description }}</div>
+              <div class="workflow-path">
+                <FolderIcon class="path-icon" />
+                <span class="path-text">{{ workflowPaths[wf.id] || '/' }}</span>
+              </div>
+            </div>
+            <div class="check-indicator">
+              <Check v-if="selectedId === wf.id" class="check-icon" />
             </div>
           </div>
           <div v-if="!loading && filteredWorkflows.length === 0" class="empty-state">
@@ -157,51 +181,39 @@ function handleCancel() {
 .select-modal-body {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .search-input {
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .workflow-list {
-  max-height: 360px;
+  max-height: 340px;
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  border: 1px solid hsl(var(--border) / 60%);
+  border-radius: 8px;
 }
 
 .workflow-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: 6px;
+  gap: 10px;
+  padding: 8px 12px;
   cursor: pointer;
-  border: 1px solid transparent;
-  transition: all 0.15s;
+  transition: background 0.15s ease;
+}
+
+.workflow-item + .workflow-item {
+  border-top: 1px solid hsl(var(--border) / 30%);
 }
 
 .workflow-item:hover {
-  background: hsl(var(--accent) / 50%);
+  background: hsl(var(--accent) / 40%);
 }
 
 .workflow-item.selected {
-  background: hsl(var(--primary) / 8%);
-  border-color: hsl(var(--primary));
-}
-
-.workflow-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #9254de15;
-  color: #9254de;
-  flex-shrink: 0;
+  background: hsl(var(--primary) / 7%);
 }
 
 .workflow-info {
@@ -210,26 +222,59 @@ function handleCancel() {
 }
 
 .workflow-name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: hsl(var(--foreground));
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.workflow-desc {
-  font-size: 12px;
-  color: hsl(var(--muted-foreground));
+.workflow-item.selected .workflow-name {
+  color: hsl(var(--primary));
+}
+
+.workflow-path {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin-top: 2px;
+}
+
+.path-icon {
+  width: 12px;
+  height: 12px;
+  color: hsl(var(--muted-foreground) / 60%);
+  flex-shrink: 0;
+}
+
+.path-text {
+  font-size: 12px;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  color: hsl(var(--muted-foreground) / 70%);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.check-indicator {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.check-icon {
+  width: 16px;
+  height: 16px;
+  color: hsl(var(--primary));
 }
 
 .empty-state {
   text-align: center;
-  padding: 32px 0;
+  padding: 28px 0;
   font-size: 13px;
   color: hsl(var(--muted-foreground));
 }
