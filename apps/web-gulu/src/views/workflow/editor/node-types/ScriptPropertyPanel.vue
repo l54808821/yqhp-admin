@@ -3,19 +3,20 @@
  * 脚本属性面板
  * 编辑器 + 调试响应（使用共享组件）
  */
-import { computed, ref, watch } from 'vue';
+import { computed, ref, toRef, watch } from 'vue';
 import { useDebounceFn } from '@vueuse/core';
 
 import { createIconifyIcon } from '@vben/icons';
-import { Button, Select, Spin, Tooltip, message } from 'ant-design-vue';
+import { Button, Select, Spin, Tooltip } from 'ant-design-vue';
 
-import { executeApi } from '#/api/debug';
+import type { StepExecutionResult } from '#/api/debug';
 import { ScriptEditor } from '#/components/code-editor';
 
 import {
   ScriptResponsePanel,
   type ScriptResponseData,
 } from '../../components/shared';
+import { useStepDebug } from '../../components/execution/composables/useStepDebug';
 import { useDebugContext } from '../../components/execution/composables/useDebugContext';
 
 // 图标
@@ -53,8 +54,42 @@ const hasDebugCtx = computed(() => !!props.workflowId && debugContext.hasContext
 
 // 本地数据
 const localNode = ref<ScriptStepNode | null>(null);
-const isDebugging = ref(false);
-const debugResponse = ref<ScriptResponseData | null>(null);
+
+// 单步调试
+const { isDebugging, debugResponse, run: runStep } = useStepDebug<ScriptResponseData | null>({
+  workflowId: toRef(props, 'workflowId'),
+  envId: toRef(props, 'envId'),
+  stream: false,
+  transformResult(step: StepExecutionResult) {
+    const r = step.result as any;
+    if (!r) {
+      return {
+        success: step.success,
+        durationMs: step.durationMs,
+        consoleLogs: [],
+        variables: {},
+      };
+    }
+    return {
+      success: !r.error,
+      language: r.language || 'javascript',
+      durationMs: r.durationMs || step.durationMs,
+      result: r.result,
+      consoleLogs: r.consoleLogs || [],
+      variables: r.variables || {},
+      error: r.error,
+    };
+  },
+  transformError(error: string) {
+    return {
+      success: false,
+      durationMs: 0,
+      error,
+      consoleLogs: [],
+      variables: {},
+    };
+  },
+});
 
 // 分割面板相关
 const containerRef = ref<HTMLElement | null>(null);
@@ -108,74 +143,19 @@ function updateScript(script: string) {
   }
 }
 
-// 执行脚本（阻塞模式）
-async function handleRun() {
-  if (!localNode.value || isDebugging.value) return;
+function handleRun() {
+  if (!localNode.value) return;
 
-  isDebugging.value = true;
-  // 不清空 debugResponse，保持响应区域高度稳定
-
-  // 获取调试上下文缓存的变量
-  const cachedVariables = props.workflowId
-    ? debugContext.getVariables(props.workflowId)
-    : undefined;
-
-  try {
-    const response = await executeApi({
-      step: {
-        id: localNode.value.id,
-        type: 'script',
-        name: localNode.value.name || '脚本',
-        config: {
-          language: localNode.value.config?.language || 'javascript',
-          script: localNode.value.config?.script || '',
-          timeout: localNode.value.config?.timeout || 60,
-        },
-      },
-      variables: cachedVariables as Record<string, unknown> | undefined,
-      envId: props.envId || 0,
-      mode: 'debug',
-      stream: false,
-      persist: false,
-    });
-
-    // 从统一响应格式中提取步骤结果
-    const stepResult = response.steps?.[0];
-    if (stepResult) {
-      const result = stepResult.result as any;
-      if (result) {
-        debugResponse.value = {
-          success: !result.error,
-          language: result.language || 'javascript',
-          durationMs: result.durationMs || stepResult.durationMs,
-          result: result.result,
-          consoleLogs: result.consoleLogs || [],
-          variables: result.variables || {},
-          error: result.error,
-        };
-      } else {
-        debugResponse.value = {
-          success: stepResult.success,
-          durationMs: stepResult.durationMs,
-          consoleLogs: [],
-          variables: {},
-        };
-      }
-    } else {
-      message.warning('未获取到执行结果');
-    }
-  } catch (error: any) {
-    debugResponse.value = {
-      success: false,
-      durationMs: 0,
-      error: error.message || '执行失败',
-      consoleLogs: [],
-      variables: {},
-    };
-    message.error(error.message || '执行失败');
-  } finally {
-    isDebugging.value = false;
-  }
+  runStep({
+    id: localNode.value.id,
+    type: 'script',
+    name: localNode.value.name || '脚本',
+    config: {
+      language: localNode.value.config?.language || 'javascript',
+      script: localNode.value.config?.script || '',
+      timeout: localNode.value.config?.timeout || 60,
+    },
+  });
 }
 
 // 拖拽分割条

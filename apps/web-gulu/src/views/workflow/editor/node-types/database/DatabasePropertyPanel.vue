@@ -3,7 +3,7 @@
  * 数据库节点属性面板
  * 参考 HttpPropertyPanel 的设计风格，提供丰富的数据库操作配置
  */
-import { computed, ref, watch } from 'vue';
+import { computed, ref, toRef, watch } from 'vue';
 import { useDebounceFn } from '@vueuse/core';
 
 import { createIconifyIcon } from '@vben/icons';
@@ -11,12 +11,12 @@ import {
   Button,
   Spin,
   Tabs,
-  message,
 } from 'ant-design-vue';
 
 import type { DatabaseStepNode, ParamItem, KeywordConfig, DatabaseResponseData, DatabaseAction } from '../../types';
 import { createDatabaseConfig } from '../../types';
-import { executeApi } from '#/api/debug';
+import type { StepExecutionResult } from '#/api/debug';
+import { useStepDebug } from '../../../components/execution/composables/useStepDebug';
 import { useDebugContext } from '../../../components/execution/composables/useDebugContext';
 
 // 子组件
@@ -52,8 +52,49 @@ const hasDebugCtx = computed(
 // 本地数据
 const localNode = ref<DatabaseStepNode | null>(null);
 const activeTab = ref('sql');
-const isDebugging = ref(false);
-const debugResponse = ref<DatabaseResponseData | null>(null);
+
+// 单步调试
+const { isDebugging, debugResponse, run: runStep } = useStepDebug<DatabaseResponseData | null>({
+  workflowId: toRef(props, 'workflowId'),
+  envId: toRef(props, 'envId'),
+  stream: false,
+  transformResult(step: StepExecutionResult) {
+    const r = step.result as any;
+    const inferredAction = r?.action || inferActionFromSql(localNode.value?.config?.sql || '');
+    if (!r) {
+      return {
+        success: false,
+        action: inferredAction,
+        durationMs: step.durationMs ?? 0,
+        error: step.error || '未获取到执行结果',
+      };
+    }
+    return {
+      success: r.success ?? step.success,
+      action: inferredAction,
+      driver: r.driver,
+      durationMs: r.durationMs ?? step.durationMs ?? 0,
+      data: r.data,
+      columns: r.columns,
+      rowCount: r.rowCount ?? r.data?.length,
+      rowsAffected: r.rowsAffected ?? r.rows_affected,
+      count: r.count,
+      exists: r.exists,
+      actualSql: r.actualSql ?? r.actual_sql,
+      error: r.error ?? step.error,
+      consoleLogs: r.consoleLogs,
+      assertions: r.assertions,
+    };
+  },
+  transformError(error: string) {
+    return {
+      success: false,
+      action: inferActionFromSql(localNode.value?.config?.sql || ''),
+      durationMs: 0,
+      error,
+    };
+  },
+});
 
 // 分割面板相关
 const containerRef = ref<HTMLElement | null>(null);
@@ -149,85 +190,29 @@ function updatePostProcessors(processors: KeywordConfig[]) {
   }
 }
 
-// 发送执行请求（阻塞模式）
-async function handleExecute() {
-  if (!localNode.value || isDebugging.value) return;
+function handleExecute() {
+  if (!localNode.value) return;
 
-  isDebugging.value = true;
-
-  const cachedVariables = props.workflowId
-    ? debugContext.getVariables(props.workflowId)
-    : undefined;
-
-  try {
-    const response = await executeApi({
-      step: {
-        id: localNode.value.id,
-        type: 'database',
-        name: localNode.value.name || '数据库操作',
-        config: localNode.value.config as any,
-        preProcessors: localNode.value.preProcessors?.map((p: KeywordConfig) => ({
-          id: p.id,
-          type: p.type,
-          enabled: p.enabled,
-          name: p.name,
-          config: p.config,
-        })),
-        postProcessors: localNode.value.postProcessors?.map((p: KeywordConfig) => ({
-          id: p.id,
-          type: p.type,
-          enabled: p.enabled,
-          name: p.name,
-          config: p.config,
-        })),
-      },
-      variables: cachedVariables as Record<string, unknown> | undefined,
-      envId: props.envId || 0,
-      mode: 'debug',
-      stream: false,
-      persist: false,
-    });
-
-    const stepResult = response.steps?.[0];
-    if (stepResult?.result) {
-      const result = stepResult.result as any;
-      const inferredAction = result.action || inferActionFromSql(localNode.value.config?.sql || '');
-      debugResponse.value = {
-        success: result.success ?? stepResult.success,
-        action: inferredAction,
-        driver: result.driver,
-        durationMs: result.durationMs ?? stepResult.durationMs ?? 0,
-        data: result.data,
-        columns: result.columns,
-        rowCount: result.rowCount ?? result.data?.length,
-        rowsAffected: result.rowsAffected ?? result.rows_affected,
-        count: result.count,
-        exists: result.exists,
-        actualSql: result.actualSql ?? result.actual_sql,
-        error: result.error ?? stepResult.error,
-        consoleLogs: result.consoleLogs,
-        assertions: result.assertions,
-      };
-    } else {
-      // 步骤级错误
-      debugResponse.value = {
-        success: false,
-        action: inferActionFromSql(localNode.value.config?.sql || ''),
-        durationMs: stepResult?.durationMs ?? 0,
-        error: stepResult?.error || '未获取到执行结果',
-      };
-    }
-  } catch (error: any) {
-    debugResponse.value = {
-      success: false,
-      action: inferActionFromSql(localNode.value.config?.sql || ''),
-      durationMs: 0,
-      error: error.message || '执行失败',
-    };
-    message.error(error.message || '执行失败');
-  } finally {
-    isDebugging.value = false;
-  }
+  runStep({
+    id: localNode.value.id,
+    type: 'database',
+    name: localNode.value.name || '数据库操作',
+    config: localNode.value.config as any,
+    preProcessors: localNode.value.preProcessors?.map((p: KeywordConfig) => ({
+      id: p.id,
+      type: p.type,
+      enabled: p.enabled,
+      name: p.name,
+      config: p.config,
+    })),
+    postProcessors: localNode.value.postProcessors?.map((p: KeywordConfig) => ({
+      id: p.id,
+      type: p.type,
+      enabled: p.enabled,
+      name: p.name,
+      config: p.config,
+    })),
+  });
 }
 
 // 拖拽分割条

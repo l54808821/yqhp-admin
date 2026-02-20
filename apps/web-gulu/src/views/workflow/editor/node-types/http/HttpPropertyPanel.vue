@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, ref, toRef, watch } from 'vue';
 import { useDebounceFn } from '@vueuse/core';
 
 import { createIconifyIcon } from '@vben/icons';
@@ -11,12 +11,12 @@ import {
   Spin,
   Tabs,
   Tooltip,
-  message,
 } from 'ant-design-vue';
 
 import type { HttpStepNode, ParamItem, KeywordConfig } from '../../types';
 import { createHttpConfig, HTTP_METHOD_COLORS } from '../../types';
-import { executeApi } from '#/api/debug';
+import type { StepExecutionResult } from '#/api/debug';
+import { useStepDebug } from '../../../components/execution/composables/useStepDebug';
 import { useDebugContext } from '../../../components/execution/composables/useDebugContext';
 
 // 子组件
@@ -54,8 +54,42 @@ const hasDebugCtx = computed(() => !!props.workflowId && debugContext.hasContext
 // 本地数据
 const localNode = ref<HttpStepNode | null>(null);
 const activeTab = ref('params');
-const isDebugging = ref(false);
-const debugResponse = ref<any>(null);
+
+// 单步调试
+const { isDebugging, debugResponse, run: runStep } = useStepDebug<any>({
+  workflowId: toRef(props, 'workflowId'),
+  envId: toRef(props, 'envId'),
+  stream: false,
+  transformResult(step: StepExecutionResult) {
+    const r = step.result as any;
+    if (!r) return null;
+    return {
+      statusCode: r.statusCode,
+      statusText: r.statusText,
+      duration: r.duration,
+      size: r.size,
+      headers: r.headers || {},
+      cookies: r.cookies || {},
+      body: r.body,
+      bodyType: r.bodyType,
+      assertions: r.assertions,
+      consoleLogs: r.consoleLogs,
+      actualRequest: r.actualRequest,
+    };
+  },
+  transformError(error: string) {
+    return {
+      statusCode: 0,
+      statusText: 'Error',
+      duration: 0,
+      size: 0,
+      headers: {},
+      cookies: {},
+      body: error,
+      bodyType: 'text',
+    };
+  },
+});
 
 // 分割面板相关
 const containerRef = ref<HTMLElement | null>(null);
@@ -216,82 +250,29 @@ function updatePostProcessors(processors: KeywordConfig[]) {
   }
 }
 
-// 发送请求（阻塞模式）
-async function handleSend() {
-  if (!localNode.value || isDebugging.value) return;
+function handleSend() {
+  if (!localNode.value) return;
 
-  isDebugging.value = true;
-  // 不清空 debugResponse，保持响应区域高度稳定
-
-  // 获取调试上下文缓存的变量
-  const cachedVariables = props.workflowId
-    ? debugContext.getVariables(props.workflowId)
-    : undefined;
-
-  try {
-    const response = await executeApi({
-      step: {
-        id: localNode.value.id,
-        type: 'http',
-        name: localNode.value.name || 'HTTP 请求',
-        config: localNode.value.config as any,
-        preProcessors: localNode.value.preProcessors?.map((p: KeywordConfig) => ({
-          id: p.id,
-          type: p.type,
-          enabled: p.enabled,
-          name: p.name,
-          config: p.config,
-        })),
-        postProcessors: localNode.value.postProcessors?.map((p: KeywordConfig) => ({
-          id: p.id,
-          type: p.type,
-          enabled: p.enabled,
-          name: p.name,
-          config: p.config,
-        })),
-      },
-      variables: cachedVariables as Record<string, unknown> | undefined,
-      envId: props.envId || 0,
-      mode: 'debug',
-      stream: false,
-      persist: false,
-    });
-
-    // 从统一响应格式中提取步骤结果
-    const stepResult = response.steps?.[0];
-    if (stepResult?.result) {
-      const result = stepResult.result as any;
-      debugResponse.value = {
-        statusCode: result.statusCode,
-        statusText: result.statusText,
-        duration: result.duration,
-        size: result.size,
-        headers: result.headers || {},
-        cookies: result.cookies || {},
-        body: result.body,
-        bodyType: result.bodyType,
-        assertions: result.assertions,
-        consoleLogs: result.consoleLogs,
-        actualRequest: result.actualRequest,
-      };
-    } else {
-      message.warning('未获取到执行结果');
-    }
-  } catch (error: any) {
-    debugResponse.value = {
-      statusCode: 0,
-      statusText: 'Error',
-      duration: 0,
-      size: 0,
-      headers: {},
-      cookies: {},
-      body: error.message || '请求失败',
-      bodyType: 'text',
-    };
-    message.error(error.message || '请求失败');
-  } finally {
-    isDebugging.value = false;
-  }
+  runStep({
+    id: localNode.value.id,
+    type: 'http',
+    name: localNode.value.name || 'HTTP 请求',
+    config: localNode.value.config as any,
+    preProcessors: localNode.value.preProcessors?.map((p: KeywordConfig) => ({
+      id: p.id,
+      type: p.type,
+      enabled: p.enabled,
+      name: p.name,
+      config: p.config,
+    })),
+    postProcessors: localNode.value.postProcessors?.map((p: KeywordConfig) => ({
+      id: p.id,
+      type: p.type,
+      enabled: p.enabled,
+      name: p.name,
+      config: p.config,
+    })),
+  });
 }
 
 // 拖拽分割条

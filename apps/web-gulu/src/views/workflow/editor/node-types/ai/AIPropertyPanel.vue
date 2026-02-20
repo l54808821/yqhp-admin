@@ -3,24 +3,13 @@
  * AI 节点属性面板（主编排组件）
  * 将配置拆分为子面板，保留调试/运行逻辑
  */
-import { computed, ref, watch } from 'vue';
+import { computed, ref, toRef, watch } from 'vue';
 
 import { createIconifyIcon } from '@vben/icons';
-import { useAccessStore } from '@vben/stores';
 import { Button, Tabs, Tooltip, message } from 'ant-design-vue';
 
-import type {
-  AIChunkData,
-  AICompleteData,
-  SSEEvent,
-} from '#/api/debug';
-import {
-  createSSEService,
-  type SSEService,
-  type AIToolCallStartData,
-  type AIToolCallCompleteData,
-} from '#/utils/sse';
-import { stopExecutionApi } from '#/api/debug';
+import type { StepExecutionResult } from '#/api/debug';
+import { useStepDebug } from '../../../components/execution/composables/useStepDebug';
 import { useDebugContext } from '../../../components/execution/composables/useDebugContext';
 import {
   AIResponsePanel,
@@ -67,14 +56,86 @@ const emit = defineEmits<{
 // 本地副本
 const localNode = ref<AIStepNode | null>(null);
 
-// 调试相关
-const debugResponse = ref<AIResponseData | null>(null);
-const isDebugging = ref(false);
-const streamingContent = ref<string | null>(null);
-const isStreaming = ref(false);
-let sseService: SSEService | null = null;
-let sessionId: string | null = null;
-let startTime = 0;
+// 流式工具调用的中间状态（在 step_completed 前由钩子维护）
+const pendingToolCalls = ref<ToolCallRecord[]>([]);
+
+function transformResult(step: StepExecutionResult): AIResponseData {
+  const r = step.result as any;
+  if (!r) {
+    return {
+      success: step.success,
+      content: '',
+      model: '',
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      durationMs: step.durationMs || 0,
+      error: step.error,
+    };
+  }
+  return {
+    success: !step.error,
+    content: r.content || '',
+    model: r.model || '',
+    promptTokens: r.prompt_tokens || 0,
+    completionTokens: r.completion_tokens || 0,
+    totalTokens: r.total_tokens || 0,
+    durationMs: step.durationMs || 0,
+    error: r.error || step.error,
+    toolCalls: Array.isArray(r.tool_calls) ? r.tool_calls : (pendingToolCalls.value.length ? [...pendingToolCalls.value] : undefined),
+    agentTrace: r.agent_trace || undefined,
+    systemPrompt: r.system_prompt || '',
+    prompt: r.prompt || '',
+    finishReason: r.finish_reason || '',
+  };
+}
+
+function transformError(error: string, durationMs: number): AIResponseData {
+  return {
+    success: false,
+    content: '',
+    model: '',
+    promptTokens: 0,
+    completionTokens: 0,
+    totalTokens: 0,
+    durationMs,
+    error,
+  };
+}
+
+const { isDebugging, debugResponse, streamingContent, isStreaming, run, stop } =
+  useStepDebug<AIResponseData>({
+    workflowId: toRef(props, 'workflowId'),
+    envId: toRef(props, 'envId'),
+    stream: true,
+    transformResult,
+    transformError,
+    onToolCallStart(data) {
+      pendingToolCalls.value.push({
+        round: pendingToolCalls.value.length + 1,
+        tool_name: data.toolName,
+        arguments: data.arguments,
+        result: '',
+        is_error: false,
+        duration_ms: 0,
+      });
+    },
+    onToolCallComplete(data) {
+      const idx = pendingToolCalls.value.findIndex(
+        (c) => c.tool_name === data.toolName && !c.result,
+      );
+      if (idx >= 0) {
+        pendingToolCalls.value[idx] = {
+          ...pendingToolCalls.value[idx]!,
+          result: data.result,
+          is_error: data.isError,
+          duration_ms: data.durationMs,
+        };
+      }
+    },
+  });
+
+// 调试上下文（用于 UI 指示器）
 const debugContext = useDebugContext();
 const hasDebugCtx = computed(() =>
   !!props.workflowId && debugContext.hasContext(props.workflowId),
@@ -129,175 +190,8 @@ function updatePostProcessors(processors: KeywordConfig[]) {
   }
 }
 
-function cleanupSSE() {
-  sseService?.disconnect();
-  sseService = null;
-  sessionId = null;
-}
-
-function finishDebugging() {
-  isStreaming.value = false;
-  isDebugging.value = false;
-  cleanupSSE();
-}
-
-function handleStop() {
-  if (sessionId) {
-    stopExecutionApi(sessionId).catch(() => {});
-  }
-  finishDebugging();
-  if (!debugResponse.value && streamingContent.value) {
-    debugResponse.value = {
-      success: false,
-      content: streamingContent.value,
-      model: '',
-      promptTokens: 0,
-      completionTokens: 0,
-      totalTokens: 0,
-      durationMs: Date.now() - startTime,
-      error: '已手动停止',
-    };
-  }
-  streamingContent.value = null;
-}
-
-function handleSSEMessage(event: SSEEvent) {
-  const { type, data } = event;
-  switch (type) {
-    case 'connected':
-      sessionId = event.sessionId;
-      break;
-
-    case 'ai_chunk': {
-      const chunk = data as AIChunkData;
-      if (chunk.index === 0) {
-        streamingContent.value = chunk.chunk;
-      } else {
-        streamingContent.value = (streamingContent.value || '') + chunk.chunk;
-      }
-      if (!isStreaming.value) isStreaming.value = true;
-      break;
-    }
-
-    case 'ai_complete': {
-      const complete = data as AICompleteData;
-      streamingContent.value = complete.content;
-      break;
-    }
-
-    case 'ai_tool_call_start': {
-      const toolStart = data as AIToolCallStartData;
-      if (!debugResponse.value) {
-        debugResponse.value = {
-          success: true,
-          content: streamingContent.value || '',
-          model: '',
-          promptTokens: 0,
-          completionTokens: 0,
-          totalTokens: 0,
-          durationMs: 0,
-          toolCalls: [],
-        };
-      }
-      if (!debugResponse.value.toolCalls) debugResponse.value.toolCalls = [];
-      debugResponse.value.toolCalls.push({
-        round: debugResponse.value.toolCalls.length + 1,
-        tool_name: toolStart.toolName,
-        arguments: toolStart.arguments,
-        result: '',
-        is_error: false,
-        duration_ms: 0,
-      });
-      break;
-    }
-
-    case 'ai_tool_call_complete': {
-      const toolDone = data as AIToolCallCompleteData;
-      if (debugResponse.value?.toolCalls) {
-        const idx = debugResponse.value.toolCalls.findIndex(
-          (c: ToolCallRecord) => c.tool_name === toolDone.toolName && !c.result,
-        );
-        if (idx >= 0) {
-          debugResponse.value.toolCalls[idx] = {
-            ...debugResponse.value.toolCalls[idx]!,
-            result: toolDone.result,
-            is_error: toolDone.isError,
-            duration_ms: toolDone.durationMs,
-          };
-        }
-      }
-      break;
-    }
-
-    case 'step_completed': {
-      const result = (data as any).result;
-      const stepData = data as any;
-      const durationMs = stepData.durationMs || (Date.now() - startTime);
-      debugResponse.value = {
-        success: !stepData.error,
-        content: result?.content || streamingContent.value || '',
-        model: result?.model || '',
-        promptTokens: result?.prompt_tokens || 0,
-        completionTokens: result?.completion_tokens || 0,
-        totalTokens: result?.total_tokens || 0,
-        durationMs,
-        error: result?.error || stepData.error,
-        toolCalls: Array.isArray(result?.tool_calls)
-          ? result.tool_calls
-          : debugResponse.value?.toolCalls,
-        agentTrace: result?.agent_trace || undefined,
-        systemPrompt: result?.system_prompt || '',
-        prompt: result?.prompt || '',
-        finishReason: result?.finish_reason || '',
-      };
-      streamingContent.value = null;
-      finishDebugging();
-      break;
-    }
-
-    case 'step_failed': {
-      const failData = data as any;
-      debugResponse.value = {
-        success: false,
-        content: streamingContent.value || '',
-        model: '',
-        promptTokens: 0,
-        completionTokens: 0,
-        totalTokens: 0,
-        durationMs: failData.durationMs || (Date.now() - startTime),
-        error: failData.error || '执行失败',
-      };
-      streamingContent.value = null;
-      finishDebugging();
-      break;
-    }
-
-    case 'workflow_completed':
-      if (isDebugging.value) finishDebugging();
-      break;
-
-    case 'error': {
-      const errData = data as any;
-      debugResponse.value = {
-        success: false,
-        content: streamingContent.value || '',
-        model: '',
-        promptTokens: 0,
-        completionTokens: 0,
-        totalTokens: 0,
-        durationMs: Date.now() - startTime,
-        error: errData.message || '执行失败',
-      };
-      streamingContent.value = null;
-      finishDebugging();
-      break;
-    }
-  }
-}
-
-// 执行 AI 节点（流式）
 function handleRun() {
-  if (!localNode.value || isDebugging.value) return;
+  if (!localNode.value) return;
 
   if (!localNode.value.config.ai_model_id) {
     message.warning('请先选择 AI 模型');
@@ -308,108 +202,40 @@ function handleRun() {
     return;
   }
 
-  isDebugging.value = true;
-  debugResponse.value = null;
-  streamingContent.value = null;
-  isStreaming.value = false;
-  startTime = Date.now();
+  pendingToolCalls.value = [];
 
-  const cachedVariables = props.workflowId
-    ? debugContext.getVariables(props.workflowId)
-    : undefined;
-
-  const accessStore = useAccessStore();
-  const token = accessStore.accessToken || '';
-
-  const apiUrl = import.meta.env.VITE_GLOB_API_URL || '';
-  const baseUrl = apiUrl.startsWith('http')
-    ? apiUrl
-    : `${window.location.origin}${apiUrl}`;
-  const url = `${baseUrl}/executions`;
-
-  const body = {
-    step: {
-      id: localNode.value.id,
-      type: 'ai',
-      name: localNode.value.name || 'AI 节点',
-      config: {
-        ai_model_id: localNode.value.config.ai_model_id,
-        system_prompt: localNode.value.config.system_prompt || '',
-        prompt: localNode.value.config.prompt || '',
-        temperature: localNode.value.config.temperature,
-        max_tokens: localNode.value.config.max_tokens,
-        top_p: localNode.value.config.top_p,
-        timeout: localNode.value.config.timeout || 0,
-        streaming: true,
-        interactive: false,
-        tools: localNode.value.config.tools || [],
-        mcp_server_ids: localNode.value.config.mcp_server_ids || [],
-        skill_ids: localNode.value.config.skill_ids || [],
-        max_tool_rounds: localNode.value.config.max_tool_rounds || 10,
-        agent_mode: localNode.value.config.agent_mode || '',
-        max_reflection_rounds: localNode.value.config.max_reflection_rounds || 2,
-        knowledge_base_ids: localNode.value.config.knowledge_base_ids || [],
-        kb_top_k: localNode.value.config.kb_top_k || 5,
-        kb_score_threshold: localNode.value.config.kb_score_threshold || 0.7,
-      },
-      postProcessors: localNode.value.postProcessors?.map((p: KeywordConfig) => ({
-        id: p.id,
-        type: p.type,
-        enabled: p.enabled,
-        name: p.name,
-        config: p.config,
-      })),
+  run({
+    id: localNode.value.id,
+    type: 'ai',
+    name: localNode.value.name || 'AI 节点',
+    config: {
+      ai_model_id: localNode.value.config.ai_model_id,
+      system_prompt: localNode.value.config.system_prompt || '',
+      prompt: localNode.value.config.prompt || '',
+      temperature: localNode.value.config.temperature,
+      max_tokens: localNode.value.config.max_tokens,
+      top_p: localNode.value.config.top_p,
+      timeout: localNode.value.config.timeout || 0,
+      streaming: true,
+      interactive: false,
+      tools: localNode.value.config.tools || [],
+      mcp_server_ids: localNode.value.config.mcp_server_ids || [],
+      skill_ids: localNode.value.config.skill_ids || [],
+      max_tool_rounds: localNode.value.config.max_tool_rounds || 10,
+      agent_mode: localNode.value.config.agent_mode || '',
+      max_reflection_rounds: localNode.value.config.max_reflection_rounds || 2,
+      knowledge_base_ids: localNode.value.config.knowledge_base_ids || [],
+      kb_top_k: localNode.value.config.kb_top_k || 5,
+      kb_score_threshold: localNode.value.config.kb_score_threshold || 0.7,
     },
-    variables: cachedVariables as Record<string, unknown> | undefined,
-    envId: props.envId || 0,
-    mode: 'debug',
-    stream: true,
-    persist: false,
-  };
-
-  sseService = createSSEService({
-    url,
-    method: 'POST',
-    body,
-    headers: { satoken: token },
-    onMessage: handleSSEMessage,
-    onStateChange: (state) => {
-      if (state === 'error' || (state === 'disconnected' && isDebugging.value)) {
-        if (!debugResponse.value) {
-          debugResponse.value = {
-            success: false,
-            content: streamingContent.value || '',
-            model: '',
-            promptTokens: 0,
-            completionTokens: 0,
-            totalTokens: 0,
-            durationMs: Date.now() - startTime,
-            error: 'SSE 连接断开',
-          };
-          streamingContent.value = null;
-        }
-        finishDebugging();
-      }
-    },
-    onError: () => {
-      if (!debugResponse.value) {
-        debugResponse.value = {
-          success: false,
-          content: streamingContent.value || '',
-          model: '',
-          promptTokens: 0,
-          completionTokens: 0,
-          totalTokens: 0,
-          durationMs: Date.now() - startTime,
-          error: '执行失败',
-        };
-        streamingContent.value = null;
-      }
-      finishDebugging();
-    },
+    postProcessors: localNode.value.postProcessors?.map((p: KeywordConfig) => ({
+      id: p.id,
+      type: p.type,
+      enabled: p.enabled,
+      name: p.name,
+      config: p.config,
+    })),
   });
-
-  sseService.connect();
 }
 
 // 拖拽分割条
@@ -460,7 +286,7 @@ function stopDrag() {
           type="primary"
           size="small"
           danger
-          @click="handleStop"
+          @click="stop"
         >
           <template #icon><StopIcon class="size-4" /></template>
           停 止
