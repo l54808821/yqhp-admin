@@ -12,6 +12,7 @@ import type { AiChatConfig, AiChatMessage, ImageAttachment } from './types';
 const StopIcon = createIconifyIcon('lucide:square');
 const TrashIcon = createIconifyIcon('lucide:trash-2');
 const ImagePlusIcon = createIconifyIcon('lucide:image-plus');
+const ArrowDownIcon = createIconifyIcon('lucide:arrow-down');
 const BotIcon = createIconifyIcon('lucide:bot');
 
 function avatarSvg(svgPath: string, bg: string) {
@@ -64,6 +65,21 @@ const {
 const inputText = ref('');
 const pendingImages = ref<ImageAttachment[]>([]);
 const fileInputRef = ref<HTMLInputElement | null>(null);
+const listRef = ref<InstanceType<typeof BubbleList> | null>(null);
+const isAtBottom = ref(true);
+
+function handleListScroll(e: Event) {
+  const el = e.target as HTMLElement;
+  isAtBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight <= 30;
+}
+
+function scrollToBottom() {
+  const el = (listRef.value as any)?.nativeElement as HTMLElement | undefined;
+  if (el) {
+    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    isAtBottom.value = true;
+  }
+}
 
 const roles: BubbleListProps['roles'] = {
   user: {
@@ -213,10 +229,12 @@ onUnmounted(() => {
       <!-- BubbleList -->
       <BubbleList
         v-else
+        ref="listRef"
         :roles="roles"
         :items="bubbleItems"
         class="chat-bubble-list"
         :style="{ height: '100%', maxWidth: '900px', margin: '0 auto', padding: '24px 16px' }"
+        @scroll="handleListScroll"
       >
         <template #message="{ item }">
           <template v-if="item.role === 'user'">
@@ -259,10 +277,14 @@ onUnmounted(() => {
     <!-- 底部输入区 -->
     <div class="chat-footer">
       <div class="chat-footer-inner">
-        <!-- 停止生成 -->
-        <div v-if="isStreaming" class="stop-bar">
-          <button class="stop-btn" @click="stopGeneration">
-            <StopIcon class="stop-icon" />
+        <!-- 浮动操作条 -->
+        <div v-if="isStreaming || !isAtBottom" class="action-bar">
+          <button v-if="!isAtBottom" class="float-btn scroll-btn" @click="scrollToBottom">
+            <ArrowDownIcon class="float-btn-icon" />
+            回到底部
+          </button>
+          <button v-if="isStreaming" class="float-btn stop-btn" @click="stopGeneration">
+            <StopIcon class="float-btn-icon" />
             停止生成
           </button>
         </div>
@@ -426,35 +448,52 @@ onUnmounted(() => {
   margin: 0 auto;
 }
 
-.stop-bar {
+.action-bar {
   display: flex;
+  gap: 8px;
   justify-content: center;
   margin-bottom: 12px;
 }
 
-.stop-btn {
+.float-btn {
   display: flex;
   gap: 6px;
   align-items: center;
-  padding: 6px 20px;
+  padding: 6px 18px;
   font-size: 13px;
-  color: #ff4d4f;
   cursor: pointer;
+  border-radius: 20px;
+  transition: all 0.2s;
+}
+
+.float-btn-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.scroll-btn {
+  color: #595959;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.scroll-btn:hover {
+  color: #1677ff;
+  border-color: #1677ff;
+  background: #f0f5ff;
+}
+
+.stop-btn {
+  color: #ff4d4f;
   background: #fff;
   border: 1px solid #ffccc7;
-  border-radius: 20px;
   box-shadow: 0 2px 8px rgba(255, 77, 79, 0.1);
-  transition: all 0.2s;
 }
 
 .stop-btn:hover {
   background: #fff1f0;
   border-color: #ff4d4f;
-}
-
-.stop-icon {
-  width: 12px;
-  height: 12px;
 }
 
 /* Gemini 风格输入卡片 */
