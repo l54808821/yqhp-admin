@@ -74,8 +74,11 @@ const isDatabaseNode = computed(() => localNode.value?.type === 'database');
 // 是否是 MQ 节点（使用特殊布局）
 const isMqNode = computed(() => localNode.value?.type === 'mq');
 
+// 是否是引用工作流节点
+const isRefWorkflowNode = computed(() => localNode.value?.type === 'ref_workflow');
+
 // 是否使用特殊布局（无 padding）
-const useSpecialLayout = computed(() => isHttpNode.value || isScriptNode.value || isAiNode.value || isDatabaseNode.value || isMqNode.value);
+const useSpecialLayout = computed(() => isHttpNode.value || isScriptNode.value || isAiNode.value || isDatabaseNode.value || isMqNode.value || isRefWorkflowNode.value);
 
 // 是否是条件分支节点（不显示通用的节点名称字段）
 const isConditionBranch = computed(() => localNode.value?.type === 'condition_branch');
@@ -217,6 +220,29 @@ function handleDelete(node: any) {
         />
       </template>
 
+      <!-- 引用工作流节点使用特殊布局 -->
+      <template v-else-if="isRefWorkflowNode">
+        <div class="panel-header ref-workflow-header">
+          <Input
+            v-model:value="localNode.name"
+            class="node-name-input"
+            placeholder="节点名称"
+            @blur="handleUpdate()"
+          />
+          <Button type="text" size="small" @click="handleClose">
+            <template #icon><X class="size-4" /></template>
+          </Button>
+        </div>
+        <component
+          :is="propertyComponent"
+          :node="localNode"
+          :workflow-id="workflowId"
+          :project-id="projectId"
+          class="ref-workflow-panel-wrapper"
+          @update="handleUpdate"
+        />
+      </template>
+
       <!-- 其他节点使用原有布局 -->
       <template v-else>
         <div class="panel-header">
@@ -285,7 +311,8 @@ function handleDelete(node: any) {
 .panel-header.script-header,
 .panel-header.ai-header,
 .panel-header.database-header,
-.panel-header.mq-header {
+.panel-header.mq-header,
+.panel-header.ref-workflow-header {
   height: 49px;
   padding: 0 16px;
   margin-bottom: 0;
@@ -326,5 +353,12 @@ function handleDelete(node: any) {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+}
+
+.ref-workflow-panel-wrapper {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px;
 }
 </style>

@@ -162,7 +162,7 @@ watch(
 
 <template>
   <div class="ref-workflow-panel">
-    <Form.Item label="目标工作流">
+    <Form.Item label="目标工作流" class="workflow-select-item">
       <Select
         :value="selectedWorkflowId"
         placeholder="选择要引用的工作流"
@@ -194,20 +194,28 @@ watch(
       class="mb-3"
     />
 
-    <!-- 参数 & 输出映射 -->
     <template v-if="selectedWorkflowId">
       <Spin :spinning="loadingParams">
         <!-- 入参卡片 -->
-        <div class="mapping-card">
+        <div class="mapping-card input-card">
           <div class="card-header">
             <div class="card-header-left">
-              <ArrowUpFromLine class="card-icon input-icon" />
+              <div class="icon-badge input-badge">
+                <ArrowUpFromLine class="card-icon" />
+              </div>
               <span class="card-title">入参</span>
             </div>
-            <Tag v-if="targetParams.length > 0" class="card-count">{{ targetParams.length }}</Tag>
+            <span v-if="targetParams.length > 0" class="card-count input-count">
+              {{ targetParams.length }}
+            </span>
           </div>
           <div v-if="targetParams.length > 0" class="card-body">
-            <div v-for="param in targetParams" :key="param.name" class="mapping-row">
+            <div
+              v-for="(param, index) in targetParams"
+              :key="param.name"
+              class="mapping-row"
+              :class="{ 'row-divider': index > 0 }"
+            >
               <div class="row-label">
                 <span class="mapping-name">
                   {{ param.name }}<span v-if="param.required" class="required-mark">*</span>
@@ -229,16 +237,25 @@ watch(
         </div>
 
         <!-- 出参卡片 -->
-        <div class="mapping-card">
+        <div class="mapping-card output-card">
           <div class="card-header">
             <div class="card-header-left">
-              <ArrowDownToLine class="card-icon output-icon" />
+              <div class="icon-badge output-badge">
+                <ArrowDownToLine class="card-icon" />
+              </div>
               <span class="card-title">出参</span>
             </div>
-            <Tag v-if="targetReturns.length > 0" class="card-count">{{ targetReturns.length }}</Tag>
+            <span v-if="targetReturns.length > 0" class="card-count output-count">
+              {{ targetReturns.length }}
+            </span>
           </div>
           <div v-if="targetReturns.length > 0" class="card-body">
-            <div v-for="ret in targetReturns" :key="ret.name" class="mapping-row">
+            <div
+              v-for="(ret, index) in targetReturns"
+              :key="ret.name"
+              class="mapping-row"
+              :class="{ 'row-divider': index > 0 }"
+            >
               <div class="row-label">
                 <span class="mapping-name">{{ ret.name }}</span>
                 <Tag class="type-tag">{{ ret.type }}</Tag>
@@ -265,7 +282,11 @@ watch(
 .ref-workflow-panel {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 14px;
+}
+
+.workflow-select-item {
+  margin-bottom: 0;
 }
 
 .wf-desc {
@@ -273,81 +294,127 @@ watch(
   color: hsl(var(--muted-foreground));
 }
 
-/* 映射卡片 */
+/* ---- Mapping cards ---- */
 .mapping-card {
-  border: 1px solid hsl(var(--border));
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
-  margin-bottom: 4px;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border) / 60%);
+  box-shadow: 0 1px 4px hsl(var(--foreground) / 4%);
+  transition: box-shadow 0.2s ease;
+}
+
+.mapping-card:hover {
+  box-shadow: 0 3px 12px hsl(var(--foreground) / 7%);
 }
 
 .card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 12px;
-  background: hsl(var(--accent) / 40%);
-  border-bottom: 1px solid hsl(var(--border) / 50%);
+  padding: 10px 14px;
+  border-bottom: 1px solid hsl(var(--border) / 40%);
+}
+
+.input-card .card-header {
+  background: hsl(var(--primary) / 5%);
+}
+
+.output-card .card-header {
+  background: hsl(142 70% 45% / 5%);
 }
 
 .card-header-left {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+}
+
+.icon-badge {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.input-badge {
+  background: hsl(var(--primary) / 12%);
+  color: hsl(var(--primary));
+}
+
+.output-badge {
+  background: hsl(142 70% 45% / 12%);
+  color: #52c41a;
 }
 
 .card-icon {
-  width: 14px;
-  height: 14px;
-}
-
-.card-icon.input-icon {
-  color: #1677ff;
-}
-
-.card-icon.output-icon {
-  color: #52c41a;
+  width: 13px;
+  height: 13px;
 }
 
 .card-title {
   font-size: 13px;
   font-weight: 600;
   color: hsl(var(--foreground));
+  letter-spacing: 0.02em;
 }
 
 .card-count {
   font-size: 11px;
+  font-weight: 600;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   line-height: 1;
-  min-width: 0;
-  padding: 1px 6px;
-  border-radius: 10px;
+}
+
+.input-count {
+  background: hsl(var(--primary) / 10%);
+  color: hsl(var(--primary));
+}
+
+.output-count {
+  background: hsl(142 70% 45% / 10%);
+  color: #52c41a;
 }
 
 .card-body {
-  padding: 8px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  padding: 4px 0;
 }
 
 .card-empty {
-  padding: 12px;
+  padding: 24px 14px;
   text-align: center;
   font-size: 12px;
-  color: hsl(var(--muted-foreground));
+  color: hsl(var(--muted-foreground) / 70%);
 }
 
-/* 单行映射 */
+/* ---- Mapping rows ---- */
 .mapping-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  padding: 9px 14px;
+  transition: background 0.15s ease;
+}
+
+.mapping-row:hover {
+  background: hsl(var(--accent) / 40%);
+}
+
+.mapping-row.row-divider {
+  border-top: 1px solid hsl(var(--border) / 25%);
 }
 
 .row-label {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   flex-shrink: 0;
   min-width: 80px;
   max-width: 45%;
@@ -371,9 +438,11 @@ watch(
 .type-tag {
   font-size: 10px;
   line-height: 1;
-  padding: 1px 4px;
-  border-radius: 3px;
+  padding: 2px 6px;
+  border-radius: 4px;
   color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted) / 60%);
+  border: none;
   flex-shrink: 0;
 }
 
