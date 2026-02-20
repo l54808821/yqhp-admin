@@ -54,32 +54,32 @@ async function handleCopy() {
   display: flex;
   gap: 2px;
   align-items: center;
-  padding-top: 4px;
+  padding-top: 6px;
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity 0.25s ease;
 }
 
-/* 父元素 hover 时显示 */
-:global(.ant-bubble:hover) .msg-actions,
-:global(.ai-bubble-content:hover) .msg-actions {
-  opacity: 1;
-}
-
+.ai-bubble-content:hover .msg-actions,
 .msg-actions:hover {
   opacity: 1;
 }
 
 .action-btn {
-  color: hsl(var(--foreground) / 45%);
+  padding: 2px 8px;
+  font-size: 12px;
+  color: #999;
+  border-radius: 6px;
+  transition: all 0.2s;
 }
 
 .action-btn:hover {
-  color: hsl(var(--foreground) / 80%);
+  color: #333;
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .action-icon {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
 }
 
 .action-icon--success {

@@ -101,7 +101,7 @@ onMounted(() => {
 .chat-page {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: calc(100vh - 50px);
   overflow: hidden;
   background: var(--ant-color-bg-layout, #f5f5f5);
 }
