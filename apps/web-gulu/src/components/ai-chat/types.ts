@@ -12,10 +12,25 @@ export interface ThinkingBlock {
   isComplete: boolean;
 }
 
+export interface ImageAttachment {
+  id: string;
+  file?: File;
+  url: string;
+  dataUrl?: string;
+  name: string;
+  size: number;
+  status: 'uploading' | 'done' | 'error';
+}
+
+export type ContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } };
+
 export interface AiChatMessage {
   id: string;
   role: MessageRole;
   content: string;
+  images?: ImageAttachment[];
   thinking?: ThinkingBlock;
   toolCalls?: ToolCallRecord[];
   loading?: boolean;

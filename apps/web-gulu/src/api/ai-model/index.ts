@@ -230,10 +230,15 @@ export interface AiModelListParams {
   status?: number;
 }
 
-/** 对话消息 */
+/** 多模态内容块 */
+export type ContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } };
+
+/** 对话消息（支持纯文本和多模态） */
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
-  content: string;
+  content: string | ContentPart[];
 }
 
 /** 对话请求参数 */

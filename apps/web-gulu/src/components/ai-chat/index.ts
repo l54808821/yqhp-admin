@@ -4,6 +4,7 @@ export { default as AiMarkdownRenderer } from './AiMarkdownRenderer.vue';
 export { default as AiToolCallCard } from './AiToolCallCard.vue';
 export { default as AiThinkingBlock } from './AiThinkingBlock.vue';
 export { default as AiMessageActions } from './AiMessageActions.vue';
+export { default as AiImagePreview } from './AiImagePreview.vue';
 
 export { useAiChat } from './composables/useAiChat';
 export { useAiStream } from './composables/useAiStream';

@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { h, ref, computed, watch, nextTick, onUnmounted } from 'vue';
+import { h, ref, computed, onUnmounted } from 'vue';
 import { BubbleList, Sender } from 'ant-design-x-vue';
 import type { BubbleListProps } from 'ant-design-x-vue';
-import { Button, Tag, Typography } from 'ant-design-vue';
+import { Button, Tag, Typography, Tooltip, Image as AImage, message } from 'ant-design-vue';
 import { createIconifyIcon } from '@vben/icons';
 import { useAiChat } from './composables/useAiChat';
 import AiBubbleContent from './AiBubbleContent.vue';
-import type { AiChatConfig, AiChatMessage } from './types';
+import AiImagePreview from './AiImagePreview.vue';
+import type { AiChatConfig, AiChatMessage, ImageAttachment } from './types';
 
 const StopIcon = createIconifyIcon('lucide:square');
 const TrashIcon = createIconifyIcon('lucide:trash-2');
+const ImagePlusIcon = createIconifyIcon('lucide:image-plus');
 const BotIcon = createIconifyIcon('lucide:bot');
 
 function avatarSvg(svgPath: string, bg: string) {
@@ -60,7 +62,8 @@ const {
 } = useAiChat(props.config);
 
 const inputText = ref('');
-const listRef = ref<InstanceType<typeof BubbleList> | null>(null);
+const pendingImages = ref<ImageAttachment[]>([]);
+const fileInputRef = ref<HTMLInputElement | null>(null);
 
 const roles: BubbleListProps['roles'] = {
   user: {
@@ -110,46 +113,78 @@ const bubbleItems = computed(() =>
   })),
 );
 
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+
+function generateImageId(): string {
+  return `img_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function addImageFromFile(file: File) {
+  if (!ACCEPTED_TYPES.includes(file.type)) {
+    message.warning('仅支持 PNG、JPG、GIF、WebP 格式');
+    return;
+  }
+  if (file.size > MAX_IMAGE_SIZE) {
+    message.warning('图片大小不能超过 5MB');
+    return;
+  }
+  const url = URL.createObjectURL(file);
+  pendingImages.value.push({
+    id: generateImageId(),
+    file,
+    url,
+    name: file.name,
+    size: file.size,
+    status: 'done',
+  });
+}
+
+function handlePasteFile(file: File) {
+  addImageFromFile(file);
+}
+
+function handleFileSelect() {
+  fileInputRef.value?.click();
+}
+
+function handleFileInputChange(e: Event) {
+  const input = e.target as HTMLInputElement;
+  if (input.files) {
+    for (const file of Array.from(input.files)) {
+      addImageFromFile(file);
+    }
+  }
+  input.value = '';
+}
+
+function removeImage(id: string) {
+  const idx = pendingImages.value.findIndex((img) => img.id === id);
+  if (idx >= 0) {
+    const img = pendingImages.value[idx]!;
+    URL.revokeObjectURL(img.url);
+    pendingImages.value.splice(idx, 1);
+  }
+}
+
 function handleSend(text: string) {
-  if (!text.trim()) return;
+  if (!text.trim() && !pendingImages.value.length) return;
+  const images = pendingImages.value.length ? [...pendingImages.value] : undefined;
+  pendingImages.value = [];
   inputText.value = '';
-  sendMessage(text);
+  sendMessage(text, images);
 }
 
 function handleRegenerate(messageId: string) {
   regenerate(messageId);
 }
 
-watch(
-  () => messages.value.length,
-  () => {
-    nextTick(() => {
-      const lastItem = bubbleItems.value[bubbleItems.value.length - 1];
-      if (lastItem) {
-        listRef.value?.scrollTo({ key: lastItem.key, block: 'end' });
-      }
-    });
-  },
-);
-
-watch(
-  () => {
-    const last = messages.value[messages.value.length - 1];
-    return last?.content?.length ?? 0;
-  },
-  () => {
-    if (!isStreaming.value) return;
-    nextTick(() => {
-      const lastItem = bubbleItems.value[bubbleItems.value.length - 1];
-      if (lastItem) {
-        listRef.value?.scrollTo({ key: lastItem.key, block: 'end' });
-      }
-    });
-  },
-);
+// BubbleList 自带 autoScroll（默认开启），会在内容更新时自动滚到底部，
+// 但用户手动往上滚时会暂停，滚回底部后恢复。不需要手动控制。
 
 onUnmounted(() => {
   stopGeneration();
+  pendingImages.value.forEach((img) => URL.revokeObjectURL(img.url));
 });
 </script>
 
@@ -178,7 +213,6 @@ onUnmounted(() => {
       <!-- BubbleList -->
       <BubbleList
         v-else
-        ref="listRef"
         :roles="roles"
         :items="bubbleItems"
         class="chat-bubble-list"
@@ -186,7 +220,24 @@ onUnmounted(() => {
       >
         <template #message="{ item }">
           <template v-if="item.role === 'user'">
-            <div class="user-message">{{ (item.content as AiChatMessage).content }}</div>
+            <div class="user-message">
+              <!-- 用户消息中的图片 -->
+              <div v-if="(item.content as AiChatMessage).images?.length" class="user-images">
+                <AImage.PreviewGroup>
+                  <AImage
+                    v-for="img in (item.content as AiChatMessage).images"
+                    :key="img.id"
+                    :src="img.url"
+                    :alt="img.name"
+                    class="user-image-thumb"
+                    :style="{ maxWidth: '200px', maxHeight: '200px', borderRadius: '8px' }"
+                  />
+                </AImage.PreviewGroup>
+              </div>
+              <div v-if="(item.content as AiChatMessage).content">
+                {{ (item.content as AiChatMessage).content }}
+              </div>
+            </div>
           </template>
           <template v-else>
             <AiBubbleContent
@@ -210,35 +261,66 @@ onUnmounted(() => {
       <div class="chat-footer-inner">
         <!-- 停止生成 -->
         <div v-if="isStreaming" class="stop-bar">
-          <Button class="stop-btn" @click="stopGeneration">
-            <template #icon><StopIcon class="stop-icon" /></template>
+          <button class="stop-btn" @click="stopGeneration">
+            <StopIcon class="stop-icon" />
             停止生成
-          </Button>
+          </button>
         </div>
 
-        <!-- 输入框 -->
+        <!-- Gemini 风格输入框 -->
         <div class="sender-card">
+          <!-- 图片预览 -->
+          <AiImagePreview
+            :images="pendingImages"
+            @remove="removeImage"
+          />
+
+          <!-- 输入区域 -->
           <Sender
             v-model:value="inputText"
             :loading="isStreaming"
-            :disabled="isStreaming"
-            placeholder="输入消息，Enter 发送，Shift+Enter 换行"
+            :placeholder="`问问 ${modelName || 'AI'}...`"
             @submit="handleSend"
+            @paste-file="handlePasteFile"
           />
-          <div class="sender-bottom">
-            <span class="sender-hint">Enter 发送 / Shift+Enter 换行</span>
-            <Button
-              type="text"
-              size="small"
-              class="clear-btn"
-              :disabled="isStreaming || messages.length === 0"
-              @click="clearMessages"
-            >
-              <template #icon><TrashIcon class="clear-icon" /></template>
-              清空对话
-            </Button>
+
+          <!-- 底部工具栏 -->
+          <div class="sender-toolbar">
+            <div class="toolbar-left">
+              <Tooltip title="添加图片">
+                <button
+                  class="toolbar-btn"
+                  :disabled="isStreaming"
+                  @click="handleFileSelect"
+                >
+                  <ImagePlusIcon class="toolbar-btn-icon" />
+                </button>
+              </Tooltip>
+            </div>
+            <div class="toolbar-right">
+              <Button
+                type="text"
+                size="small"
+                class="clear-btn"
+                :disabled="isStreaming || messages.length === 0"
+                @click="clearMessages"
+              >
+                <template #icon><TrashIcon class="clear-icon" /></template>
+                清空
+              </Button>
+            </div>
           </div>
         </div>
+
+        <!-- 隐藏的文件选择器 -->
+        <input
+          ref="fileInputRef"
+          type="file"
+          accept="image/png,image/jpeg,image/gif,image/webp"
+          multiple
+          style="display: none"
+          @change="handleFileInputChange"
+        />
       </div>
     </div>
   </div>
@@ -253,7 +335,6 @@ onUnmounted(() => {
   background: linear-gradient(180deg, #f7f8fa 0%, #eef1f5 100%);
 }
 
-/* 消息区域 */
 .chat-body {
   flex: 1;
   min-height: 0;
@@ -306,15 +387,31 @@ onUnmounted(() => {
   margin-top: 20px;
 }
 
-/* BubbleList 的高度通过 inline style 控制，这里只做微调 */
+/* BubbleList */
 .chat-bubble-list :deep(.ant-bubble) {
   margin-bottom: 8px;
 }
 
+/* 用户消息 */
 .user-message {
   white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.6;
+}
+
+.user-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.user-images :deep(.ant-image img) {
+  max-width: 200px;
+  max-height: 200px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  object-fit: contain;
 }
 
 /* 底部输入区 */
@@ -353,7 +450,6 @@ onUnmounted(() => {
 .stop-btn:hover {
   background: #fff1f0;
   border-color: #ff4d4f;
-  box-shadow: 0 4px 12px rgba(255, 77, 79, 0.15);
 }
 
 .stop-icon {
@@ -361,17 +457,18 @@ onUnmounted(() => {
   height: 12px;
 }
 
+/* Gemini 风格输入卡片 */
 .sender-card {
-  padding: 12px 16px;
+  padding: 8px 12px;
   background: #fff;
-  border: 1px solid #e8e8e8;
-  border-radius: 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 24px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   transition: box-shadow 0.3s, border-color 0.3s;
 }
 
 .sender-card:focus-within {
-  border-color: #bfbfbf;
+  border-color: #c0c0c0;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
@@ -390,8 +487,9 @@ onUnmounted(() => {
   border: none !important;
   box-shadow: none !important;
   background: transparent !important;
-  padding: 0 !important;
+  padding: 4px 0 !important;
   resize: none;
+  font-size: 15px;
 }
 
 .sender-card :deep(.ant-input:focus),
@@ -399,18 +497,54 @@ onUnmounted(() => {
   box-shadow: none !important;
 }
 
-.sender-bottom {
+/* 底部工具栏 */
+.sender-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid #f5f5f5;
+  padding-top: 4px;
 }
 
-.sender-hint {
-  font-size: 12px;
-  color: #bfbfbf;
+.toolbar-left {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: #666;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.toolbar-btn:hover:not(:disabled) {
+  color: #333;
+  background: #f0f0f0;
+}
+
+.toolbar-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.toolbar-btn-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.toolbar-right {
+  display: flex;
+  gap: 4px;
+  align-items: center;
 }
 
 .clear-btn {
