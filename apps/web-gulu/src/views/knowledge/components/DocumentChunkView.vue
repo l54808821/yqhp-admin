@@ -22,7 +22,7 @@ import {
 import { ArrowLeft, Edit3, FileText } from 'lucide-vue-next';
 
 import { getDocumentSegmentsApi, updateSegmentApi } from '#/api/knowledge-base';
-import { formatDate, formatFileSize } from '#/utils/knowledge';
+import { formatDate, formatFileSize, renderChunkContent } from '#/utils/knowledge';
 
 interface Props {
   kb: KnowledgeBase;
@@ -160,9 +160,7 @@ onMounted(() => {
                   />
                 </div>
               </div>
-              <div class="chunk-card-content">
-                {{ seg.content }}
-              </div>
+              <div class="chunk-card-content" v-html="renderChunkContent(seg.content)" />
             </div>
           </div>
           <Empty v-else-if="!loading" description="暂无分块数据" />
@@ -357,6 +355,12 @@ onMounted(() => {
   word-break: break-word;
   max-height: 200px;
   overflow-y: auto;
+}
+
+.chunk-card-content :deep(img) {
+  max-width: 100%;
+  border-radius: 6px;
+  margin: 4px 0;
 }
 
 .chunk-pagination {
