@@ -4,7 +4,7 @@
  * 同时用于单步调试和流程调试的 AI 结果展示
  * 参考 HttpResponsePanel 的 tabs 布局风格
  */
-import { ref, computed } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 
 import { createIconifyIcon } from '@vben/icons';
 import { Tabs, Tag } from 'ant-design-vue';
@@ -104,6 +104,17 @@ function formatDuration(ms: number): string {
   return `${(ms / 1000).toFixed(2)}s`;
 }
 
+const responseTabRef = ref<HTMLDivElement>();
+
+watch(displayContent, () => {
+  if (!props.isStreaming || activeTab.value !== 'response') return;
+  nextTick(() => {
+    const el = responseTabRef.value;
+    if (el) {
+      el.scrollTop = el.scrollHeight;
+    }
+  });
+});
 </script>
 
 <template>
@@ -140,7 +151,7 @@ function formatDuration(ms: number): string {
     <!-- 内容区域 -->
     <div class="response-content">
       <!-- AI 回复（含工具调用） -->
-      <div v-if="activeTab === 'response'" class="tab-content">
+      <div v-if="activeTab === 'response'" ref="responseTabRef" class="tab-content">
         <!-- 错误信息 -->
         <div v-if="response.error" class="response-error">
           <AlertCircleIcon class="error-icon" />
