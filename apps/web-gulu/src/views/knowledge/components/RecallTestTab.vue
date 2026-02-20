@@ -231,74 +231,77 @@ onMounted(() => {
     <!-- 右侧 14/24 -->
     <Col :span="14" class="recall-col recall-col-right">
       <div class="recall-right-scroll">
-        <Spin :spinning="searching">
-          <template v-if="hasSearched && results.length > 0">
-            <div class="recall-results-count">{{ results.length }} 个召回段落</div>
-            <div class="recall-results-list">
-              <div
-                v-for="(result, idx) in results"
-                :key="idx"
-                class="recall-result-card"
-              >
-                <div class="result-chunk-header">
-                  <div class="result-chunk-left">
-                    <Hash :size="13" class="result-hash-icon" />
-                    <span class="result-chunk-label">
-                      Chunk-{{ String(result.chunk_index + 1).padStart(2, '0') }}
-                    </span>
-                    <span class="result-chunk-chars">{{ result.word_count }} 字符</span>
-                  </div>
-                  <span
-                    class="result-score"
-                    :style="{ color: getScoreColor(result.score) }"
-                  >
-                    score {{ result.score.toFixed(2) }}
+        <!-- 搜索中 -->
+        <div v-if="searching" class="recall-placeholder">
+          <Spin />
+          <p>正在检索...</p>
+        </div>
+
+        <!-- 有结果 -->
+        <template v-else-if="hasSearched && results.length > 0">
+          <div class="recall-results-count">{{ results.length }} 个召回段落</div>
+          <div class="recall-results-list">
+            <div
+              v-for="(result, idx) in results"
+              :key="idx"
+              class="recall-result-card"
+            >
+              <div class="result-chunk-header">
+                <div class="result-chunk-left">
+                  <Hash :size="13" class="result-hash-icon" />
+                  <span class="result-chunk-label">
+                    Chunk-{{ String(result.chunk_index + 1).padStart(2, '0') }}
                   </span>
+                  <span class="result-chunk-chars">{{ result.word_count }} 字符</span>
                 </div>
-
-                <div
-                  v-if="result.content_type === 'image' && result.image_path"
-                  class="result-content result-content-image"
+                <span
+                  class="result-score"
+                  :style="{ color: getScoreColor(result.score) }"
                 >
-                  <img
-                    :src="result.image_path"
-                    alt="图片内容"
-                    class="result-image"
-                    loading="lazy"
-                  />
-                  <p v-if="result.content" class="result-image-desc">{{ result.content }}</p>
-                </div>
-                <div v-else class="result-content" v-html="renderContent(result.content)" />
+                  score {{ result.score.toFixed(2) }}
+                </span>
+              </div>
 
-                <div v-if="result.document_name" class="result-source">
-                  <div class="result-source-left">
-                    <FileText :size="12" />
-                    <span>{{ result.document_name }}</span>
-                  </div>
-                  <a class="result-source-link" @click.stop>
-                    打开
-                    <ExternalLink :size="11" />
-                  </a>
+              <div
+                v-if="result.content_type === 'image' && result.image_path"
+                class="result-content result-content-image"
+              >
+                <img
+                  :src="result.image_path"
+                  alt="图片内容"
+                  class="result-image"
+                  loading="lazy"
+                />
+                <p v-if="result.content" class="result-image-desc">{{ result.content }}</p>
+              </div>
+              <div v-else class="result-content" v-html="renderContent(result.content)" />
+
+              <div v-if="result.document_name" class="result-source">
+                <div class="result-source-left">
+                  <FileText :size="12" />
+                  <span>{{ result.document_name }}</span>
                 </div>
+                <a class="result-source-link" @click.stop>
+                  打开
+                  <ExternalLink :size="11" />
+                </a>
               </div>
             </div>
-          </template>
+          </div>
+        </template>
 
-          <template v-else-if="hasSearched && !searching">
-            <div class="recall-placeholder">
-              <Target :size="40" style="color: hsl(var(--muted-foreground) / 40%)" />
-              <p>未找到与查询相关的内容</p>
-              <p class="recall-placeholder-sub">尝试调整关键词、切换检索方式或降低相似度阈值</p>
-            </div>
-          </template>
+        <!-- 无结果 -->
+        <div v-else-if="hasSearched" class="recall-placeholder">
+          <Target :size="40" style="color: hsl(var(--muted-foreground) / 40%)" />
+          <p>未找到与查询相关的内容</p>
+          <p class="recall-placeholder-sub">尝试调整关键词、切换检索方式或降低相似度阈值</p>
+        </div>
 
-          <template v-else-if="!hasSearched">
-            <div class="recall-placeholder">
-              <Target :size="40" style="color: hsl(var(--muted-foreground) / 30%)" />
-              <p>召回测试结果将展示在这里</p>
-            </div>
-          </template>
-        </Spin>
+        <!-- 初始状态 -->
+        <div v-else class="recall-placeholder">
+          <Target :size="40" style="color: hsl(var(--muted-foreground) / 30%)" />
+          <p>召回测试结果将展示在这里</p>
+        </div>
       </div>
     </Col>
 
