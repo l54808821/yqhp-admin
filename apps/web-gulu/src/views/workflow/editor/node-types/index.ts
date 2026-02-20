@@ -265,6 +265,7 @@ export const nodeTypeRegistry: Record<string, NodeTypeConfig> = {
         workflow_id: null,
         workflow_name: '',
         params: {},
+        outputs: {},
       },
     }),
     getDescription: (node) => node.config?.workflow_name || '未选择工作流',

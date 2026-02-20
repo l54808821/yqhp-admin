@@ -15,6 +15,7 @@ const CircleCheck = createIconifyIcon('lucide:circle-check');
 const GitFork = createIconifyIcon('lucide:git-fork');
 const Variable = createIconifyIcon('lucide:variable');
 const ListTree = createIconifyIcon('lucide:list-tree');
+const CornerDownLeft = createIconifyIcon('lucide:corner-down-left');
 
 import {
   Badge,
@@ -33,6 +34,9 @@ import { getNodeTypeConfig, getNodeTypes } from './node-types';
 import WorkflowVariablesPanel from '../components/WorkflowVariablesPanel.vue';
 import WorkflowParamsPanel from '../components/WorkflowParamsPanel.vue';
 import type { WorkflowParam } from '../components/WorkflowParamsPanel.vue';
+import WorkflowReturnsPanel from '../components/WorkflowReturnsPanel.vue';
+import type { WorkflowReturn } from '../components/WorkflowReturnsPanel.vue';
+import RefWorkflowSelectModal from '../components/RefWorkflowSelectModal.vue';
 
 export interface StepNode {
   id: string;
@@ -81,6 +85,8 @@ interface Props {
   expandedKeys?: string[];
   selectedKeys?: string[];
   checkedKeys?: string[];
+  projectId?: number;
+  workflowId?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -98,13 +104,16 @@ const emit = defineEmits<{
   (e: 'update:checkedKeys', keys: string[]): void;
   (e: 'update:variables', variables: Record<string, any>): void;
   (e: 'update:params', params: WorkflowParam[]): void;
+  (e: 'update:returns', returns: WorkflowReturn[]): void;
 }>();
 
 const variablesPopoverOpen = ref(false);
 const paramsPopoverOpen = ref(false);
+const returnsPopoverOpen = ref(false);
 
 const variableCount = computed(() => Object.keys(props.definition.variables || {}).length);
 const paramCount = computed(() => (props.definition.params || []).length);
+const returnCount = computed(() => (props.definition.returns || []).length);
 
 function handleVariablesUpdate(variables: Record<string, any>) {
   emit('update:variables', variables);
@@ -113,6 +122,14 @@ function handleVariablesUpdate(variables: Record<string, any>) {
 function handleParamsUpdate(params: WorkflowParam[]) {
   emit('update:params', params);
 }
+
+function handleReturnsUpdate(returns: WorkflowReturn[]) {
+  emit('update:returns', returns);
+}
+
+// 引用工作流选择弹窗
+const refWorkflowModalOpen = ref(false);
+const pendingRefWorkflowParentId = ref<string | undefined>(undefined);
 
 // 本地状态，从 props 初始化
 const localExpandedKeys = ref<string[]>([...props.expandedKeys]);
@@ -598,7 +615,22 @@ function insertNodeIntoParent(steps: StepNode[], node: StepNode, parentId: strin
 // 添加节点
 function handleAddNode(type: string, parentId?: string) {
   if (props.readonly) return;
+
+  // 引用工作流：弹窗选择后再创建节点
+  if (type === 'ref_workflow') {
+    pendingRefWorkflowParentId.value = parentId;
+    refWorkflowModalOpen.value = true;
+    return;
+  }
+
+  doAddNode(type, parentId);
+}
+
+function doAddNode(type: string, parentId?: string, extraConfig?: Record<string, any>) {
   const newNode = createNode(type);
+  if (extraConfig && newNode.config) {
+    Object.assign(newNode.config, extraConfig);
+  }
   const newSteps = JSON.parse(JSON.stringify(props.definition.steps));
 
   if (parentId) {
@@ -611,6 +643,13 @@ function handleAddNode(type: string, parentId?: string) {
   emit('select', newNode);
   localSelectedKeys.value = [newNode.id];
   emit('update:selectedKeys', localSelectedKeys.value);
+}
+
+function handleRefWorkflowConfirm(workflowId: number, workflowName: string) {
+  doAddNode('ref_workflow', pendingRefWorkflowParentId.value, {
+    workflow_id: workflowId,
+    workflow_name: workflowName,
+  });
 }
 
 function addNodeToParent(steps: StepNode[], node: StepNode, parentId: string) {
@@ -1115,6 +1154,27 @@ function renderInsertMenu(nodeId: string, nodeType: string, canHaveChildren: boo
           </div>
         </template>
       </Popover>
+      <Popover
+        v-model:open="returnsPopoverOpen"
+        trigger="click"
+        placement="bottomLeft"
+        overlay-class-name="workflow-settings-popover"
+      >
+        <Badge :count="returnCount" :offset="[-8, 0]" size="small">
+          <Button size="small">
+            <template #icon><CornerDownLeft class="size-3.5" /></template>
+            返回值
+          </Button>
+        </Badge>
+        <template #content>
+          <div class="popover-panel">
+            <WorkflowReturnsPanel
+              :returns="definition.returns || []"
+              @update:returns="handleReturnsUpdate"
+            />
+          </div>
+        </template>
+      </Popover>
     </div>
 
     <!-- 树形结构 -->
@@ -1261,6 +1321,14 @@ function renderInsertMenu(nodeId: string, nodeType: string, canHaveChildren: boo
         </template>
       </Dropdown>
     </div>
+
+    <!-- 引用工作流选择弹窗 -->
+    <RefWorkflowSelectModal
+      v-model:open="refWorkflowModalOpen"
+      :project-id="projectId"
+      :current-workflow-id="workflowId"
+      @confirm="handleRefWorkflowConfirm"
+    />
   </div>
 </template>
 

@@ -19,6 +19,7 @@ import EditorToolbar from './EditorToolbar.vue';
 import ExecuteModal from './ExecuteModal.vue';
 import DebugContextDrawer from './DebugContextDrawer.vue';
 import type { WorkflowParam } from './WorkflowParamsPanel.vue';
+import type { WorkflowReturn } from './WorkflowReturnsPanel.vue';
 
 interface Props {
   workflowId: number;
@@ -48,6 +49,7 @@ interface WorkflowDefinitionData {
   name: string;
   variables?: Record<string, any>;
   params?: WorkflowParam[];
+  returns?: WorkflowReturn[];
   steps: StepNode[];
 }
 
@@ -189,10 +191,11 @@ async function loadWorkflow() {
           name: parsed.name || '',
           variables: parsed.variables || {},
           params: parsed.params || [],
+          returns: parsed.returns || [],
           steps: backendToFrontend(parsed.steps || []),
         };
       } catch {
-        workflowDefinition.value = { name: workflow.value.name, variables: {}, params: [], steps: [] };
+        workflowDefinition.value = { name: workflow.value.name, variables: {}, params: [], returns: [], steps: [] };
       }
     }
     // 初始化历史记录
@@ -316,6 +319,9 @@ async function handleSave() {
     if (workflowDefinition.value.params && workflowDefinition.value.params.length > 0) {
       backendDefinition.params = workflowDefinition.value.params;
     }
+    if (workflowDefinition.value.returns && workflowDefinition.value.returns.length > 0) {
+      backendDefinition.returns = workflowDefinition.value.returns;
+    }
 
     // 验证工作流
     const validationResult = await validateWorkflowDefinitionApi(
@@ -373,6 +379,11 @@ function handleVariablesUpdate(variables: Record<string, any>) {
 
 function handleParamsUpdate(params: WorkflowParam[]) {
   workflowDefinition.value = { ...workflowDefinition.value, params };
+  pushHistory();
+}
+
+function handleReturnsUpdate(returns: WorkflowReturn[]) {
+  workflowDefinition.value = { ...workflowDefinition.value, returns };
   pushHistory();
 }
 
@@ -661,6 +672,8 @@ async function handleRename(newName: string) {
               :expanded-keys="treeExpandedKeys"
               :selected-keys="treeSelectedKeys"
               :checked-keys="treeCheckedKeys"
+              :project-id="workflow?.project_id"
+              :workflow-id="workflow?.id"
               @update="handleDefinitionUpdate"
               @select="handleNodeSelect"
               @update:expanded-keys="handleExpandedKeysChange"
@@ -668,6 +681,7 @@ async function handleRename(newName: string) {
               @update:checked-keys="handleCheckedKeysChange"
               @update:variables="handleVariablesUpdate"
               @update:params="handleParamsUpdate"
+              @update:returns="handleReturnsUpdate"
             />
           </template>
           <template #right>
@@ -688,6 +702,8 @@ async function handleRename(newName: string) {
           :expanded-keys="treeExpandedKeys"
           :selected-keys="treeSelectedKeys"
           :checked-keys="treeCheckedKeys"
+          :project-id="workflow?.project_id"
+          :workflow-id="workflow?.id"
           @update="handleDefinitionUpdate"
           @select="handleNodeSelect"
           @update:expanded-keys="handleExpandedKeysChange"
@@ -695,6 +711,7 @@ async function handleRename(newName: string) {
           @update:checked-keys="handleCheckedKeysChange"
           @update:variables="handleVariablesUpdate"
           @update:params="handleParamsUpdate"
+          @update:returns="handleReturnsUpdate"
         />
       </Spin>
     </div>
