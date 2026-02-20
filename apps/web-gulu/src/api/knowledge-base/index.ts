@@ -256,6 +256,10 @@ export async function uploadKnowledgeFileApi(kbId: number, file: File) {
   });
 }
 
+export async function deleteKnowledgeFileApi(kbId: number, filePath: string) {
+  return requestClient.delete(`/knowledge-bases/${kbId}/upload-file`, { data: { file_path: filePath } });
+}
+
 export async function createAndProcessDocumentApi(kbId: number, params: CreateAndProcessParams) {
   return requestClient.post<KnowledgeDocument>(`/knowledge-bases/${kbId}/documents/create-and-process`, params);
 }

@@ -23,6 +23,7 @@ import { FileText, Upload as UploadIcon } from 'lucide-vue-next';
 
 import {
   createAndProcessDocumentApi,
+  deleteKnowledgeFileApi,
   uploadKnowledgeFileApi,
 } from '#/api/knowledge-base';
 
@@ -82,6 +83,10 @@ async function handleUpload(info: any) {
 
   uploadLoading.value = true;
   try {
+    if (uploadedFile.value) {
+      deleteKnowledgeFileApi(props.kb.id, uploadedFile.value.file_path).catch(() => {});
+      uploadedFile.value = null;
+    }
     const result = await uploadKnowledgeFileApi(props.kb.id, file);
     uploadedFile.value = result;
     message.success('文件上传成功');
@@ -118,6 +123,13 @@ function handleFinish() {
   emit('done');
 }
 
+function handleDrawerClose(open: boolean) {
+  if (!open && uploadedFile.value && !processComplete.value) {
+    deleteKnowledgeFileApi(props.kb.id, uploadedFile.value.file_path).catch(() => {});
+    uploadedFile.value = null;
+  }
+}
+
 defineExpose({ open });
 </script>
 
@@ -130,6 +142,7 @@ defineExpose({ open });
     :closable="currentStep < 2"
     :maskClosable="currentStep < 2"
     :body-style="{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }"
+    @afterOpenChange="handleDrawerClose"
   >
     <!-- Steps 导航 -->
     <Steps :current="currentStep" class="wizard-steps">
