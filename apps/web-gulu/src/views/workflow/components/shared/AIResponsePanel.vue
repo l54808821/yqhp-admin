@@ -7,8 +7,9 @@
 import { ref, computed } from 'vue';
 
 import { createIconifyIcon } from '@vben/icons';
-import { Collapse, Tabs, Tag } from 'ant-design-vue';
+import { Tabs, Tag } from 'ant-design-vue';
 
+import { AiBubbleContent } from '#/components/ai-chat';
 import type { AIResponseData } from './types';
 import ReActTracePanel from './ReActTracePanel.vue';
 import PlanExecTracePanel from './PlanExecTracePanel.vue';
@@ -62,7 +63,6 @@ const tokenStats = computed(() => {
 // 是否有输入数据
 const hasInput = computed(() => !!props.response.systemPrompt || !!props.response.prompt);
 
-// 工具调用数量
 const toolCallsCount = computed(() => props.response.toolCalls?.length || 0);
 
 // 是否有 Agent 推理过程
@@ -104,10 +104,6 @@ function formatDuration(ms: number): string {
   return `${(ms / 1000).toFixed(2)}s`;
 }
 
-function truncateText(text: string, maxLen: number = 500): string {
-  if (!text) return '';
-  return text.length > maxLen ? text.slice(0, maxLen) + '...' : text;
-}
 </script>
 
 <template>
@@ -151,44 +147,14 @@ function truncateText(text: string, maxLen: number = 500): string {
           <span>{{ response.error }}</span>
         </div>
 
-        <!-- 工具调用记录（折叠卡片，默认收起） -->
-        <div v-if="toolCallsCount > 0" class="tool-calls-section">
-          <Collapse :bordered="false" expand-icon-position="end" class="tool-calls-collapse">
-            <Collapse.Panel
-              v-for="(tc, idx) in response.toolCalls"
-              :key="idx"
-              :class="tc.is_error ? 'tc-card-error' : 'tc-card-success'"
-            >
-              <template #header>
-                <div class="tc-header">
-                  <span class="tc-icon">⚙</span>
-                  <span class="tc-name">{{ tc.tool_name }}</span>
-                  <span class="tc-status" :class="tc.is_error ? 'tc-status-error' : 'tc-status-success'">
-                    {{ tc.is_error ? '执行失败' : '执行成功' }}
-                  </span>
-                  <Tag size="small" color="purple" class="tc-tag">local</Tag>
-                  <span class="tc-spacer" />
-                  <span class="tc-duration">{{ formatDuration(tc.duration_ms) }}</span>
-                </div>
-              </template>
-              <div class="tc-body">
-                <div class="tc-row">
-                  <span class="tc-label">参数</span>
-                  <pre class="tc-code">{{ truncateText(tc.arguments) }}</pre>
-                </div>
-                <div class="tc-row">
-                  <span class="tc-label">结果</span>
-                  <pre class="tc-code" :class="{ 'tc-code-error': tc.is_error }">{{ truncateText(tc.result) }}</pre>
-                </div>
-              </div>
-            </Collapse.Panel>
-          </Collapse>
-        </div>
-
-        <!-- AI 回复内容 -->
-        <div v-if="displayContent" class="content-body">
-          <pre class="content-text">{{ displayContent }}</pre>
-          <span v-if="isStreaming" class="typing-cursor">|</span>
+        <!-- 使用统一的 AiBubbleContent 渲染回复 -->
+        <div v-if="displayContent || toolCallsCount > 0" class="content-body">
+          <AiBubbleContent
+            :content="displayContent"
+            :tool-calls="response.toolCalls"
+            :streaming="isStreaming"
+            show-actions
+          />
         </div>
         <div v-else-if="!response.error" class="content-empty">
           {{ isStreaming ? '等待 AI 回复...' : '无回复内容' }}
@@ -392,188 +358,9 @@ function truncateText(text: string, maxLen: number = 500): string {
   margin-top: 1px;
 }
 
-/* 工具调用 - 参考风格卡片 */
-.tool-calls-section {
-  padding: 6px 0 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* Collapse 整体 */
-.tool-calls-collapse {
-  background: transparent;
-}
-
-.tool-calls-collapse :deep(.ant-collapse-item) {
-  border: none !important;
-  margin-bottom: 8px;
-  border-radius: 8px !important;
-  overflow: hidden;
-}
-
-/* 成功/失败卡片的 border 需要覆盖上面的 reset */
-.tool-calls-collapse :deep(.ant-collapse-item.tc-card-success) {
-  border: 1px solid #4f6ef7 !important;
-}
-
-.tool-calls-collapse :deep(.ant-collapse-item.tc-card-error) {
-  border: 1px solid #ff4d4f !important;
-}
-
-.tool-calls-collapse :deep(.ant-collapse-item:last-child) {
-  margin-bottom: 0;
-}
-
-/* 成功卡片：蓝色整圈边框，header 浅蓝，body 正常 */
-.tool-calls-collapse :deep(.ant-collapse-item.tc-card-success) {
-  border: 1px solid #4f6ef7;
-  background: hsl(var(--background));
-}
-
-.tool-calls-collapse :deep(.ant-collapse-item.tc-card-success > .ant-collapse-header) {
-  background: linear-gradient(135deg, #f0f5ff 0%, #e8efff 100%);
-}
-
-/* 失败卡片：红色整圈边框，header 浅红，body 正常 */
-.tool-calls-collapse :deep(.ant-collapse-item.tc-card-error) {
-  border: 1px solid #ff4d4f;
-  background: hsl(var(--background));
-}
-
-.tool-calls-collapse :deep(.ant-collapse-item.tc-card-error > .ant-collapse-header) {
-  background: linear-gradient(135deg, #fff2f0 0%, #ffe8e6 100%);
-}
-
-.tool-calls-collapse :deep(.ant-collapse-header) {
-  padding: 10px 14px !important;
-  font-size: 13px;
-  align-items: center !important;
-}
-
-.tool-calls-collapse :deep(.ant-collapse-content) {
-  border-top: 1px solid hsl(var(--border) / 30%);
-  background: transparent;
-}
-
-.tool-calls-collapse :deep(.ant-collapse-content-box) {
-  padding: 12px 14px !important;
-}
-
-/* 面板头部 */
-.tc-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-}
-
-.tc-icon {
-  font-size: 14px;
-  opacity: 0.7;
-}
-
-.tc-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: hsl(var(--foreground) / 90%);
-}
-
-.tc-status {
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.tc-status-success {
-  color: #52c41a;
-}
-
-.tc-status-error {
-  color: #ff4d4f;
-}
-
-.tc-tag {
-  margin: 0;
-  font-size: 11px;
-  border-radius: 4px;
-}
-
-.tc-spacer {
-  flex: 1;
-}
-
-.tc-duration {
-  font-size: 12px;
-  color: #4f6ef7;
-  font-weight: 500;
-  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
-}
-
-/* 面板内容 */
-.tc-body {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.tc-row {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.tc-label {
-  font-size: 11px;
-  color: hsl(var(--foreground) / 50%);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-
-.tc-code {
-  font-size: 12px;
-  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
-  color: hsl(var(--foreground) / 80%);
-  word-break: break-all;
-  white-space: pre-wrap;
-  background: hsl(var(--background));
-  padding: 8px 10px;
-  border-radius: 6px;
-  margin: 0;
-  line-height: 1.5;
-  border: 1px solid hsl(var(--border) / 40%);
-}
-
-.tc-code-error {
-  color: #ff4d4f;
-  background: #fff2f0;
-  border-color: hsl(0 84% 60% / 20%);
-}
-
 /* AI 回复内容 */
 .content-body {
   padding: 2px;
-}
-
-.content-text {
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-size: 13px;
-  line-height: 1.7;
-  color: hsl(var(--foreground));
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-
-.typing-cursor {
-  color: #1677ff;
-  animation: blink 1s infinite;
-  font-weight: 300;
-}
-
-@keyframes blink {
-  0%, 50% { opacity: 1; }
-  51%, 100% { opacity: 0; }
 }
 
 .content-empty {
