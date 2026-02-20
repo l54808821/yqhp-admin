@@ -9,6 +9,8 @@ import { ref, computed, watch, nextTick } from 'vue';
 import { createIconifyIcon } from '@vben/icons';
 import { Tabs, Tag } from 'ant-design-vue';
 
+const ArrowDownIcon = createIconifyIcon('lucide:arrow-down');
+
 import { AiBubbleContent } from '#/components/ai-chat';
 import type { AIResponseData } from './types';
 import ReActTracePanel from './ReActTracePanel.vue';
@@ -105,9 +107,34 @@ function formatDuration(ms: number): string {
 }
 
 const responseTabRef = ref<HTMLDivElement>();
+const isAtBottom = ref(true);
+
+function handleResponseScroll(e: Event) {
+  const el = e.target as HTMLElement;
+  isAtBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight <= 30;
+}
+
+function scrollToBottom() {
+  const el = responseTabRef.value;
+  if (el) {
+    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    isAtBottom.value = true;
+  }
+}
 
 watch(displayContent, () => {
   if (!props.isStreaming || activeTab.value !== 'response') return;
+  if (!isAtBottom.value) return;
+  nextTick(() => {
+    const el = responseTabRef.value;
+    if (el) {
+      el.scrollTop = el.scrollHeight;
+    }
+  });
+});
+
+watch(() => props.response.toolCalls?.length, () => {
+  if (!isAtBottom.value) return;
   nextTick(() => {
     const el = responseTabRef.value;
     if (el) {
@@ -151,7 +178,7 @@ watch(displayContent, () => {
     <!-- 内容区域 -->
     <div class="response-content">
       <!-- AI 回复（含工具调用） -->
-      <div v-if="activeTab === 'response'" ref="responseTabRef" class="tab-content">
+      <div v-if="activeTab === 'response'" ref="responseTabRef" class="tab-content" @scroll="handleResponseScroll">
         <!-- 错误信息 -->
         <div v-if="response.error" class="response-error">
           <AlertCircleIcon class="error-icon" />
@@ -240,6 +267,16 @@ watch(displayContent, () => {
         </div>
       </div>
     </div>
+
+    <!-- 回到底部浮动按钮 -->
+    <button
+      v-if="!isAtBottom && activeTab === 'response'"
+      class="scroll-to-bottom-btn"
+      @click="scrollToBottom"
+    >
+      <ArrowDownIcon class="scroll-btn-icon" />
+      <span>回到底部</span>
+    </button>
   </div>
 </template>
 
@@ -250,6 +287,38 @@ watch(displayContent, () => {
   height: 100%;
   padding: 0 10px 10px;
   overflow: hidden;
+  position: relative;
+}
+
+.scroll-to-bottom-btn {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: hsl(var(--foreground) / 65%);
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 16px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px hsl(var(--foreground) / 8%);
+  transition: all 0.2s;
+  z-index: 10;
+}
+
+.scroll-to-bottom-btn:hover {
+  color: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+  background: hsl(var(--card));
+}
+
+.scroll-btn-icon {
+  width: 14px;
+  height: 14px;
 }
 
 .response-header {

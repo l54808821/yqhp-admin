@@ -11,6 +11,7 @@ import { useAccessStore } from '@vben/stores';
 import {
   executeApi,
   stopExecutionApi,
+  submitInteractionApi,
   type StepConfig,
   type StepExecutionResult,
   type AIChunkData,
@@ -22,6 +23,7 @@ import {
   type SSEService,
   type AIToolCallStartData,
   type AIToolCallCompleteData,
+  type AIInteractionData,
 } from '#/utils/sse';
 import { useDebugContext } from './useDebugContext';
 
@@ -51,6 +53,8 @@ export interface UseStepDebugOptions<TResponse> {
   onToolCallStart?: (data: AIToolCallStartData) => void;
   /** 流式事件钩子：工具调用完成 */
   onToolCallComplete?: (data: AIToolCallCompleteData) => void;
+  /** 流式事件钩子：AI 请求人机交互 */
+  onInteractionRequired?: (data: AIInteractionData) => void;
 }
 
 export function useStepDebug<TResponse>(options: UseStepDebugOptions<TResponse>) {
@@ -61,6 +65,7 @@ export function useStepDebug<TResponse>(options: UseStepDebugOptions<TResponse>)
     onAiComplete,
     onToolCallStart,
     onToolCallComplete,
+    onInteractionRequired,
   } = options;
 
   const isDebugging = ref(false);
@@ -68,16 +73,34 @@ export function useStepDebug<TResponse>(options: UseStepDebugOptions<TResponse>)
   const streamingContent = ref<string | null>(null);
   const isStreaming = ref(false);
 
+  // 交互状态
+  const interactionOpen = ref(false);
+  const interactionData = ref<AIInteractionData | null>(null);
+  const interactionValue = ref('');
+  const interactionCountdown = ref(0);
+  let interactionTimer: ReturnType<typeof setInterval> | null = null;
+
   let sseService: SSEService | null = null;
   let sessionId: string | null = null;
   let startTime = 0;
 
   const debugContext = useDebugContext();
 
+  function cleanupInteraction() {
+    interactionOpen.value = false;
+    interactionData.value = null;
+    interactionValue.value = '';
+    if (interactionTimer) {
+      clearInterval(interactionTimer);
+      interactionTimer = null;
+    }
+  }
+
   function cleanupSSE() {
     sseService?.disconnect();
     sseService = null;
     sessionId = null;
+    cleanupInteraction();
   }
 
   function finish() {
@@ -136,6 +159,26 @@ export function useStepDebug<TResponse>(options: UseStepDebugOptions<TResponse>)
       case 'ai_tool_call_complete': {
         const toolDone = data as AIToolCallCompleteData;
         onToolCallComplete?.(toolDone);
+        break;
+      }
+
+      case 'ai_interaction_required': {
+        const interaction = data as AIInteractionData;
+        interactionData.value = interaction;
+        interactionValue.value = interaction.defaultValue || '';
+        interactionOpen.value = true;
+
+        if (interaction.timeout > 0) {
+          interactionCountdown.value = interaction.timeout;
+          interactionTimer = setInterval(() => {
+            interactionCountdown.value--;
+            if (interactionCountdown.value <= 0) {
+              submitInteraction(interactionData.value?.defaultValue || '', true);
+            }
+          }, 1000);
+        }
+
+        onInteractionRequired?.(interaction);
         break;
       }
 
@@ -292,6 +335,25 @@ export function useStepDebug<TResponse>(options: UseStepDebugOptions<TResponse>)
     sseService.connect();
   }
 
+  async function submitInteraction(value: string, skipped: boolean = false) {
+    if (!sessionId) return;
+    try {
+      await submitInteractionApi(sessionId, { value, skipped });
+    } catch {
+      // ignore
+    } finally {
+      cleanupInteraction();
+    }
+  }
+
+  function handleInteractionConfirm() {
+    submitInteraction(interactionValue.value, false);
+  }
+
+  function handleInteractionSkip() {
+    submitInteraction('', true);
+  }
+
   return {
     isDebugging,
     debugResponse,
@@ -299,5 +361,13 @@ export function useStepDebug<TResponse>(options: UseStepDebugOptions<TResponse>)
     isStreaming,
     run,
     stop,
+
+    // 交互状态
+    interactionOpen,
+    interactionData,
+    interactionValue,
+    interactionCountdown,
+    handleInteractionConfirm,
+    handleInteractionSkip,
   };
 }

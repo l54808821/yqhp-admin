@@ -16,6 +16,7 @@ import {
   type AIResponseData,
 } from '../../../components/shared';
 import type { ToolCallRecord } from '../../../components/shared/types';
+import AIInteractionModal from '../../../components/execution/AIInteractionModal.vue';
 
 import type { KeywordConfig } from '../../types';
 import ProcessorPanel from '../http/ProcessorPanel.vue';
@@ -103,8 +104,11 @@ function transformError(error: string, durationMs: number): AIResponseData {
   };
 }
 
-const { isDebugging, debugResponse, streamingContent, isStreaming, run, stop } =
-  useStepDebug<AIResponseData>({
+const {
+  isDebugging, debugResponse, streamingContent, isStreaming, run, stop,
+  interactionOpen, interactionData, interactionValue, interactionCountdown,
+  handleInteractionConfirm, handleInteractionSkip,
+} = useStepDebug<AIResponseData>({
     workflowId: toRef(props, 'workflowId'),
     envId: toRef(props, 'envId'),
     stream: true,
@@ -134,6 +138,17 @@ const { isDebugging, debugResponse, streamingContent, isStreaming, run, stop } =
       }
     },
   });
+
+const streamingFallbackResponse = computed<AIResponseData>(() => ({
+  success: true,
+  content: '',
+  model: '',
+  promptTokens: 0,
+  completionTokens: 0,
+  totalTokens: 0,
+  durationMs: 0,
+  toolCalls: pendingToolCalls.value.length ? [...pendingToolCalls.value] : undefined,
+}));
 
 // 调试上下文（用于 UI 指示器）
 const debugContext = useDebugContext();
@@ -217,7 +232,7 @@ function handleRun() {
       top_p: localNode.value.config.top_p,
       timeout: localNode.value.config.timeout || 0,
       streaming: true,
-      interactive: false,
+      interactive: localNode.value.config.interactive ?? false,
       tools: localNode.value.config.tools || [],
       mcp_server_ids: localNode.value.config.mcp_server_ids || [],
       skill_ids: localNode.value.config.skill_ids || [],
@@ -376,8 +391,8 @@ function stopDrag() {
       :style="{ height: `calc(${100 - editorPanelHeight}% - 4px)` }"
     >
       <AIResponsePanel
-        v-if="debugResponse || streamingContent"
-        :response="debugResponse || { success: true, content: '', model: '', promptTokens: 0, completionTokens: 0, totalTokens: 0, durationMs: 0 }"
+        v-if="debugResponse || streamingContent || pendingToolCalls.length > 0"
+        :response="debugResponse || streamingFallbackResponse"
         :streaming-content="streamingContent"
         :is-streaming="isStreaming"
       />
@@ -385,6 +400,17 @@ function stopDrag() {
         <span class="waiting-text">等待 AI 回复...</span>
       </div>
     </div>
+
+    <!-- 人机交互弹窗 -->
+    <AIInteractionModal
+      :open="interactionOpen"
+      :data="interactionData"
+      :value="interactionValue"
+      :countdown="interactionCountdown"
+      @update:value="interactionValue = $event"
+      @confirm="handleInteractionConfirm"
+      @skip="handleInteractionSkip"
+    />
   </div>
 </template>
 
