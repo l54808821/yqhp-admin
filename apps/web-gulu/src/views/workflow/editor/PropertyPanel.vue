@@ -10,6 +10,7 @@ const props = defineProps<{
   node: any;
   envId?: number;
   workflowId?: number;
+  projectId?: number;
 }>();
 
 const emit = defineEmits<{
@@ -236,6 +237,8 @@ function handleDelete(node: any) {
             :is="propertyComponent"
             v-if="propertyComponent"
             :node="localNode"
+            :workflow-id="workflowId"
+            :project-id="projectId"
             @update="handleUpdate()"
             @delete="handleDelete"
           />

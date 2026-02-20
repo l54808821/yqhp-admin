@@ -17,12 +17,13 @@ import DatabasePropertyPanel from './database/DatabasePropertyPanel.vue';
 import HttpPropertyPanel from './http/HttpPropertyPanel.vue';
 import LoopProperty from './LoopProperty.vue';
 import MqPropertyPanel from './mq/MqPropertyPanel.vue';
+import RefWorkflowPropertyPanel from './ref-workflow/RefWorkflowPropertyPanel.vue';
 import ScriptPropertyPanel from './ScriptPropertyPanel.vue';
 import WaitProperty from './WaitProperty.vue';
 
-// AI 图标（使用 sparkles 表示 AI）
 import { createIconifyIcon } from '@vben/icons';
 const Sparkles = createIconifyIcon('lucide:sparkles');
+const Workflow = createIconifyIcon('lucide:workflow');
 
 export interface NodeTypeConfig {
   key: string;
@@ -252,6 +253,21 @@ export const nodeTypeRegistry: Record<string, NodeTypeConfig> = {
       const target = config.topic || config.queue || '';
       return target ? `${action} ${target}` : '';
     },
+  },
+  ref_workflow: {
+    key: 'ref_workflow',
+    label: '引用工作流',
+    icon: Workflow,
+    color: '#9254de',
+    propertyComponent: RefWorkflowPropertyPanel,
+    defaultConfig: () => ({
+      config: {
+        workflow_id: null,
+        workflow_name: '',
+        params: {},
+      },
+    }),
+    getDescription: (node) => node.config?.workflow_name || '未选择工作流',
   },
 };
 

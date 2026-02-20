@@ -675,6 +675,7 @@ async function handleRename(newName: string) {
               :node="selectedNode"
               :env-id="projectStore.currentEnvId"
               :workflow-id="workflow?.id"
+              :project-id="workflow?.project_id"
               @update="handleNodeUpdate"
               @close="handleClosePropertyPanel"
               @delete="handleNodeDelete"
