@@ -25,7 +25,6 @@ import {
   updateKnowledgeBaseStatusApi,
 } from '#/api/knowledge-base';
 
-import DocumentManageDrawer from './components/DocumentManageDrawer.vue';
 import KnowledgeBaseCard from './components/KnowledgeBaseCard.vue';
 import KnowledgeBaseFormModal from './components/KnowledgeBaseFormModal.vue';
 
@@ -45,7 +44,6 @@ const total = ref(0);
 const loading = ref(false);
 
 const formModalRef = ref<InstanceType<typeof KnowledgeBaseFormModal>>();
-const docDrawerRef = ref<InstanceType<typeof DocumentManageDrawer>>();
 
 async function loadData() {
   loading.value = true;
@@ -93,10 +91,6 @@ function handleView(record: KnowledgeBase) {
 
 function handleEdit(record: KnowledgeBase) {
   formModalRef.value?.open(record);
-}
-
-function handleManageDocs(record: KnowledgeBase) {
-  docDrawerRef.value?.open(record);
 }
 
 function handleDelete(id: number) {
@@ -205,7 +199,6 @@ onMounted(() => {
                 @view="handleView"
                 @edit="handleEdit"
                 @delete="handleDelete"
-                @manage-docs="handleManageDocs"
                 @status-change="handleStatusChange"
               />
             </Col>
@@ -234,9 +227,6 @@ onMounted(() => {
 
     <!-- 新增/编辑弹框 -->
     <KnowledgeBaseFormModal ref="formModalRef" @success="handleFormSuccess" />
-
-    <!-- 文档管理抽屉 -->
-    <DocumentManageDrawer ref="docDrawerRef" @change="loadData" />
   </div>
 </template>
 

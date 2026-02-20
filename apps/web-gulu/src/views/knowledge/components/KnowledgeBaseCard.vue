@@ -21,7 +21,6 @@ const props = defineProps<Props>();
 const emit = defineEmits<{
   (e: 'edit', kb: KnowledgeBase): void;
   (e: 'delete', id: number): void;
-  (e: 'manageDocs', kb: KnowledgeBase): void;
   (e: 'statusChange', id: number, checked: boolean): void;
   (e: 'view', kb: KnowledgeBase): void;
 }>();
@@ -60,7 +59,6 @@ const typeIcon = computed(() =>
         <template #overlay>
           <Menu>
             <Menu.Item key="edit" @click="emit('edit', kb)">编辑</Menu.Item>
-            <Menu.Item key="docs" @click="emit('manageDocs', kb)">管理文档</Menu.Item>
             <Menu.Divider />
             <Menu.Item key="delete" danger @click="emit('delete', kb.id)">删除</Menu.Item>
           </Menu>
