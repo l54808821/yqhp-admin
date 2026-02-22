@@ -735,21 +735,16 @@ onBeforeUnmount(() => {
   font-size: 12px;
   flex: 1;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
+  overflow: hidden;
 }
 
 .panel-table-wrap :deep(.ant-table .ant-table-container) {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
+  height: 100%;
 }
 
-.panel-table-wrap :deep(.ant-table .ant-table-body) {
-  flex: 1;
-  min-height: 0;
+.panel-table-wrap :deep(.ant-table .ant-table-content) {
   overflow-y: auto !important;
+  max-height: 100%;
 }
 
 .panel-table-wrap :deep(.ant-table-thead > tr > th) {
@@ -766,9 +761,12 @@ onBeforeUnmount(() => {
 }
 
 .panel-table-wrap :deep(.ant-table-pagination) {
+  display: flex;
   flex-shrink: 0;
   margin: 8px 0;
   padding: 0 8px;
+  border-top: 1px solid hsl(var(--border));
+  padding-top: 8px;
 }
 
 .desc-text {
