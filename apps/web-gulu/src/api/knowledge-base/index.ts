@@ -336,3 +336,34 @@ export async function searchKnowledgeBaseApi(kbId: number, params: KnowledgeSear
 export async function getQueryHistoryApi(kbId: number, limit = 20) {
   return requestClient.get<QueryHistoryItem[]>(`/knowledge-bases/${kbId}/queries`, { params: { limit } });
 }
+
+// -----------------------------------------------
+// 图知识库（实体 / 关系）
+// -----------------------------------------------
+
+/** 知识图谱实体（对应后端 GraphEntityInfo） */
+export interface KnowledgeEntity {
+  id: number;
+  name: string;
+  entity_type: string;
+  description?: string;
+  mention_count: number;
+}
+
+/** 知识图谱关系（对应后端 GraphRelationInfo） */
+export interface KnowledgeRelation {
+  id: number;
+  source_name: string;
+  target_name: string;
+  relation_type: string;
+  description?: string;
+  weight: number;
+}
+
+export async function getGraphEntitiesApi(kbId: number) {
+  return requestClient.get<KnowledgeEntity[]>(`/knowledge-bases/${kbId}/graph/entities`);
+}
+
+export async function getGraphRelationsApi(kbId: number) {
+  return requestClient.get<KnowledgeRelation[]>(`/knowledge-bases/${kbId}/graph/relations`);
+}

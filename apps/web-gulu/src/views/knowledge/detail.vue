@@ -8,11 +8,12 @@ import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { Dropdown, Menu, message, Modal, Spin, Tabs, Tag } from 'ant-design-vue';
-import { ArrowLeft, Database, FileText, GitFork, MoreHorizontal, Pencil, Search, Settings, Trash2 } from 'lucide-vue-next';
+import { ArrowLeft, Database, FileText, GitFork, MoreHorizontal, Network, Pencil, Search, Settings, Trash2 } from 'lucide-vue-next';
 
 import { deleteKnowledgeBaseApi, getKnowledgeBaseApi } from '#/api/knowledge-base';
 
 import DocumentTab from './components/DocumentTab.vue';
+import GraphTab from './components/GraphTab.vue';
 import KnowledgeBaseFormModal from './components/KnowledgeBaseFormModal.vue';
 import RecallTestTab from './components/RecallTestTab.vue';
 import SettingsTab from './components/SettingsTab.vue';
@@ -138,6 +139,16 @@ onMounted(() => {
                 </span>
               </template>
               <DocumentTab :kb="kb" @change="handleKBUpdated" />
+            </Tabs.TabPane>
+
+            <Tabs.TabPane v-if="kb.type === 'graph'" key="graph">
+              <template #tab>
+                <span class="tab-label">
+                  <Network :size="14" />
+                  知识图谱
+                </span>
+              </template>
+              <GraphTab :kb="kb" />
             </Tabs.TabPane>
 
             <Tabs.TabPane key="recall">
