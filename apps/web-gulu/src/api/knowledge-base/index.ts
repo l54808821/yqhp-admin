@@ -338,8 +338,40 @@ export async function getQueryHistoryApi(kbId: number, limit = 20) {
 }
 
 // -----------------------------------------------
-// 图知识库（实体 / 关系）
+// 图知识库（搜索 / 实体 / 关系）
 // -----------------------------------------------
+
+/** 图谱搜索 - 实体结果 */
+export interface GraphEntityResult {
+  name: string;
+  type: string;
+  properties?: Record<string, string>;
+}
+
+/** 图谱搜索 - 关系结果 */
+export interface GraphRelationResult {
+  source: string;
+  source_type: string;
+  target: string;
+  target_type: string;
+  relation_type: string;
+}
+
+/** 图谱搜索结果 */
+export interface GraphSearchResult {
+  entities: GraphEntityResult[];
+  relations: GraphRelationResult[];
+}
+
+/** 图谱搜索参数 */
+export interface GraphSearchParams {
+  keywords: string[];
+  max_hops?: number;
+}
+
+export async function searchGraphApi(kbId: number, params: GraphSearchParams) {
+  return requestClient.post<GraphSearchResult>(`/knowledge-bases/${kbId}/graph/search`, params);
+}
 
 /** 知识图谱实体（对应后端 GraphEntityInfo） */
 export interface KnowledgeEntity {

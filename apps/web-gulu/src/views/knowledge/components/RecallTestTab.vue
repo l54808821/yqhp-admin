@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type {
+  GraphSearchResult,
   KnowledgeBase,
   KnowledgeSearchResult,
   QueryHistoryItem,
@@ -15,11 +16,15 @@ import {
   Popover,
   Row,
   Spin,
+  Tag,
+  Tooltip,
   message,
 } from 'ant-design-vue';
 import {
+  ArrowRight,
   ExternalLink,
   FileText,
+  GitFork,
   Hash,
   Search,
   SlidersHorizontal,
@@ -28,6 +33,7 @@ import {
 
 import {
   getQueryHistoryApi,
+  searchGraphApi,
   searchKnowledgeBaseApi,
 } from '#/api/knowledge-base';
 import {
@@ -46,9 +52,12 @@ const props = defineProps<Props>();
 
 const query = ref('');
 const results = ref<KnowledgeSearchResult[]>([]);
+const graphResults = ref<GraphSearchResult | null>(null);
 const searching = ref(false);
 const hasSearched = ref(false);
 const settingsOpen = ref(false);
+
+const isGraphKB = computed(() => props.kb.type === 'graph');
 
 const retrievalMode = ref<RetrievalMode>(props.kb.retrieval_mode || 'vector');
 const scoreThreshold = ref(0);
@@ -87,15 +96,33 @@ async function handleSearch() {
   searching.value = true;
   hasSearched.value = true;
   results.value = [];
+  graphResults.value = null;
 
   try {
-    const res = await searchKnowledgeBaseApi(props.kb.id, {
-      query: q,
-      top_k: topK.value,
-      score: scoreThreshold.value,
-      retrieval_mode: retrievalMode.value,
-    });
-    results.value = res || [];
+    const promises: Promise<any>[] = [
+      searchKnowledgeBaseApi(props.kb.id, {
+        query: q,
+        top_k: topK.value,
+        score: scoreThreshold.value,
+        retrieval_mode: retrievalMode.value,
+      }),
+    ];
+
+    if (isGraphKB.value) {
+      const keywords = q.split(/\s+/).filter(Boolean);
+      promises.push(
+        searchGraphApi(props.kb.id, { keywords, max_hops: 2 }).catch((err) => {
+          console.warn('[RecallTest] graph search failed:', err);
+          return null;
+        }),
+      );
+    }
+
+    const [searchRes, graphRes] = await Promise.all(promises);
+    results.value = searchRes || [];
+    if (graphRes && (graphRes.entities?.length || graphRes.relations?.length)) {
+      graphResults.value = graphRes;
+    }
     await loadHistory();
   } catch (e: any) {
     message.error('检索失败: ' + (e.message || '未知错误'));
@@ -238,9 +265,68 @@ onMounted(() => {
         </div>
 
         <!-- 有结果 -->
-        <template v-else-if="hasSearched && results.length > 0">
-          <div class="recall-results-count">{{ results.length }} 个召回段落</div>
-          <div class="recall-results-list">
+        <template v-else-if="hasSearched && (results.length > 0 || graphResults)">
+          <!-- 图谱检索结果（仅图知识库） -->
+          <div v-if="graphResults" class="graph-results-section">
+            <div class="graph-results-header">
+              <div class="graph-results-title">
+                <GitFork :size="15" class="graph-title-icon" />
+                <span>图谱检索结果</span>
+              </div>
+              <div class="graph-results-stats">
+                <Tag color="purple">{{ graphResults.entities?.length || 0 }} 个实体</Tag>
+                <Tag color="geekblue">{{ graphResults.relations?.length || 0 }} 个关系</Tag>
+              </div>
+            </div>
+
+            <div v-if="graphResults.entities?.length" class="graph-block">
+              <div class="graph-block-label">实体</div>
+              <div class="graph-entity-list">
+                <Tooltip v-for="(entity, idx) in graphResults.entities" :key="'e' + idx">
+                  <template #title>
+                    <div v-if="entity.properties && Object.keys(entity.properties).length">
+                      <div v-for="(val, key) in entity.properties" :key="key">
+                        {{ key }}: {{ val }}
+                      </div>
+                    </div>
+                    <span v-else>暂无属性</span>
+                  </template>
+                  <div class="graph-entity-tag">
+                    <span class="graph-entity-name">{{ entity.name }}</span>
+                    <span class="graph-entity-type">{{ entity.type }}</span>
+                  </div>
+                </Tooltip>
+              </div>
+            </div>
+
+            <div v-if="graphResults.relations?.length" class="graph-block">
+              <div class="graph-block-label">关系</div>
+              <div class="graph-relation-list">
+                <div
+                  v-for="(rel, idx) in graphResults.relations"
+                  :key="'r' + idx"
+                  class="graph-relation-item"
+                >
+                  <span class="graph-rel-node graph-rel-source">
+                    {{ rel.source }}
+                    <span class="graph-rel-type-badge">{{ rel.source_type }}</span>
+                  </span>
+                  <span class="graph-rel-arrow">
+                    <span class="graph-rel-line" />
+                    <span class="graph-rel-label">{{ rel.relation_type }}</span>
+                    <ArrowRight :size="14" class="graph-rel-arrow-icon" />
+                  </span>
+                  <span class="graph-rel-node graph-rel-target">
+                    {{ rel.target }}
+                    <span class="graph-rel-type-badge">{{ rel.target_type }}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="results.length > 0" class="recall-results-count">{{ results.length }} 个召回段落</div>
+          <div v-if="results.length > 0" class="recall-results-list">
             <div
               v-for="(result, idx) in results"
               :key="idx"
@@ -677,5 +763,158 @@ onMounted(() => {
 .recall-settings-popover-body {
   width: 380px;
   padding: 4px 0;
+}
+
+/* ====== 图谱检索结果 ====== */
+.graph-results-section {
+  background: hsl(var(--card));
+  border: 1px solid hsl(270 60% 70% / 35%);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.graph-results-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.graph-results-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: hsl(270 60% 50%);
+}
+
+.graph-title-icon {
+  color: hsl(270 60% 55%);
+}
+
+.graph-results-stats {
+  display: flex;
+  gap: 6px;
+}
+
+.graph-block {
+  margin-bottom: 12px;
+}
+
+.graph-block:last-child {
+  margin-bottom: 0;
+}
+
+.graph-block-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 8px;
+  padding-left: 2px;
+}
+
+.graph-entity-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.graph-entity-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: hsl(270 60% 95%);
+  border: 1px solid hsl(270 50% 85%);
+  border-radius: 6px;
+  cursor: default;
+  transition: all 0.15s;
+}
+
+.graph-entity-tag:hover {
+  background: hsl(270 60% 90%);
+  border-color: hsl(270 50% 75%);
+}
+
+.graph-entity-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: hsl(270 50% 35%);
+}
+
+.graph-entity-type {
+  font-size: 11px;
+  color: hsl(270 40% 55%);
+  background: hsl(270 50% 88%);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.graph-relation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.graph-relation-item {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 6px 12px;
+  background: hsl(var(--muted) / 20%);
+  border-radius: 6px;
+  flex-wrap: wrap;
+}
+
+.graph-rel-node {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+  white-space: nowrap;
+}
+
+.graph-rel-type-badge {
+  font-size: 10px;
+  font-weight: 400;
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted) / 50%);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.graph-rel-arrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  margin: 0 8px;
+  color: hsl(270 50% 55%);
+  flex-shrink: 0;
+}
+
+.graph-rel-line {
+  display: inline-block;
+  width: 16px;
+  height: 1.5px;
+  background: hsl(270 50% 65%);
+}
+
+.graph-rel-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: hsl(270 50% 45%);
+  background: hsl(270 60% 93%);
+  padding: 1px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.graph-rel-arrow-icon {
+  color: hsl(270 50% 60%);
+  flex-shrink: 0;
 }
 </style>
