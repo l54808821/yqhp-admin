@@ -37,6 +37,7 @@ export interface UseExecutionOptions {
   onStepResult?: (result: StepResult) => void;
   onStepSkipped?: (result: StepResult) => void;
   onComplete?: (summary: DebugSummary) => void;
+  onDisconnect?: () => void;
 }
 
 // 递归过滤禁用的步骤
@@ -73,6 +74,7 @@ export function useExecution(options: UseExecutionOptions) {
     onStepResult,
     onStepSkipped,
     onComplete,
+    onDisconnect,
   } = options;
 
   // 状态
@@ -398,27 +400,30 @@ export function useExecution(options: UseExecutionOptions) {
 
   function handleError(data: { message: string }) {
     errorMessage.value = data.message;
-    // 服务器返回错误时停止重连
     reconnecting.value = false;
-    reconnectAttempts.value = maxReconnectAttempts; // 阻止进一步重连
+    reconnectAttempts.value = maxReconnectAttempts;
     loading.value = false;
+    disconnected.value = true;
+    onDisconnect?.();
     sseService?.disconnect();
   }
 
   // 处理连接断开
   function handleDisconnect() {
     if (executionSummary.value) return;
+    if (disconnected.value) return;
 
     disconnected.value = true;
 
-    // 只有在未达到最大重连次数时才自动重连
-    if (reconnectAttempts.value < maxReconnectAttempts && lastSSEUrl && !reconnecting.value) {
+    if (reconnectAttempts.value < maxReconnectAttempts && lastSSEUrl) {
       autoReconnect();
     } else if (reconnectAttempts.value >= maxReconnectAttempts) {
       errorMessage.value = 'SSE 连接已断开，已达最大重试次数';
       reconnecting.value = false;
+      onDisconnect?.();
     } else {
       errorMessage.value = 'SSE 连接已断开';
+      onDisconnect?.();
     }
   }
 
@@ -465,15 +470,14 @@ export function useExecution(options: UseExecutionOptions) {
         if (state === 'connected') {
           loading.value = false;
           disconnected.value = false;
-          // 只有收到首条业务消息（connected 事件）后才算真正连接成功，
-          // 此处仅标记传输层连接，不重置重连计数器。
-          // 计数器在 handleSSEMessage 的 'connected' 事件中重置。
         } else if (state === 'disconnected' && !executionSummary.value) {
+          reconnecting.value = false;
           handleDisconnect();
         }
       },
       onError: () => {
         loading.value = false;
+        reconnecting.value = false;
         if (!executionSummary.value) {
           handleDisconnect();
         }
@@ -497,6 +501,9 @@ export function useExecution(options: UseExecutionOptions) {
       aiContent.value = new Map();
       aiToolCalls.value = new Map();
       currentAIStepId.value = null;
+      reconnectAttempts.value = 0;
+      reconnecting.value = false;
+      disconnected.value = false;
 
       const accessStore = useAccessStore();
       const token = accessStore.accessToken || '';

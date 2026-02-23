@@ -746,6 +746,7 @@ async function handleRename(newName: string) {
       :persist="false"
       @complete="handleDebugComplete"
       @started="handleDebugStarted"
+      @disconnected="handleDebugComplete"
     />
 
     <!-- 调试结果抽屉（查看缓存的执行结果和变量） -->

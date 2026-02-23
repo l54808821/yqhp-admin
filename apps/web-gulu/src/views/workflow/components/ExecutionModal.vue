@@ -27,6 +27,7 @@ const emit = defineEmits<{
   (e: 'update:open', value: boolean): void;
   (e: 'complete', summary: DebugSummary): void;
   (e: 'started'): void;
+  (e: 'disconnected'): void;
 }>();
 
 const projectStore = useProjectStore();
@@ -115,6 +116,7 @@ function handleExecutionComplete(summary: DebugSummary) {
       :persist="persist"
       @close="handleClose"
       @complete="handleExecutionComplete"
+      @disconnected="emit('disconnected')"
     />
     <div v-else class="no-env-tip">
       请先在右上角选择执行环境

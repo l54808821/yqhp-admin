@@ -34,6 +34,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   (e: 'close'): void;
   (e: 'complete', summary: ExecutionSummary): void;
+  (e: 'disconnected'): void;
 }>();
 
 // 使用 composables
@@ -50,6 +51,9 @@ const execution = useExecution({
   },
   onComplete: (summary) => {
     emit('complete', summary);
+  },
+  onDisconnect: () => {
+    emit('disconnected');
   },
 });
 
