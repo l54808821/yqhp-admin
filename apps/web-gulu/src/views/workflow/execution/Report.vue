@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import type { EchartsUIType } from '@vben/plugins/echarts';
+
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { Page } from '@vben/common-ui';
+import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
 
 import {
-  Alert,
   Button,
   Card,
   Descriptions,
   message,
-  Progress,
+  Popconfirm,
   Space,
   Spin,
   Statistic,
@@ -18,11 +20,15 @@ import {
   Tag,
 } from 'ant-design-vue';
 
-import type { Execution } from '#/api/execution';
+import type { Execution, ExecutionMetrics, StepMetrics } from '#/api/execution';
 import type { Workflow } from '#/api/workflow';
 
-import { getExecutionApi, stopExecutionApi } from '#/api/execution';
-import { getWorkflowApi, WORKFLOW_TYPE_COLORS, WORKFLOW_TYPE_LABELS } from '#/api/workflow';
+import {
+  getExecutionApi,
+  getExecutionMetricsApi,
+  stopExecutionApi,
+} from '#/api/execution';
+import { getWorkflowApi } from '#/api/workflow';
 
 const route = useRoute();
 const router = useRouter();
@@ -33,27 +39,51 @@ const execution = ref<Execution | null>(null);
 const workflow = ref<Workflow | null>(null);
 const pollTimer = ref<ReturnType<typeof setInterval> | null>(null);
 
-const executionId = computed(() => Number(route.params.id));
+const executionId = computed(() => Number(route.params.executionId));
 
-// 是否正在执行中
+// 时间序列数据
+interface TimePoint {
+  time: string;
+  totalIterations: number;
+  totalVUs: number;
+  successCount: number;
+  failureCount: number;
+}
+
+const timeSeriesData = ref<TimePoint[]>([]);
+
+// 当前指标
+const currentMetrics = ref<ExecutionMetrics | null>(null);
+
+// ECharts refs
+const qpsChartRef = ref<EchartsUIType>();
+const rtChartRef = ref<EchartsUIType>();
+const vuChartRef = ref<EchartsUIType>();
+const errorChartRef = ref<EchartsUIType>();
+
+const { renderEcharts: renderQps, updateDate: updateQps } = useEcharts(qpsChartRef);
+const { renderEcharts: renderRt, updateDate: updateRt } = useEcharts(rtChartRef);
+const { renderEcharts: renderVu, updateDate: updateVu } = useEcharts(vuChartRef);
+const { renderEcharts: renderError, updateDate: updateError } = useEcharts(errorChartRef);
+
 const isRunning = computed(() => {
   return execution.value?.status === 'running' || execution.value?.status === 'pending';
 });
 
-// 执行状态颜色
 const statusColor = computed(() => {
-  const status = execution.value?.status;
-  if (status === 'completed') return 'success';
-  if (status === 'failed' || status === 'timeout') return 'error';
-  if (status === 'stopped') return 'warning';
-  if (status === 'running') return 'processing';
-  return 'default';
+  const map: Record<string, string> = {
+    pending: 'default',
+    running: 'processing',
+    completed: 'success',
+    failed: 'error',
+    stopped: 'warning',
+    timeout: 'error',
+  };
+  return map[execution.value?.status || ''] || 'default';
 });
 
-// 执行状态文本
 const statusText = computed(() => {
-  const status = execution.value?.status;
-  const statusMap: Record<string, string> = {
+  const map: Record<string, string> = {
     pending: '等待中',
     running: '执行中',
     completed: '已完成',
@@ -61,24 +91,86 @@ const statusText = computed(() => {
     stopped: '已停止',
     timeout: '超时',
   };
-  return statusMap[status || ''] || status;
+  return map[execution.value?.status || ''] || execution.value?.status || '';
 });
 
-// 进度百分比
-const progressPercent = computed(() => {
-  if (!execution.value) return 0;
-  const total = execution.value.total_steps || 0;
-  const success = execution.value.success_steps || 0;
-  const failed = execution.value.failed_steps || 0;
-  if (total === 0) return 0;
-  return Math.round(((success + failed) / total) * 100);
+// 汇总统计
+const totalRequests = computed(() => {
+  if (!currentMetrics.value?.step_metrics) return 0;
+  return Object.values(currentMetrics.value.step_metrics).reduce(
+    (sum, s) => sum + s.count,
+    0,
+  );
+});
+
+const totalSuccess = computed(() => {
+  if (!currentMetrics.value?.step_metrics) return 0;
+  return Object.values(currentMetrics.value.step_metrics).reduce(
+    (sum, s) => sum + s.success_count,
+    0,
+  );
+});
+
+const totalFailure = computed(() => {
+  if (!currentMetrics.value?.step_metrics) return 0;
+  return Object.values(currentMetrics.value.step_metrics).reduce(
+    (sum, s) => sum + s.failure_count,
+    0,
+  );
+});
+
+const errorRate = computed(() => {
+  const total = totalRequests.value;
+  if (total === 0) return '0';
+  return ((totalFailure.value / total) * 100).toFixed(2);
+});
+
+const currentQps = computed(() => {
+  if (timeSeriesData.value.length < 2) return '0';
+  const len = timeSeriesData.value.length;
+  const latest = timeSeriesData.value[len - 1]!;
+  const prev = timeSeriesData.value[len - 2]!;
+  const diff = latest.totalIterations - prev.totalIterations;
+  return diff > 0 ? diff.toFixed(1) : '0';
+});
+
+// 步骤指标表格
+const stepMetricsColumns = [
+  { title: '步骤', dataIndex: 'step_id', key: 'step_id', width: 200 },
+  { title: '请求数', dataIndex: 'count', key: 'count', width: 100 },
+  { title: '成功', dataIndex: 'success_count', key: 'success_count', width: 100 },
+  { title: '失败', dataIndex: 'failure_count', key: 'failure_count', width: 100 },
+  { title: 'Avg', dataIndex: 'avg', key: 'avg', width: 100 },
+  { title: 'P50', dataIndex: 'p50', key: 'p50', width: 100 },
+  { title: 'P90', dataIndex: 'p90', key: 'p90', width: 100 },
+  { title: 'P95', dataIndex: 'p95', key: 'p95', width: 100 },
+  { title: 'P99', dataIndex: 'p99', key: 'p99', width: 100 },
+];
+
+const stepMetricsData = computed(() => {
+  if (!currentMetrics.value?.step_metrics) return [];
+  return Object.entries(currentMetrics.value.step_metrics).map(
+    ([key, s]: [string, StepMetrics]) => ({
+      key,
+      step_id: s.step_id || key,
+      count: s.count,
+      success_count: s.success_count,
+      failure_count: s.failure_count,
+      avg: s.duration?.avg || '-',
+      p50: s.duration?.p50 || '-',
+      p90: s.duration?.p90 || '-',
+      p95: s.duration?.p95 || '-',
+      p99: s.duration?.p99 || '-',
+    }),
+  );
 });
 
 onMounted(async () => {
   await loadData();
-  // 如果正在执行，启动轮询
   if (isRunning.value) {
     startPolling();
+  } else {
+    await fetchMetricsOnce();
   }
 });
 
@@ -88,14 +180,16 @@ onUnmounted(() => {
 
 async function loadData() {
   if (!executionId.value) return;
-
   try {
     loading.value = true;
     const exec = await getExecutionApi(executionId.value);
     execution.value = exec;
-
     if (exec.workflow_id) {
-      workflow.value = await getWorkflowApi(exec.workflow_id);
+      try {
+        workflow.value = await getWorkflowApi(exec.workflow_id);
+      } catch {
+        // 工作流可能已删除
+      }
     }
   } catch {
     message.error('加载执行详情失败');
@@ -104,21 +198,39 @@ async function loadData() {
   }
 }
 
+async function fetchMetricsOnce() {
+  if (!executionId.value) return;
+  try {
+    const metrics = await getExecutionMetricsApi(executionId.value);
+    currentMetrics.value = metrics;
+    appendTimePoint(metrics);
+    renderAllCharts();
+  } catch {
+    // 已完成的执行可能没有实时指标
+  }
+}
+
 function startPolling() {
   stopPolling();
   pollTimer.value = setInterval(async () => {
     if (!executionId.value) return;
     try {
-      const exec = await getExecutionApi(executionId.value);
+      const [exec, metrics] = await Promise.all([
+        getExecutionApi(executionId.value),
+        getExecutionMetricsApi(executionId.value),
+      ]);
       execution.value = exec;
-      // 如果执行完成，停止轮询
+      currentMetrics.value = metrics;
+      appendTimePoint(metrics);
+      updateAllCharts();
+
       if (!isRunning.value) {
         stopPolling();
       }
     } catch {
-      // 忽略轮询错误
+      // ignore polling errors
     }
-  }, 3000);
+  }, 1000);
 }
 
 function stopPolling() {
@@ -128,9 +240,181 @@ function stopPolling() {
   }
 }
 
+function appendTimePoint(metrics: ExecutionMetrics) {
+  const now = new Date().toLocaleTimeString('zh-CN', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+
+  let successCount = 0;
+  let failureCount = 0;
+  if (metrics.step_metrics) {
+    for (const s of Object.values(metrics.step_metrics)) {
+      successCount += s.success_count;
+      failureCount += s.failure_count;
+    }
+  }
+
+  timeSeriesData.value.push({
+    time: now,
+    totalIterations: metrics.total_iterations,
+    totalVUs: metrics.total_vus,
+    successCount,
+    failureCount,
+  });
+
+  // 最多保留 300 个点（5分钟 @1s）
+  if (timeSeriesData.value.length > 300) {
+    timeSeriesData.value.shift();
+  }
+}
+
+function getTimeLabels() {
+  return timeSeriesData.value.map((p) => p.time);
+}
+
+function getQpsSeries() {
+  const data = timeSeriesData.value;
+  return data.map((p, i) => {
+    if (i === 0) return 0;
+    return Math.max(0, p.totalIterations - data[i - 1]!.totalIterations);
+  });
+}
+
+function getVuSeries() {
+  return timeSeriesData.value.map((p) => p.totalVUs);
+}
+
+function getErrorRateSeries() {
+  return timeSeriesData.value.map((p) => {
+    const total = p.successCount + p.failureCount;
+    if (total === 0) return 0;
+    return Number(((p.failureCount / total) * 100).toFixed(2));
+  });
+}
+
+function getIterationsSeries() {
+  return timeSeriesData.value.map((p) => p.totalIterations);
+}
+
+const baseChartOption = {
+  grid: { top: 30, right: 16, bottom: 24, left: 50, containLabel: false },
+  tooltip: { trigger: 'axis' as const },
+  xAxis: {
+    type: 'category' as const,
+    boundaryGap: false,
+    axisLabel: { fontSize: 10 },
+  },
+  yAxis: {
+    type: 'value' as const,
+    splitLine: { lineStyle: { type: 'dashed' as const } },
+    axisLabel: { fontSize: 10 },
+  },
+};
+
+function renderAllCharts() {
+  const labels = getTimeLabels();
+
+  renderQps({
+    ...baseChartOption,
+    xAxis: { ...baseChartOption.xAxis, data: labels },
+    series: [
+      {
+        name: 'QPS',
+        type: 'line',
+        smooth: true,
+        data: getQpsSeries(),
+        areaStyle: { opacity: 0.15 },
+        itemStyle: { color: '#1890ff' },
+      },
+    ],
+  });
+
+  renderRt({
+    ...baseChartOption,
+    xAxis: { ...baseChartOption.xAxis, data: labels },
+    series: [
+      {
+        name: '迭代总数',
+        type: 'line',
+        smooth: true,
+        data: getIterationsSeries(),
+        areaStyle: { opacity: 0.15 },
+        itemStyle: { color: '#52c41a' },
+      },
+    ],
+  });
+
+  renderVu({
+    ...baseChartOption,
+    xAxis: { ...baseChartOption.xAxis, data: labels },
+    series: [
+      {
+        name: '并发用户数',
+        type: 'line',
+        smooth: true,
+        data: getVuSeries(),
+        areaStyle: { opacity: 0.15 },
+        itemStyle: { color: '#722ed1' },
+      },
+    ],
+  });
+
+  renderError({
+    ...baseChartOption,
+    xAxis: { ...baseChartOption.xAxis, data: labels },
+    yAxis: { ...baseChartOption.yAxis, axisLabel: { ...baseChartOption.yAxis.axisLabel, formatter: '{value}%' } },
+    series: [
+      {
+        name: '错误率',
+        type: 'line',
+        smooth: true,
+        data: getErrorRateSeries(),
+        areaStyle: { opacity: 0.15 },
+        itemStyle: { color: '#ff4d4f' },
+      },
+    ],
+  });
+}
+
+function updateAllCharts() {
+  const labels = getTimeLabels();
+
+  updateQps({
+    xAxis: { data: labels },
+    series: [{ data: getQpsSeries() }],
+  });
+
+  updateRt({
+    xAxis: { data: labels },
+    series: [{ data: getIterationsSeries() }],
+  });
+
+  updateVu({
+    xAxis: { data: labels },
+    series: [{ data: getVuSeries() }],
+  });
+
+  updateError({
+    xAxis: { data: labels },
+    series: [{ data: getErrorRateSeries() }],
+  });
+}
+
+// 初始化图表
+watch(
+  () => timeSeriesData.value.length,
+  (len) => {
+    if (len === 1) {
+      renderAllCharts();
+    }
+  },
+);
+
 async function handleStop() {
   if (!executionId.value) return;
-
   try {
     stopping.value = true;
     await stopExecutionApi(executionId.value);
@@ -155,168 +439,181 @@ function formatDate(dateStr?: string) {
 function formatDuration(ms?: number) {
   if (!ms) return '-';
   if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(2)}s`;
-  return `${(ms / 60000).toFixed(2)}min`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(2)}s`;
+  return `${(ms / 60_000).toFixed(2)}min`;
 }
-
-// 解析报告内容
-const reportData = computed(() => {
-  if (!execution.value?.result) return null;
-  try {
-    return JSON.parse(execution.value.result);
-  } catch {
-    return null;
-  }
-});
-
-// 性能报告列
-const performanceColumns = [
-  { title: '指标', dataIndex: 'metric', key: 'metric' },
-  { title: '值', dataIndex: 'value', key: 'value' },
-  { title: '单位', dataIndex: 'unit', key: 'unit' },
-];
-
-// 性能报告数据
-const performanceData = computed(() => {
-  if (!reportData.value) return [];
-  const data = reportData.value;
-  return [
-    { key: 'qps', metric: 'QPS', value: data.qps || '-', unit: '请求/秒' },
-    { key: 'avg_response_time', metric: '平均响应时间', value: data.avg_response_time || '-', unit: 'ms' },
-    { key: 'p95_response_time', metric: 'P95 响应时间', value: data.p95_response_time || '-', unit: 'ms' },
-    { key: 'p99_response_time', metric: 'P99 响应时间', value: data.p99_response_time || '-', unit: 'ms' },
-    { key: 'error_rate', metric: '错误率', value: data.error_rate || '0', unit: '%' },
-    { key: 'total_requests', metric: '总请求数', value: data.total_requests || '-', unit: '次' },
-  ];
-});
-
-// 造数报告数据
-const dataGenerationData = computed(() => {
-  if (!reportData.value) return [];
-  const data = reportData.value;
-  return [
-    { key: 'total_generated', metric: '生成总数', value: data.total_generated || '-', unit: '条' },
-    { key: 'success_count', metric: '成功数', value: data.success_count || '-', unit: '条' },
-    { key: 'failed_count', metric: '失败数', value: data.failed_count || '-', unit: '条' },
-    { key: 'success_rate', metric: '成功率', value: data.success_rate || '-', unit: '%' },
-  ];
-});
 </script>
 
 <template>
-  <Page title="执行报告" :description="`执行ID: ${executionId}`">
+  <Page title="压测报告" :description="workflow?.name || `执行ID: ${executionId}`">
     <template #extra>
       <Space>
-        <Button
+        <Popconfirm
           v-if="isRunning"
-          danger
-          :loading="stopping"
-          @click="handleStop"
+          title="确定停止执行？"
+          @confirm="handleStop"
         >
-          停止执行
-        </Button>
+          <Button danger :loading="stopping">停止执行</Button>
+        </Popconfirm>
         <Button @click="handleBack">返回</Button>
       </Space>
     </template>
 
     <Spin :spinning="loading">
-      <!-- 执行状态卡片 -->
-      <Card class="status-card">
-        <div class="status-header">
-          <Space size="large">
-            <Tag :color="statusColor" class="status-tag">{{ statusText }}</Tag>
-            <span v-if="workflow" class="workflow-name">
-              {{ workflow.name }}
-              <Tag v-if="workflow.workflow_type" :color="WORKFLOW_TYPE_COLORS[workflow.workflow_type]" size="small">
-                {{ WORKFLOW_TYPE_LABELS[workflow.workflow_type] }}
-              </Tag>
+      <div class="report-container">
+        <!-- 状态栏 -->
+        <div class="status-bar">
+          <Space size="large" align="center">
+            <Tag :color="statusColor" class="status-tag">
+              {{ statusText }}
+            </Tag>
+            <span v-if="isRunning" class="running-indicator" />
+            <span class="duration-text">
+              {{ currentMetrics?.duration || formatDuration(execution?.duration) }}
             </span>
           </Space>
         </div>
 
-        <Progress
-          v-if="execution"
-          :percent="progressPercent"
-          :status="execution.status === 'failed' ? 'exception' : undefined"
-          :stroke-color="execution.status === 'completed' ? '#52c41a' : undefined"
-        />
-
-        <div class="stats-row">
-          <Statistic title="总步骤" :value="execution?.total_steps || 0" />
-          <Statistic title="成功" :value="execution?.success_steps || 0" :value-style="{ color: '#52c41a' }" />
-          <Statistic title="失败" :value="execution?.failed_steps || 0" :value-style="{ color: '#ff4d4f' }" />
-          <Statistic title="耗时" :value="formatDuration(execution?.duration)" />
+        <!-- 统计卡片 -->
+        <div class="stats-grid">
+          <Card class="stat-card" :bordered="false">
+            <Statistic
+              title="QPS (req/s)"
+              :value="currentQps"
+              :value-style="{ color: '#1890ff', fontSize: '28px' }"
+            />
+          </Card>
+          <Card class="stat-card" :bordered="false">
+            <Statistic
+              title="总请求数"
+              :value="totalRequests"
+              :value-style="{ fontSize: '28px' }"
+            />
+          </Card>
+          <Card class="stat-card" :bordered="false">
+            <Statistic
+              title="并发用户 (VUs)"
+              :value="currentMetrics?.total_vus || 0"
+              :value-style="{ color: '#722ed1', fontSize: '28px' }"
+            />
+          </Card>
+          <Card class="stat-card" :bordered="false">
+            <Statistic
+              title="成功数"
+              :value="totalSuccess"
+              :value-style="{ color: '#52c41a', fontSize: '28px' }"
+            />
+          </Card>
+          <Card class="stat-card" :bordered="false">
+            <Statistic
+              title="失败数"
+              :value="totalFailure"
+              :value-style="{ color: '#ff4d4f', fontSize: '28px' }"
+            />
+          </Card>
+          <Card class="stat-card" :bordered="false">
+            <Statistic
+              title="错误率"
+              :value="errorRate"
+              suffix="%"
+              :value-style="{
+                color: Number(errorRate) > 0 ? '#ff4d4f' : '#52c41a',
+                fontSize: '28px',
+              }"
+            />
+          </Card>
         </div>
-      </Card>
 
-      <!-- 执行详情 -->
-      <Card title="执行详情" class="detail-card">
-        <Descriptions :column="2" bordered>
-          <Descriptions.Item label="执行ID">{{ execution?.execution_id }}</Descriptions.Item>
-          <Descriptions.Item label="执行模式">
-            <Tag :color="execution?.mode === 'debug' ? 'blue' : 'green'">
-              {{ execution?.mode === 'debug' ? '调试' : '执行' }}
-            </Tag>
-          </Descriptions.Item>
-          <Descriptions.Item label="开始时间">{{ formatDate(execution?.start_time) }}</Descriptions.Item>
-          <Descriptions.Item label="结束时间">{{ formatDate(execution?.end_time) }}</Descriptions.Item>
-          <Descriptions.Item label="执行机ID">{{ execution?.executor_id || '-' }}</Descriptions.Item>
-          <Descriptions.Item label="环境ID">{{ execution?.env_id }}</Descriptions.Item>
-        </Descriptions>
-      </Card>
+        <!-- 实时图表 -->
+        <div class="charts-grid">
+          <Card title="QPS (每秒请求数)" :bordered="false" size="small">
+            <EchartsUI ref="qpsChartRef" height="220px" />
+          </Card>
+          <Card title="迭代总数" :bordered="false" size="small">
+            <EchartsUI ref="rtChartRef" height="220px" />
+          </Card>
+          <Card title="并发用户数 (VUs)" :bordered="false" size="small">
+            <EchartsUI ref="vuChartRef" height="220px" />
+          </Card>
+          <Card title="错误率 (%)" :bordered="false" size="small">
+            <EchartsUI ref="errorChartRef" height="220px" />
+          </Card>
+        </div>
 
-      <!-- 性能报告（压测流程） -->
-      <Card
-        v-if="workflow?.workflow_type === 'performance' && reportData"
-        title="性能报告"
-        class="report-card"
-      >
-        <Table
-          :columns="performanceColumns"
-          :data-source="performanceData"
-          :pagination="false"
-          size="small"
-        />
-      </Card>
+        <!-- 步骤指标 -->
+        <Card
+          v-if="stepMetricsData.length > 0"
+          title="步骤指标"
+          :bordered="false"
+          class="step-metrics-card"
+        >
+          <Table
+            :columns="stepMetricsColumns"
+            :data-source="stepMetricsData"
+            :pagination="false"
+            size="small"
+            :scroll="{ x: 900 }"
+          />
+        </Card>
 
-      <!-- 造数报告（造数流程） -->
-      <Card
-        v-if="workflow?.workflow_type === 'data_generation' && reportData"
-        title="数据生成报告"
-        class="report-card"
-      >
-        <Table
-          :columns="performanceColumns"
-          :data-source="dataGenerationData"
-          :pagination="false"
-          size="small"
-        />
-      </Card>
+        <!-- 执行详情 -->
+        <Card title="执行详情" :bordered="false" class="detail-card">
+          <Descriptions :column="2" size="small">
+            <Descriptions.Item label="执行ID">
+              {{ execution?.execution_id }}
+            </Descriptions.Item>
+            <Descriptions.Item label="工作流">
+              {{ workflow?.name || execution?.workflow_id }}
+            </Descriptions.Item>
+            <Descriptions.Item label="环境ID">
+              {{ execution?.env_id }}
+            </Descriptions.Item>
+            <Descriptions.Item label="执行模式">
+              <Tag color="green">执行</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="开始时间">
+              {{ formatDate(execution?.start_time) }}
+            </Descriptions.Item>
+            <Descriptions.Item label="结束时间">
+              {{ formatDate(execution?.end_time) }}
+            </Descriptions.Item>
+            <Descriptions.Item label="总耗时">
+              {{ formatDuration(execution?.duration) }}
+            </Descriptions.Item>
+            <Descriptions.Item label="总迭代">
+              {{ currentMetrics?.total_iterations || 0 }}
+            </Descriptions.Item>
+          </Descriptions>
+        </Card>
 
-      <!-- 原始结果 -->
-      <Card v-if="execution?.result" title="执行结果" class="result-card">
-        <pre class="result-content">{{ execution.result }}</pre>
-      </Card>
-
-      <!-- 错误信息 -->
-      <Alert
-        v-if="execution?.status === 'failed' && execution?.result"
-        type="error"
-        :message="execution.result"
-        show-icon
-        class="error-alert"
-      />
+        <!-- 最终报告结果 -->
+        <Card
+          v-if="!isRunning && execution?.result"
+          title="执行结果"
+          :bordered="false"
+          class="result-card"
+        >
+          <pre class="result-content">{{ execution.result }}</pre>
+        </Card>
+      </div>
     </Spin>
   </Page>
 </template>
 
 <style scoped>
-.status-card {
-  margin-bottom: 16px;
+.report-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.status-header {
-  margin-bottom: 16px;
+.status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: var(--ant-color-fill-quaternary, #fafafa);
 }
 
 .status-tag {
@@ -324,31 +621,57 @@ const dataGenerationData = computed(() => {
   padding: 4px 12px;
 }
 
-.workflow-name {
-  font-size: 16px;
+.running-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #52c41a;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.duration-text {
+  font-size: 14px;
   font-weight: 500;
+  color: var(--ant-color-text-secondary);
 }
 
-.stats-row {
-  display: flex;
-  gap: 48px;
-  margin-top: 16px;
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
 }
 
-.detail-card {
-  margin-bottom: 16px;
+.stat-card {
+  text-align: center;
 }
 
-.report-card {
-  margin-bottom: 16px;
+.stat-card :deep(.ant-statistic-title) {
+  font-size: 12px;
 }
 
-.result-card {
-  margin-bottom: 16px;
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.step-metrics-card {
+  overflow: hidden;
 }
 
 .result-content {
-  background: #f5f5f5;
+  background: var(--ant-color-fill-quaternary, #f5f5f5);
   padding: 12px;
   border-radius: 4px;
   max-height: 300px;
@@ -359,7 +682,19 @@ const dataGenerationData = computed(() => {
   word-break: break-all;
 }
 
-.error-alert {
-  margin-top: 16px;
+@media (max-width: 1200px) {
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

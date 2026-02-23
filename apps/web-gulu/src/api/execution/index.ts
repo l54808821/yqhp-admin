@@ -54,6 +54,36 @@ export interface ExecutionLog {
   step_id?: string;
 }
 
+export interface DurationMetrics {
+  min: string;
+  max: string;
+  avg: string;
+  p50: string;
+  p90: string;
+  p95: string;
+  p99: string;
+}
+
+export interface StepMetrics {
+  step_id: string;
+  count: number;
+  success_count: number;
+  failure_count: number;
+  duration?: DurationMetrics;
+}
+
+export interface ExecutionMetrics {
+  execution_id: string;
+  status: string;
+  total_vus: number;
+  total_iterations: number;
+  duration: string;
+  start_time?: string;
+  end_time?: string;
+  duration_ms?: number;
+  step_metrics?: Record<string, StepMetrics>;
+}
+
 /**
  * 创建执行
  */
@@ -87,6 +117,13 @@ export async function getExecutionLogsApi(id: number) {
  */
 export async function stopExecutionApi(id: number) {
   return requestClient.delete(`/execution-records/${id}`);
+}
+
+/**
+ * 获取执行实时指标
+ */
+export async function getExecutionMetricsApi(id: number) {
+  return requestClient.get<ExecutionMetrics>(`/execution-records/${id}/metrics`);
 }
 
 /**

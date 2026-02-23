@@ -1150,15 +1150,6 @@ function renderInsertMenu(nodeId: string, nodeType: string, canHaveChildren: boo
         />
         <span class="select-all-label" @click="toggleSelectAll">全选</span>
       </div>
-      <Dropdown :trigger="['click']" :disabled="readonly">
-        <Button type="primary" size="small">
-          <template #icon><Plus class="size-4" /></template>
-          添加步骤
-        </Button>
-        <template #overlay>
-          <component :is="renderAddMenu()" />
-        </template>
-      </Dropdown>
       <Popover
         v-model:open="variablesPopoverOpen"
         trigger="click"
@@ -1405,7 +1396,7 @@ function renderInsertMenu(nodeId: string, nodeType: string, canHaveChildren: boo
       </div>
 
       <!-- 底部添加步骤按钮 -->
-      <Dropdown v-if="!readonly && treeData?.length" :trigger="['click']">
+      <Dropdown v-if="!readonly" :trigger="['click']">
         <div class="add-step-area">
           <Plus class="size-4" />
           <span>添加步骤</span>

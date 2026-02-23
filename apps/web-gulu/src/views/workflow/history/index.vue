@@ -70,12 +70,13 @@ const columns: ColumnConfig[] = [
   { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
   { title: '执行ID', dataIndex: 'execution_id', key: 'execution_id', width: 240 },
   { title: '工作流ID', dataIndex: 'workflow_id', key: 'workflow_id', width: 100 },
+  { title: '模式', dataIndex: 'mode', key: 'mode', width: 80 },
   { title: '环境ID', dataIndex: 'env_id', key: 'env_id', width: 80 },
   { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
   { title: '开始时间', dataIndex: 'start_time', key: 'start_time', width: 180 },
   { title: '结束时间', dataIndex: 'end_time', key: 'end_time', width: 180, defaultShow: false },
   { title: '耗时', dataIndex: 'duration', key: 'duration', width: 100 },
-  { title: '操作', key: 'action', width: 150, fixed: 'right' as const, fixedLock: true },
+  { title: '操作', key: 'action', width: 180, fixed: 'right' as const, fixedLock: true },
 ];
 
 // 表格数据
@@ -136,7 +137,15 @@ function handlePageChange(page: number, pageSize: number) {
 function handleDetail(record: Execution) {
   router.push({
     name: 'ExecutionDetail',
-    params: { executionId: String(record.id) }
+    params: { executionId: String(record.id) },
+  });
+}
+
+// 查看报告
+function handleReport(record: Execution) {
+  router.push({
+    name: 'ExecutionReport',
+    params: { executionId: String(record.id) },
   });
 }
 
@@ -189,7 +198,12 @@ function formatTime(time: string | null | undefined): string {
       @page-change="handlePageChange"
     >
       <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'status'">
+        <template v-if="column.key === 'mode'">
+          <Tag v-if="record.mode === 'execute'" color="green">执行</Tag>
+          <Tag v-else-if="record.mode === 'debug'" color="blue">调试</Tag>
+          <Tag v-else>{{ record.mode || '-' }}</Tag>
+        </template>
+        <template v-else-if="column.key === 'status'">
           <Tag :color="statusMap[record.status]?.color || 'default'">
             {{ statusMap[record.status]?.text || record.status }}
           </Tag>
@@ -205,6 +219,14 @@ function formatTime(time: string | null | undefined): string {
         </template>
         <template v-else-if="column.key === 'action'">
           <Space>
+            <Button
+              v-if="record.mode === 'execute'"
+              type="link"
+              size="small"
+              @click="handleReport(record as Execution)"
+            >
+              报告
+            </Button>
             <Button type="link" size="small" @click="handleDetail(record as Execution)">
               详情
             </Button>

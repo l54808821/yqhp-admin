@@ -611,7 +611,11 @@ function handleExecute() {
 }
 
 function handleExecuteSuccess(executionId: number) {
-  router.push({ name: 'ExecutionDetail', params: { executionId: String(executionId) } });
+  if (workflow.value?.workflow_type === 'performance') {
+    router.push({ name: 'ExecutionReport', params: { executionId: String(executionId) } });
+  } else {
+    router.push({ name: 'ExecutionDetail', params: { executionId: String(executionId) } });
+  }
 }
 
 // 调试相关
