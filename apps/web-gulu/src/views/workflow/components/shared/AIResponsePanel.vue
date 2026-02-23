@@ -39,7 +39,16 @@ const displayContent = computed(() => {
 });
 
 // 状态颜色
-const statusColor = computed(() => props.response.success ? '#52c41a' : '#ff4d4f');
+const statusColor = computed(() => {
+  if (props.isStreaming) return '#1890ff';
+  return props.response.success ? '#52c41a' : '#ff4d4f';
+});
+
+// 状态文字
+const statusText = computed(() => {
+  if (props.isStreaming) return '执行中';
+  return props.response.success ? '成功' : '失败';
+});
 
 // 结束原因
 const finishReasonLabel = computed(() => {
@@ -169,7 +178,7 @@ watch(() => props.response.toolCalls?.length, () => {
       <!-- 右侧：只保留精简状态 -->
       <div class="response-meta">
         <Tag :color="statusColor" class="status-tag">
-          {{ response.success ? '成功' : '失败' }}
+          {{ statusText }}
         </Tag>
         <span class="meta-item">{{ formatDuration(response.durationMs) }}</span>
       </div>
