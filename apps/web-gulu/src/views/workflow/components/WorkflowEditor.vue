@@ -21,6 +21,7 @@ import DebugContextDrawer from './DebugContextDrawer.vue';
 import type { WorkflowParam } from './WorkflowParamsPanel.vue';
 import type { WorkflowReturn } from './WorkflowReturnsPanel.vue';
 import type { ExecutorConfig } from '#/api/executor';
+import type { PerformanceConfig } from '#/api/workflow/performance';
 
 interface Props {
   workflowId: number;
@@ -52,6 +53,7 @@ interface WorkflowDefinitionData {
   params?: WorkflowParam[];
   returns?: WorkflowReturn[];
   executorConfig?: ExecutorConfig | null;
+  performanceConfig?: PerformanceConfig | null;
   steps: StepNode[];
 }
 
@@ -195,10 +197,11 @@ async function loadWorkflow() {
           params: parsed.params || [],
           returns: parsed.returns || [],
           executorConfig: parsed.executorConfig || null,
+          performanceConfig: parsed.performanceConfig || null,
           steps: backendToFrontend(parsed.steps || []),
         };
       } catch {
-        workflowDefinition.value = { name: workflow.value.name, variables: {}, params: [], returns: [], executorConfig: null, steps: [] };
+        workflowDefinition.value = { name: workflow.value.name, variables: {}, params: [], returns: [], executorConfig: null, performanceConfig: null, steps: [] };
       }
     }
     // 初始化历史记录
@@ -328,6 +331,9 @@ async function handleSave() {
     if (workflowDefinition.value.executorConfig) {
       backendDefinition.executorConfig = workflowDefinition.value.executorConfig;
     }
+    if (workflowDefinition.value.performanceConfig) {
+      backendDefinition.performanceConfig = workflowDefinition.value.performanceConfig;
+    }
 
     // 验证工作流
     const validationResult = await validateWorkflowDefinitionApi(
@@ -395,6 +401,11 @@ function handleReturnsUpdate(returns: WorkflowReturn[]) {
 
 function handleExecutorConfigUpdate(config: ExecutorConfig | null) {
   workflowDefinition.value = { ...workflowDefinition.value, executorConfig: config };
+  pushHistory();
+}
+
+function handlePerformanceConfigUpdate(config: PerformanceConfig | null) {
+  workflowDefinition.value = { ...workflowDefinition.value, performanceConfig: config };
   pushHistory();
 }
 
@@ -685,6 +696,7 @@ async function handleRename(newName: string) {
               :checked-keys="treeCheckedKeys"
               :project-id="workflow?.project_id"
               :workflow-id="workflow?.id"
+              :workflow-type="workflow?.workflow_type"
               @update="handleDefinitionUpdate"
               @select="handleNodeSelect"
               @update:expanded-keys="handleExpandedKeysChange"
@@ -694,6 +706,7 @@ async function handleRename(newName: string) {
               @update:params="handleParamsUpdate"
               @update:returns="handleReturnsUpdate"
               @update:executor-config="handleExecutorConfigUpdate"
+              @update:performance-config="handlePerformanceConfigUpdate"
             />
           </template>
           <template #right>
@@ -716,6 +729,7 @@ async function handleRename(newName: string) {
           :checked-keys="treeCheckedKeys"
           :project-id="workflow?.project_id"
           :workflow-id="workflow?.id"
+          :workflow-type="workflow?.workflow_type"
           @update="handleDefinitionUpdate"
           @select="handleNodeSelect"
           @update:expanded-keys="handleExpandedKeysChange"
@@ -725,6 +739,7 @@ async function handleRename(newName: string) {
           @update:params="handleParamsUpdate"
           @update:returns="handleReturnsUpdate"
           @update:executor-config="handleExecutorConfigUpdate"
+          @update:performance-config="handlePerformanceConfigUpdate"
         />
       </Spin>
     </div>

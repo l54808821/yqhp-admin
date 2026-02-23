@@ -1,5 +1,6 @@
 import { requestClient } from '#/api/request';
 import type { PageResult } from '#/api/types';
+import type { PerformanceConfig } from '#/api/workflow/performance';
 
 // 执行模式
 export type ExecutionMode = 'debug' | 'execute';
@@ -34,6 +35,7 @@ export interface CreateExecutionParams {
   env_id: number;
   executor_id?: number;
   mode?: ExecutionMode;
+  performance_config?: PerformanceConfig;
 }
 
 export interface ExecutionListParams {

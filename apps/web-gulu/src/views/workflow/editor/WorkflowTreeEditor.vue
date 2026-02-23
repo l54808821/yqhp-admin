@@ -17,6 +17,7 @@ const Variable = createIconifyIcon('lucide:variable');
 const ListTree = createIconifyIcon('lucide:list-tree');
 const CornerDownLeft = createIconifyIcon('lucide:corner-down-left');
 const Server = createIconifyIcon('lucide:server');
+const Gauge = createIconifyIcon('lucide:gauge');
 
 import {
   Badge,
@@ -38,7 +39,10 @@ import type { WorkflowParam } from '../components/WorkflowParamsPanel.vue';
 import WorkflowReturnsPanel from '../components/WorkflowReturnsPanel.vue';
 import type { WorkflowReturn } from '../components/WorkflowReturnsPanel.vue';
 import ExecutorConfigPanel from '../components/ExecutorConfigPanel.vue';
+import PerformanceConfigPanel from '../components/PerformanceConfigPanel.vue';
 import type { ExecutorConfig } from '#/api/executor';
+import type { PerformanceConfig } from '#/api/workflow/performance';
+import { getPerformanceConfigSummary } from '#/api/workflow/performance';
 import RefWorkflowSelectModal from '../components/RefWorkflowSelectModal.vue';
 
 export interface StepNode {
@@ -90,6 +94,7 @@ interface Props {
   checkedKeys?: string[];
   projectId?: number;
   workflowId?: number;
+  workflowType?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -109,12 +114,14 @@ const emit = defineEmits<{
   (e: 'update:params', params: WorkflowParam[]): void;
   (e: 'update:returns', returns: WorkflowReturn[]): void;
   (e: 'update:executorConfig', config: ExecutorConfig | null): void;
+  (e: 'update:performanceConfig', config: PerformanceConfig | null): void;
 }>();
 
 const variablesPopoverOpen = ref(false);
 const paramsPopoverOpen = ref(false);
 const returnsPopoverOpen = ref(false);
 const executorConfigPopoverOpen = ref(false);
+const performanceConfigPopoverOpen = ref(false);
 
 const variableCount = computed(() => Object.keys(props.definition.variables || {}).length);
 const paramCount = computed(() => (props.definition.params || []).length);
@@ -146,6 +153,22 @@ const executorStrategyLabel = computed(() => {
 
 function handleExecutorConfigUpdate(config: ExecutorConfig | null) {
   emit('update:executorConfig', config);
+}
+
+const isPerformanceWorkflow = computed(() => props.workflowType === 'performance');
+
+const performanceConfig = computed(() => {
+  return (props.definition as any).performanceConfig || null;
+});
+
+const performanceConfigSummary = computed(() => {
+  const cfg = performanceConfig.value;
+  if (!cfg) return '';
+  return getPerformanceConfigSummary(cfg);
+});
+
+function handlePerformanceConfigUpdate(config: PerformanceConfig | null) {
+  emit('update:performanceConfig', config);
 }
 
 // 引用工作流选择弹窗
@@ -1222,6 +1245,30 @@ function renderInsertMenu(nodeId: string, nodeType: string, canHaveChildren: boo
           </div>
         </template>
       </Popover>
+      <Popover
+        v-if="isPerformanceWorkflow"
+        v-model:open="performanceConfigPopoverOpen"
+        trigger="click"
+        placement="bottomLeft"
+        overlay-class-name="workflow-settings-popover perf-config-popover"
+      >
+        <Badge :dot="!!performanceConfigSummary" :offset="[-4, 0]">
+          <Button size="small" type="primary" ghost>
+            <template #icon><Gauge class="size-3.5" /></template>
+            压测配置
+            <span v-if="performanceConfigSummary" class="executor-strategy-tag">{{ performanceConfigSummary }}</span>
+          </Button>
+        </Badge>
+        <template #content>
+          <div class="popover-panel perf-popover-panel">
+            <PerformanceConfigPanel
+              :config="performanceConfig"
+              :readonly="readonly"
+              @update:config="handlePerformanceConfigUpdate"
+            />
+          </div>
+        </template>
+      </Popover>
     </div>
 
     <!-- 树形结构 -->
@@ -1615,6 +1662,11 @@ function renderInsertMenu(nodeId: string, nodeType: string, canHaveChildren: boo
   max-width: 420px;
 }
 
+.perf-popover-panel {
+  min-width: 480px;
+  max-width: 560px;
+}
+
 .executor-strategy-tag {
   font-size: 10px;
   margin-left: 4px;
@@ -1628,5 +1680,9 @@ function renderInsertMenu(nodeId: string, nodeType: string, canHaveChildren: boo
 <style>
 .workflow-settings-popover .ant-popover-inner-content {
   padding: 6px 8px;
+}
+
+.perf-config-popover .ant-popover-inner-content {
+  padding: 12px 16px;
 }
 </style>
