@@ -362,6 +362,8 @@ watch(
   },
 );
 
+defineExpose({ refresh: loadData });
+
 onMounted(() => {
   loadData();
 });

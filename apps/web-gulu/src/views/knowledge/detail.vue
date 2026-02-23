@@ -26,6 +26,7 @@ const kb = ref<KnowledgeBase | null>(null);
 const loading = ref(false);
 const activeTab = ref('documents');
 const formModalRef = ref<InstanceType<typeof KnowledgeBaseFormModal>>();
+const graphTabRef = ref<InstanceType<typeof GraphTab>>();
 
 async function loadKB() {
   loading.value = true;
@@ -44,6 +45,7 @@ function handleBack() {
 
 function handleKBUpdated() {
   loadKB();
+  graphTabRef.value?.refresh();
 }
 
 function handleMenuClick(info: any) {
@@ -148,7 +150,7 @@ onMounted(() => {
                   知识图谱
                 </span>
               </template>
-              <GraphTab :kb="kb" />
+              <GraphTab ref="graphTabRef" :kb="kb" />
             </Tabs.TabPane>
 
             <Tabs.TabPane key="recall">
