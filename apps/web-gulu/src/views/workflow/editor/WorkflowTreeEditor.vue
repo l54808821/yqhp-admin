@@ -16,6 +16,7 @@ const GitFork = createIconifyIcon('lucide:git-fork');
 const Variable = createIconifyIcon('lucide:variable');
 const ListTree = createIconifyIcon('lucide:list-tree');
 const CornerDownLeft = createIconifyIcon('lucide:corner-down-left');
+const Server = createIconifyIcon('lucide:server');
 
 import {
   Badge,
@@ -36,6 +37,8 @@ import WorkflowParamsPanel from '../components/WorkflowParamsPanel.vue';
 import type { WorkflowParam } from '../components/WorkflowParamsPanel.vue';
 import WorkflowReturnsPanel from '../components/WorkflowReturnsPanel.vue';
 import type { WorkflowReturn } from '../components/WorkflowReturnsPanel.vue';
+import ExecutorConfigPanel from '../components/ExecutorConfigPanel.vue';
+import type { ExecutorConfig } from '#/api/executor';
 import RefWorkflowSelectModal from '../components/RefWorkflowSelectModal.vue';
 
 export interface StepNode {
@@ -105,11 +108,13 @@ const emit = defineEmits<{
   (e: 'update:variables', variables: Record<string, any>): void;
   (e: 'update:params', params: WorkflowParam[]): void;
   (e: 'update:returns', returns: WorkflowReturn[]): void;
+  (e: 'update:executorConfig', config: ExecutorConfig | null): void;
 }>();
 
 const variablesPopoverOpen = ref(false);
 const paramsPopoverOpen = ref(false);
 const returnsPopoverOpen = ref(false);
+const executorConfigPopoverOpen = ref(false);
 
 const variableCount = computed(() => Object.keys(props.definition.variables || {}).length);
 const paramCount = computed(() => (props.definition.params || []).length);
@@ -125,6 +130,22 @@ function handleParamsUpdate(params: WorkflowParam[]) {
 
 function handleReturnsUpdate(returns: WorkflowReturn[]) {
   emit('update:returns', returns);
+}
+
+const executorConfig = computed(() => {
+  return (props.definition as any).executorConfig || null;
+});
+
+const executorStrategyLabel = computed(() => {
+  const cfg = executorConfig.value;
+  if (!cfg || cfg.strategy === 'local') return '';
+  if (cfg.strategy === 'auto') return '自动';
+  if (cfg.strategy === 'manual') return '指定';
+  return '';
+});
+
+function handleExecutorConfigUpdate(config: ExecutorConfig | null) {
+  emit('update:executorConfig', config);
 }
 
 // 引用工作流选择弹窗
@@ -1178,6 +1199,29 @@ function renderInsertMenu(nodeId: string, nodeType: string, canHaveChildren: boo
           </div>
         </template>
       </Popover>
+      <Popover
+        v-model:open="executorConfigPopoverOpen"
+        trigger="click"
+        placement="bottomLeft"
+        overlay-class-name="workflow-settings-popover"
+      >
+        <Badge :dot="!!executorStrategyLabel" :offset="[-4, 0]">
+          <Button size="small">
+            <template #icon><Server class="size-3.5" /></template>
+            执行机
+            <span v-if="executorStrategyLabel" class="executor-strategy-tag">{{ executorStrategyLabel }}</span>
+          </Button>
+        </Badge>
+        <template #content>
+          <div class="popover-panel executor-popover-panel">
+            <ExecutorConfigPanel
+              :config="executorConfig"
+              :readonly="readonly"
+              @update:config="handleExecutorConfigUpdate"
+            />
+          </div>
+        </template>
+      </Popover>
     </div>
 
     <!-- 树形结构 -->
@@ -1564,6 +1608,20 @@ function renderInsertMenu(nodeId: string, nodeType: string, canHaveChildren: boo
   min-width: 440px;
   max-height: 450px;
   overflow-y: auto;
+}
+
+.executor-popover-panel {
+  min-width: 360px;
+  max-width: 420px;
+}
+
+.executor-strategy-tag {
+  font-size: 10px;
+  margin-left: 4px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
 }
 </style>
 

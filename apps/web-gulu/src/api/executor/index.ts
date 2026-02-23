@@ -1,20 +1,22 @@
 import { requestClient } from '#/api/request';
 import type { PageResult } from '#/api/types';
 
+export type ExecutorType = 'performance' | 'normal' | 'debug';
+export type ExecutorState = 'online' | 'busy' | 'draining' | 'offline';
+
 export interface Executor {
   id: number;
   slave_id: string;
   name: string;
-  type: 'performance' | 'normal' | 'debug';
+  type: ExecutorType;
   description?: string;
   labels?: Record<string, string>;
   max_vus?: number;
   priority?: number;
   status: number;
-  // 运行时状态
   address?: string;
   capabilities?: string[];
-  state?: string;
+  state?: ExecutorState;
   load?: number;
   active_tasks?: number;
   current_vus?: number;
@@ -22,6 +24,14 @@ export interface Executor {
   is_online?: boolean;
   created_at?: string;
   updated_at?: string;
+}
+
+export type ExecutorStrategy = 'local' | 'manual' | 'auto';
+
+export interface ExecutorConfig {
+  strategy: ExecutorStrategy;
+  executor_id?: number | null;
+  labels?: Record<string, string>;
 }
 
 export interface CreateExecutorParams {
@@ -116,4 +126,27 @@ export async function getExecutorsByLabelsApi(labels: Record<string, string>) {
  */
 export async function getExecutorsByProjectApi(projectId: number) {
   return requestClient.get<Executor[]>(`/executors/project/${projectId}`);
+}
+
+export interface RegisterExecutorParams {
+  slave_id?: string;
+  name?: string;
+  address?: string;
+  type?: string;
+  capabilities?: string[];
+  labels?: Record<string, string>;
+}
+
+/**
+ * 注册执行机（自动注册 / 手动简化注册）
+ */
+export async function registerExecutorApi(params: RegisterExecutorParams) {
+  return requestClient.post<Executor>('/executors/register', params);
+}
+
+/**
+ * 获取可用执行机列表（启用且带运行时状态）
+ */
+export async function getAvailableExecutorsApi() {
+  return requestClient.get<Executor[]>('/executors/available');
 }

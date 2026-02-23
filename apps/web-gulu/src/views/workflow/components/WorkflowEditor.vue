@@ -20,6 +20,7 @@ import ExecuteModal from './ExecuteModal.vue';
 import DebugContextDrawer from './DebugContextDrawer.vue';
 import type { WorkflowParam } from './WorkflowParamsPanel.vue';
 import type { WorkflowReturn } from './WorkflowReturnsPanel.vue';
+import type { ExecutorConfig } from '#/api/executor';
 
 interface Props {
   workflowId: number;
@@ -50,6 +51,7 @@ interface WorkflowDefinitionData {
   variables?: Record<string, any>;
   params?: WorkflowParam[];
   returns?: WorkflowReturn[];
+  executorConfig?: ExecutorConfig | null;
   steps: StepNode[];
 }
 
@@ -192,10 +194,11 @@ async function loadWorkflow() {
           variables: parsed.variables || {},
           params: parsed.params || [],
           returns: parsed.returns || [],
+          executorConfig: parsed.executorConfig || null,
           steps: backendToFrontend(parsed.steps || []),
         };
       } catch {
-        workflowDefinition.value = { name: workflow.value.name, variables: {}, params: [], returns: [], steps: [] };
+        workflowDefinition.value = { name: workflow.value.name, variables: {}, params: [], returns: [], executorConfig: null, steps: [] };
       }
     }
     // 初始化历史记录
@@ -322,6 +325,9 @@ async function handleSave() {
     if (workflowDefinition.value.returns && workflowDefinition.value.returns.length > 0) {
       backendDefinition.returns = workflowDefinition.value.returns;
     }
+    if (workflowDefinition.value.executorConfig) {
+      backendDefinition.executorConfig = workflowDefinition.value.executorConfig;
+    }
 
     // 验证工作流
     const validationResult = await validateWorkflowDefinitionApi(
@@ -384,6 +390,11 @@ function handleParamsUpdate(params: WorkflowParam[]) {
 
 function handleReturnsUpdate(returns: WorkflowReturn[]) {
   workflowDefinition.value = { ...workflowDefinition.value, returns };
+  pushHistory();
+}
+
+function handleExecutorConfigUpdate(config: ExecutorConfig | null) {
+  workflowDefinition.value = { ...workflowDefinition.value, executorConfig: config };
   pushHistory();
 }
 
@@ -682,6 +693,7 @@ async function handleRename(newName: string) {
               @update:variables="handleVariablesUpdate"
               @update:params="handleParamsUpdate"
               @update:returns="handleReturnsUpdate"
+              @update:executor-config="handleExecutorConfigUpdate"
             />
           </template>
           <template #right>
@@ -712,6 +724,7 @@ async function handleRename(newName: string) {
           @update:variables="handleVariablesUpdate"
           @update:params="handleParamsUpdate"
           @update:returns="handleReturnsUpdate"
+          @update:executor-config="handleExecutorConfigUpdate"
         />
       </Spin>
     </div>
