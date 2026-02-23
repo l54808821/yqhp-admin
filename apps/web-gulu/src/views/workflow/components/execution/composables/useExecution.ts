@@ -177,6 +177,9 @@ export function useExecution(options: UseExecutionOptions) {
 
     switch (event.type) {
       case 'connected':
+        // 收到后端业务 connected 事件，才算真正连接成功，重置重连状态
+        reconnecting.value = false;
+        reconnectAttempts.value = 0;
         break;
       case 'step_started':
         handleStepStarted(event.data as StepStartedData);
@@ -461,9 +464,10 @@ export function useExecution(options: UseExecutionOptions) {
         sseState.value = state;
         if (state === 'connected') {
           loading.value = false;
-          reconnecting.value = false;
-          reconnectAttempts.value = 0;
           disconnected.value = false;
+          // 只有收到首条业务消息（connected 事件）后才算真正连接成功，
+          // 此处仅标记传输层连接，不重置重连计数器。
+          // 计数器在 handleSSEMessage 的 'connected' 事件中重置。
         } else if (state === 'disconnected' && !executionSummary.value) {
           handleDisconnect();
         }
