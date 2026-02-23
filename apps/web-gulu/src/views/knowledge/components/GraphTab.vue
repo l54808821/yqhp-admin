@@ -46,10 +46,11 @@ const relations = ref<KnowledgeRelation[]>([]);
 const rightPanel = ref<'entities' | 'relations'>('entities');
 const filterEntityType = ref<string | undefined>(undefined);
 const filterRelationType = ref<string | undefined>(undefined);
-const selectedNodeId = ref<number | null>(null);
+const selectedNodeName = ref<string | null>(null);
 
 const graphContainerRef = ref<HTMLDivElement>();
 let graphInstance: Graph | null = null;
+const nameToNodeIdMap = new Map<string, string>();
 
 const ENTITY_TYPE_COLORS: Record<string, string> = {
   '人物': '#5B8FF9',
@@ -83,17 +84,14 @@ const filteredEntities = computed(() => {
   if (filterEntityType.value) {
     list = list.filter((e) => e.entity_type === filterEntityType.value);
   }
-  if (selectedNodeId.value !== null) {
-    const selectedEntity = entities.value.find((e) => e.id === selectedNodeId.value);
-    if (selectedEntity) {
-      const connectedNames = new Set<string>();
-      connectedNames.add(selectedEntity.name);
-      for (const r of relations.value) {
-        if (r.source_name === selectedEntity.name) connectedNames.add(r.target_name);
-        if (r.target_name === selectedEntity.name) connectedNames.add(r.source_name);
-      }
-      list = list.filter((e) => connectedNames.has(e.name));
+  if (selectedNodeName.value !== null) {
+    const connectedNames = new Set<string>();
+    connectedNames.add(selectedNodeName.value);
+    for (const r of relations.value) {
+      if (r.source_name === selectedNodeName.value) connectedNames.add(r.target_name);
+      if (r.target_name === selectedNodeName.value) connectedNames.add(r.source_name);
     }
+    list = list.filter((e) => connectedNames.has(e.name));
   }
   return list;
 });
@@ -103,15 +101,12 @@ const filteredRelations = computed(() => {
   if (filterRelationType.value) {
     list = list.filter((r) => r.relation_type === filterRelationType.value);
   }
-  if (selectedNodeId.value !== null) {
-    const selectedEntity = entities.value.find((e) => e.id === selectedNodeId.value);
-    if (selectedEntity) {
-      list = list.filter(
-        (r) =>
-          r.source_name === selectedEntity.name ||
-          r.target_name === selectedEntity.name,
-      );
-    }
+  if (selectedNodeName.value !== null) {
+    list = list.filter(
+      (r) =>
+        r.source_name === selectedNodeName.value ||
+        r.target_name === selectedNodeName.value,
+    );
   }
   return list;
 });
@@ -120,14 +115,12 @@ const entityColumns = [
   { title: '名称', dataIndex: 'name', key: 'name', ellipsis: true },
   { title: '类型', dataIndex: 'entity_type', key: 'entity_type', width: 80 },
   { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
-  { title: '提及', dataIndex: 'mention_count', key: 'mention_count', width: 60, align: 'center' as const },
 ];
 
 const relationColumns = [
   { title: '源实体', dataIndex: 'source_name', key: 'source_name', ellipsis: true },
   { title: '关系', dataIndex: 'relation_type', key: 'relation_type', width: 100, ellipsis: true },
   { title: '目标实体', dataIndex: 'target_name', key: 'target_name', ellipsis: true },
-  { title: '权重', dataIndex: 'weight', key: 'weight', width: 60, align: 'center' as const },
 ];
 
 async function loadData() {
@@ -163,17 +156,17 @@ async function renderGraph() {
   const width = container.clientWidth || 800;
   const height = container.clientHeight || 600;
 
-  const nameToNodeId = new Map<string, string>();
-  const nodes = entities.value.map((e) => {
-    const nodeId = `n-${e.id}`;
-    nameToNodeId.set(e.name, nodeId);
+  nameToNodeIdMap.clear();
+  const nodes = entities.value.map((e, idx) => {
+    const nodeId = `n-${idx}`;
+    nameToNodeIdMap.set(e.name, nodeId);
     return {
       id: nodeId,
       data: {
         label: e.name,
+        entityName: e.name,
         entityType: e.entity_type,
         description: e.description,
-        mentionCount: e.mention_count,
         cluster: e.entity_type,
       },
     };
@@ -182,16 +175,15 @@ async function renderGraph() {
   const edges = relations.value
     .filter(
       (r) =>
-        nameToNodeId.has(r.source_name) &&
-        nameToNodeId.has(r.target_name),
+        nameToNodeIdMap.has(r.source_name) &&
+        nameToNodeIdMap.has(r.target_name),
     )
-    .map((r) => ({
-      id: `e-${r.id}`,
-      source: nameToNodeId.get(r.source_name)!,
-      target: nameToNodeId.get(r.target_name)!,
+    .map((r, idx) => ({
+      id: `e-${idx}`,
+      source: nameToNodeIdMap.get(r.source_name)!,
+      target: nameToNodeIdMap.get(r.target_name)!,
       data: {
         label: r.relation_type,
-        weight: r.weight,
       },
     }));
 
@@ -204,10 +196,7 @@ async function renderGraph() {
     node: {
       type: 'circle',
       style: {
-        size: (d: any) => {
-          const mc = d.data?.mentionCount || 1;
-          return Math.min(20 + mc * 4, 60);
-        },
+        size: 28,
         fill: (d: any) => getEntityColor(d.data?.entityType || ''),
         stroke: (d: any) => getEntityColor(d.data?.entityType || ''),
         fillOpacity: 0.85,
@@ -272,18 +261,21 @@ async function renderGraph() {
 
   graphInstance.on('node:click', (evt: any) => {
     const rawId = evt.target?.id;
-    const nodeId = Number(String(rawId).replace('n-', ''));
-    if (selectedNodeId.value === nodeId) {
-      selectedNodeId.value = null;
+    const nodeData = graphInstance?.getNodeData(rawId);
+    const entityName = nodeData?.data?.entityName as string;
+    if (!entityName) return;
+
+    if (selectedNodeName.value === entityName) {
+      selectedNodeName.value = null;
       clearHighlight();
     } else {
-      selectedNodeId.value = nodeId;
-      highlightNode(`n-${nodeId}`);
+      selectedNodeName.value = entityName;
+      highlightNode(rawId);
     }
   });
 
   graphInstance.on('canvas:click', () => {
-    selectedNodeId.value = null;
+    selectedNodeName.value = null;
     clearHighlight();
   });
 
@@ -339,25 +331,25 @@ async function clearHighlight() {
 }
 
 function handleEntityRowClick(record: KnowledgeEntity) {
-  const nodeId = record.id;
-  if (selectedNodeId.value === nodeId) {
-    selectedNodeId.value = null;
+  if (selectedNodeName.value === record.name) {
+    selectedNodeName.value = null;
     clearHighlight();
   } else {
-    selectedNodeId.value = nodeId;
-    highlightNode(`n-${nodeId}`);
+    selectedNodeName.value = record.name;
+    const nodeId = nameToNodeIdMap.get(record.name);
+    if (nodeId) highlightNode(nodeId);
   }
 }
 
 function handleClearSelection() {
-  selectedNodeId.value = null;
+  selectedNodeName.value = null;
   clearHighlight();
 }
 
 watch(
   () => [filterEntityType.value, filterRelationType.value],
   () => {
-    selectedNodeId.value = null;
+    selectedNodeName.value = null;
     clearHighlight();
   },
 );
@@ -436,7 +428,7 @@ onBeforeUnmount(() => {
                 </Radio.Button>
               </Radio.Group>
 
-              <Tooltip v-if="selectedNodeId !== null" title="清除选中">
+              <Tooltip v-if="selectedNodeName !== null" title="清除选中">
                 <a class="clear-selection" @click="handleClearSelection">
                   清除筛选
                 </a>
@@ -474,10 +466,10 @@ onBeforeUnmount(() => {
                   :data-source="filteredEntities"
                   :pagination="{ pageSize: 50, size: 'small', showSizeChanger: false }"
                   size="small"
-                  row-key="id"
+                  row-key="name"
                   :custom-row="(record: KnowledgeEntity) => ({
                     onClick: () => handleEntityRowClick(record),
-                    class: record.id === selectedNodeId ? 'row-active' : '',
+                    class: record.name === selectedNodeName ? 'row-active' : '',
                     style: { cursor: 'pointer' },
                   })"
                 >
@@ -532,7 +524,7 @@ onBeforeUnmount(() => {
                   :data-source="filteredRelations"
                   :pagination="{ pageSize: 50, size: 'small', showSizeChanger: false }"
                   size="small"
-                  row-key="id"
+                  :row-key="(r: any) => `${r.source_name}-${r.relation_type}-${r.target_name}`"
                 >
                   <template #bodyCell="{ column, record }">
                     <template v-if="column.key === 'source_name'">

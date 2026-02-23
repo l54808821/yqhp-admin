@@ -373,23 +373,19 @@ export async function searchGraphApi(kbId: number, params: GraphSearchParams) {
   return requestClient.post<GraphSearchResult>(`/knowledge-bases/${kbId}/graph/search`, params);
 }
 
-/** 知识图谱实体（对应后端 GraphEntityInfo） */
+/** 知识图谱实体（对应后端 GraphEntityInfo，数据来源 Neo4j） */
 export interface KnowledgeEntity {
-  id: number;
   name: string;
   entity_type: string;
   description?: string;
-  mention_count: number;
 }
 
-/** 知识图谱关系（对应后端 GraphRelationInfo） */
+/** 知识图谱关系（对应后端 GraphRelationInfo，数据来源 Neo4j） */
 export interface KnowledgeRelation {
-  id: number;
   source_name: string;
   target_name: string;
   relation_type: string;
   description?: string;
-  weight: number;
 }
 
 export async function getGraphEntitiesApi(kbId: number) {
