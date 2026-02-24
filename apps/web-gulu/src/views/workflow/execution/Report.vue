@@ -198,6 +198,8 @@ async function loadFinalReport() {
   } catch { /* report may not be available yet */ }
 }
 
+const chartsInitialized = ref(false);
+
 function startPolling() {
   stopPolling();
   pollTimer.value = setInterval(async () => {
@@ -211,7 +213,13 @@ function startPolling() {
       realtimeMetrics.value = metrics;
 
       appendTimePoint(metrics);
-      updateAllCharts();
+
+      if (!chartsInitialized.value) {
+        chartsInitialized.value = true;
+        renderAllCharts();
+      } else {
+        updateAllCharts();
+      }
 
       if (!isRunning.value) {
         stopPolling();
@@ -229,15 +237,38 @@ function stopPolling() {
 }
 
 function appendTimePoint(m: RealtimeMetrics) {
+  let avgRt = 0, p50 = 0, p90 = 0, p95 = 0, p99 = 0;
+  if (m.step_metrics) {
+    const steps = Object.values(m.step_metrics);
+    let totalWeight = 0;
+    for (const s of steps) {
+      if (s.count > 0) {
+        avgRt += (s.avg_ms || 0) * s.count;
+        p50 += (s.p50_ms || 0) * s.count;
+        p90 += (s.p90_ms || 0) * s.count;
+        p95 += (s.p95_ms || 0) * s.count;
+        p99 += (s.p99_ms || 0) * s.count;
+        totalWeight += s.count;
+      }
+    }
+    if (totalWeight > 0) {
+      avgRt /= totalWeight;
+      p50 /= totalWeight;
+      p90 /= totalWeight;
+      p95 /= totalWeight;
+      p99 /= totalWeight;
+    }
+  }
+
   timeSeriesData.value.push({
     timestamp: new Date().toISOString(),
     elapsed_ms: m.elapsed_ms,
     qps: m.qps,
-    avg_rt_ms: 0,
-    p50_rt_ms: 0,
-    p90_rt_ms: 0,
-    p95_rt_ms: 0,
-    p99_rt_ms: 0,
+    avg_rt_ms: avgRt,
+    p50_rt_ms: p50,
+    p90_rt_ms: p90,
+    p95_rt_ms: p95,
+    p99_rt_ms: p99,
     active_vus: m.total_vus,
     error_rate: m.error_rate,
     iterations: m.total_iterations,
