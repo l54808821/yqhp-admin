@@ -23,7 +23,10 @@ import type { PerformanceConfig } from '#/api/workflow/performance';
 
 import { createExecutionApi } from '#/api/execution';
 import { getAvailableExecutorsApi } from '#/api/executor';
-import { getPerformanceConfigSummary } from '#/api/workflow/performance';
+import {
+  getDefaultPerformanceConfig,
+  getPerformanceConfigSummary,
+} from '#/api/workflow/performance';
 import { useProjectStore } from '#/store/project';
 
 import PerformanceConfigPanel from './PerformanceConfigPanel.vue';
@@ -315,7 +318,7 @@ function handlePerfConfigOverrideUpdate(config: PerformanceConfig | null) {
             <Button
               type="link"
               size="small"
-              @click="showPerfConfigOverride = true"
+              @click="() => { if (!perfConfigOverride) perfConfigOverride = getDefaultPerformanceConfig(); showPerfConfigOverride = true; }"
             >
               <template #icon><Settings class="size-3.5" /></template>
               修改本次配置
@@ -329,7 +332,7 @@ function handlePerfConfigOverrideUpdate(config: PerformanceConfig | null) {
             <Button
               type="link"
               size="small"
-              @click="showPerfConfigOverride = true"
+              @click="() => { perfConfigOverride = getDefaultPerformanceConfig(); showPerfConfigOverride = true; }"
             >
               配置压测参数
             </Button>
