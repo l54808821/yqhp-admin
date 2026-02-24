@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import type { EchartsUIType } from '@vben/plugins/echarts';
 
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { Page } from '@vben/common-ui';
 import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
 
 import {
+  Alert,
   Button,
   Card,
   Descriptions,
@@ -38,6 +39,7 @@ const stopping = ref(false);
 const execution = ref<Execution | null>(null);
 const workflow = ref<Workflow | null>(null);
 const pollTimer = ref<ReturnType<typeof setInterval> | null>(null);
+const chartsInitialized = ref(false);
 
 const executionId = computed(() => Number(route.params.executionId));
 
@@ -222,7 +224,13 @@ function startPolling() {
       execution.value = exec;
       currentMetrics.value = metrics;
       appendTimePoint(metrics);
-      updateAllCharts();
+
+      if (!chartsInitialized.value) {
+        chartsInitialized.value = true;
+        renderAllCharts();
+      } else {
+        updateAllCharts();
+      }
 
       if (!isRunning.value) {
         stopPolling();
@@ -403,15 +411,6 @@ function updateAllCharts() {
   });
 }
 
-// 初始化图表
-watch(
-  () => timeSeriesData.value.length,
-  (len) => {
-    if (len === 1) {
-      renderAllCharts();
-    }
-  },
-);
 
 async function handleStop() {
   if (!executionId.value) return;
@@ -523,6 +522,22 @@ function formatDuration(ms?: number) {
             />
           </Card>
         </div>
+
+        <!-- 错误信息 -->
+        <Alert
+          v-if="currentMetrics?.errors?.length"
+          type="error"
+          show-icon
+          :message="`执行过程中产生了 ${currentMetrics.errors.length} 个错误`"
+        >
+          <template #description>
+            <ul class="error-list">
+              <li v-for="(err, idx) in currentMetrics.errors" :key="idx">
+                {{ err }}
+              </li>
+            </ul>
+          </template>
+        </Alert>
 
         <!-- 实时图表 -->
         <div class="charts-grid">
@@ -679,6 +694,19 @@ function formatDuration(ms?: number) {
   font-family: monospace;
   font-size: 12px;
   white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.error-list {
+  margin: 0;
+  padding-left: 20px;
+  max-height: 150px;
+  overflow: auto;
+  font-size: 12px;
+}
+
+.error-list li {
+  margin-bottom: 4px;
   word-break: break-all;
 }
 

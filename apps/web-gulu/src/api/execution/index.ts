@@ -82,6 +82,7 @@ export interface ExecutionMetrics {
   end_time?: string;
   duration_ms?: number;
   step_metrics?: Record<string, StepMetrics>;
+  errors?: string[];
 }
 
 /**
