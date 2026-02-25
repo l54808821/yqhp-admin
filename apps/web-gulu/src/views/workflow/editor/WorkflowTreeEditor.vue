@@ -16,8 +16,7 @@ const GitFork = createIconifyIcon('lucide:git-fork');
 const Variable = createIconifyIcon('lucide:variable');
 const ListTree = createIconifyIcon('lucide:list-tree');
 const CornerDownLeft = createIconifyIcon('lucide:corner-down-left');
-const Server = createIconifyIcon('lucide:server');
-const Gauge = createIconifyIcon('lucide:gauge');
+const Settings = createIconifyIcon('lucide:settings-2');
 
 import {
   Badge,
@@ -38,8 +37,7 @@ import WorkflowParamsPanel from '../components/WorkflowParamsPanel.vue';
 import type { WorkflowParam } from '../components/WorkflowParamsPanel.vue';
 import WorkflowReturnsPanel from '../components/WorkflowReturnsPanel.vue';
 import type { WorkflowReturn } from '../components/WorkflowReturnsPanel.vue';
-import ExecutorConfigPanel from '../components/ExecutorConfigPanel.vue';
-import PerformanceConfigPanel from '../components/PerformanceConfigPanel.vue';
+import OtherConfigDrawer from '../components/OtherConfigDrawer.vue';
 import type { ExecutorConfig } from '#/api/executor';
 import type { PerformanceConfig } from '#/api/workflow/performance';
 import { getPerformanceConfigSummary } from '#/api/workflow/performance';
@@ -120,8 +118,7 @@ const emit = defineEmits<{
 const variablesPopoverOpen = ref(false);
 const paramsPopoverOpen = ref(false);
 const returnsPopoverOpen = ref(false);
-const executorConfigPopoverOpen = ref(false);
-const performanceConfigPopoverOpen = ref(false);
+const otherConfigDrawerOpen = ref(false);
 
 const variableCount = computed(() => Object.keys(props.definition.variables || {}).length);
 const paramCount = computed(() => (props.definition.params || []).length);
@@ -1213,54 +1210,23 @@ function renderInsertMenu(nodeId: string, nodeType: string, canHaveChildren: boo
           </div>
         </template>
       </Popover>
-      <Popover
-        v-model:open="executorConfigPopoverOpen"
-        trigger="click"
-        placement="bottomLeft"
-        overlay-class-name="workflow-settings-popover"
-      >
-        <Badge :dot="!!executorStrategyLabel" :offset="[-4, 0]">
-          <Button size="small">
-            <template #icon><Server class="size-3.5" /></template>
-            执行机
-            <span v-if="executorStrategyLabel" class="executor-strategy-tag">{{ executorStrategyLabel }}</span>
-          </Button>
-        </Badge>
-        <template #content>
-          <div class="popover-panel executor-popover-panel">
-            <ExecutorConfigPanel
-              :config="executorConfig"
-              :readonly="readonly"
-              @update:config="handleExecutorConfigUpdate"
-            />
-          </div>
-        </template>
-      </Popover>
-      <Popover
-        v-if="isPerformanceWorkflow"
-        v-model:open="performanceConfigPopoverOpen"
-        trigger="click"
-        placement="bottomLeft"
-        overlay-class-name="workflow-settings-popover perf-config-popover"
-      >
-        <Badge :dot="!!performanceConfigSummary" :offset="[-4, 0]">
-          <Button size="small" type="primary" ghost>
-            <template #icon><Gauge class="size-3.5" /></template>
-            压测配置
-            <span v-if="performanceConfigSummary" class="executor-strategy-tag">{{ performanceConfigSummary }}</span>
-          </Button>
-        </Badge>
-        <template #content>
-          <div class="popover-panel perf-popover-panel">
-            <PerformanceConfigPanel
-              :config="performanceConfig"
-              :readonly="readonly"
-              @update:config="handlePerformanceConfigUpdate"
-            />
-          </div>
-        </template>
-      </Popover>
+      <Badge :dot="!!executorStrategyLabel || !!performanceConfigSummary" :offset="[-4, 0]">
+        <Button size="small" @click="otherConfigDrawerOpen = true">
+          <template #icon><Settings class="size-3.5" /></template>
+          其他配置
+        </Button>
+      </Badge>
     </div>
+
+    <OtherConfigDrawer
+      v-model:open="otherConfigDrawerOpen"
+      :executor-config="executorConfig"
+      :performance-config="performanceConfig"
+      :readonly="readonly"
+      :is-performance-workflow="isPerformanceWorkflow"
+      @update:executor-config="handleExecutorConfigUpdate"
+      @update:performance-config="handlePerformanceConfigUpdate"
+    />
 
     <!-- 树形结构 -->
     <div class="tree-content">
@@ -1648,32 +1614,4 @@ function renderInsertMenu(nodeId: string, nodeType: string, canHaveChildren: boo
   overflow-y: auto;
 }
 
-.executor-popover-panel {
-  min-width: 360px;
-  max-width: 420px;
-}
-
-.perf-popover-panel {
-  min-width: 480px;
-  max-width: 560px;
-}
-
-.executor-strategy-tag {
-  font-size: 10px;
-  margin-left: 4px;
-  padding: 0 4px;
-  border-radius: 4px;
-  background: hsl(var(--primary) / 0.1);
-  color: hsl(var(--primary));
-}
-</style>
-
-<style>
-.workflow-settings-popover .ant-popover-inner-content {
-  padding: 6px 8px;
-}
-
-.perf-config-popover .ant-popover-inner-content {
-  padding: 12px 16px;
-}
 </style>

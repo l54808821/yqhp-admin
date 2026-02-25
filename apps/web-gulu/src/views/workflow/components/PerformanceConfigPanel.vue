@@ -22,6 +22,7 @@ import {
 
 import StageEditor from './StageEditor.vue';
 import ThresholdEditor from './ThresholdEditor.vue';
+import VuProfileChart from './VuProfileChart.vue';
 
 const Settings = createIconifyIcon('lucide:settings-2');
 
@@ -177,6 +178,15 @@ const showAdvanced = ref<string[]>([]);
       </Collapse>
     </div>
 
+    <!-- 负载曲线预览 -->
+    <VuProfileChart
+      :mode="localConfig.mode"
+      :vus="localConfig.vus"
+      :duration="localConfig.duration"
+      :iterations="localConfig.iterations"
+      :stages="localConfig.stages"
+    />
+
     <!-- 基础参数 -->
     <div class="section">
       <div class="section-title">
@@ -309,7 +319,6 @@ const showAdvanced = ref<string[]>([]);
   display: flex;
   flex-direction: column;
   gap: 16px;
-  max-width: 520px;
 }
 
 .section {
