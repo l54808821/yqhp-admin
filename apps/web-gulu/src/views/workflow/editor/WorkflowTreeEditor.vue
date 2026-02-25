@@ -1210,12 +1210,10 @@ function renderInsertMenu(nodeId: string, nodeType: string, canHaveChildren: boo
           </div>
         </template>
       </Popover>
-      <Badge :dot="!!executorStrategyLabel || !!performanceConfigSummary" :offset="[-4, 0]">
-        <Button size="small" @click="otherConfigDrawerOpen = true">
-          <template #icon><Settings class="size-3.5" /></template>
-          其他配置
-        </Button>
-      </Badge>
+      <Button size="small" @click="otherConfigDrawerOpen = true">
+        <template #icon><Settings class="size-3.5" /></template>
+        其他配置
+      </Button>
     </div>
 
     <OtherConfigDrawer
