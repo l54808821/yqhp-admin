@@ -1153,7 +1153,7 @@ function renderInsertMenu(nodeId: string, nodeType: string, canHaveChildren: boo
         placement="bottomLeft"
         overlay-class-name="workflow-settings-popover"
       >
-        <Badge :count="variableCount" :offset="[-8, 0]" size="small">
+        <Badge :count="variableCount" :offset="[-8, 0]" size="small" color="var(--ant-color-primary, #1677ff)">
           <Button size="small">
             <template #icon><Variable class="size-3.5" /></template>
             变量
@@ -1174,7 +1174,7 @@ function renderInsertMenu(nodeId: string, nodeType: string, canHaveChildren: boo
         placement="bottomLeft"
         overlay-class-name="workflow-settings-popover"
       >
-        <Badge :count="paramCount" :offset="[-8, 0]" size="small">
+        <Badge :count="paramCount" :offset="[-8, 0]" size="small" color="var(--ant-color-primary, #1677ff)">
           <Button size="small">
             <template #icon><ListTree class="size-3.5" /></template>
             参数
@@ -1195,7 +1195,7 @@ function renderInsertMenu(nodeId: string, nodeType: string, canHaveChildren: boo
         placement="bottomLeft"
         overlay-class-name="workflow-settings-popover"
       >
-        <Badge :count="returnCount" :offset="[-8, 0]" size="small">
+        <Badge :count="returnCount" :offset="[-8, 0]" size="small" color="var(--ant-color-primary, #1677ff)">
           <Button size="small">
             <template #icon><CornerDownLeft class="size-3.5" /></template>
             返回值
