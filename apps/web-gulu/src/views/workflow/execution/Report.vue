@@ -15,6 +15,7 @@ import {
   InputNumber,
   message,
   Popconfirm,
+  Progress,
   Space,
   Spin,
   Statistic,
@@ -410,6 +411,97 @@ watch(() => realtimeMetrics.value?.total_vus, (vus) => {
   }
 });
 
+// --- Progress Bar ---
+
+function parseDurationToMs(d: string): number {
+  if (!d) return 0;
+  const match = d.match(/^(\d+(?:\.\d+)?)(ms|s|m|h)$/);
+  if (!match) return 0;
+  const val = Number.parseFloat(match[1]!);
+  switch (match[2]) {
+    case 'ms': return val;
+    case 's': return val * 1000;
+    case 'm': return val * 60_000;
+    case 'h': return val * 3_600_000;
+    default: return 0;
+  }
+}
+
+const perfConfig = computed(() => {
+  if (!workflow.value?.definition) return null;
+  try {
+    const def = JSON.parse(workflow.value.definition);
+    return def.performanceConfig || null;
+  } catch { return null; }
+});
+
+const totalExpectedMs = computed(() => {
+  const cfg = perfConfig.value;
+  if (!cfg) return 0;
+  const mode = cfg.mode;
+
+  if (mode === 'ramping-vus' || mode === 'ramping-arrival-rate') {
+    if (cfg.stages?.length) {
+      return cfg.stages.reduce((sum: number, s: any) => sum + parseDurationToMs(s.duration || ''), 0);
+    }
+    return 0;
+  }
+
+  if (cfg.duration) {
+    return parseDurationToMs(cfg.duration);
+  }
+
+  return 0;
+});
+
+const totalExpectedIterations = computed(() => {
+  const cfg = perfConfig.value;
+  if (!cfg) return 0;
+  const mode = cfg.mode;
+
+  if (mode === 'shared-iterations') {
+    return cfg.iterations || 0;
+  }
+  if (mode === 'per-vu-iterations') {
+    return (cfg.vus || 1) * (cfg.iterations || 0);
+  }
+  return 0;
+});
+
+const progressPercent = computed(() => {
+  if (!isRunning.value || !realtimeMetrics.value) return -1;
+
+  if (totalExpectedIterations.value > 0) {
+    const current = realtimeMetrics.value.total_iterations || 0;
+    return Math.min(100, Math.round((current / totalExpectedIterations.value) * 100));
+  }
+
+  if (totalExpectedMs.value > 0) {
+    const elapsed = realtimeMetrics.value.elapsed_ms || 0;
+    return Math.min(100, Math.round((elapsed / totalExpectedMs.value) * 100));
+  }
+
+  return -1;
+});
+
+const estimatedRemainingText = computed(() => {
+  if (progressPercent.value <= 0 || !realtimeMetrics.value) return '';
+
+  let remainMs = 0;
+  if (totalExpectedMs.value > 0) {
+    remainMs = totalExpectedMs.value - (realtimeMetrics.value.elapsed_ms || 0);
+  } else if (totalExpectedIterations.value > 0 && realtimeMetrics.value.total_iterations > 0) {
+    const elapsed = realtimeMetrics.value.elapsed_ms || 1;
+    const done = realtimeMetrics.value.total_iterations;
+    const rate = done / elapsed;
+    const remaining = totalExpectedIterations.value - done;
+    remainMs = rate > 0 ? remaining / rate : 0;
+  }
+
+  if (remainMs <= 0) return '';
+  return `剩余 ${formatDuration(Math.max(0, Math.round(remainMs)))}`;
+});
+
 // --- Sample Log Modal ---
 const sampleLogModalOpen = ref(false);
 
@@ -436,13 +528,26 @@ const stepSelectOptions = computed(() => {
       <div class="report-container">
         <!-- Status Bar -->
         <div class="status-bar">
-          <Space size="large" align="center">
-            <Tag :color="statusColor" class="status-tag">{{ statusText }}</Tag>
-            <span v-if="isRunning" class="running-indicator" />
-            <span class="duration-text">
-              {{ realtimeMetrics ? formatDuration(realtimeMetrics.elapsed_ms) : formatDuration(execution?.duration) }}
+          <div class="status-bar-top">
+            <Space size="large" align="center">
+              <Tag :color="statusColor" class="status-tag">{{ statusText }}</Tag>
+              <span v-if="isRunning" class="running-indicator" />
+              <span class="duration-text">
+                {{ realtimeMetrics ? formatDuration(realtimeMetrics.elapsed_ms) : formatDuration(execution?.duration) }}
+              </span>
+            </Space>
+            <span v-if="isRunning && estimatedRemainingText" class="remaining-text">
+              {{ estimatedRemainingText }}
             </span>
-          </Space>
+          </div>
+          <Progress
+            v-if="isRunning && progressPercent >= 0"
+            :percent="progressPercent"
+            :show-info="false"
+            :stroke-width="4"
+            status="active"
+            class="status-progress"
+          />
         </div>
 
         <!-- VU Control Panel (only during execution) -->
@@ -598,11 +703,34 @@ const stepSelectOptions = computed(() => {
 
 .status-bar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 6px;
   padding: 12px 16px;
   border-radius: 8px;
   background: var(--ant-color-fill-quaternary, #fafafa);
+}
+
+.status-bar-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.remaining-text {
+  font-size: 12px;
+  color: var(--ant-color-text-secondary);
+}
+
+.status-progress {
+  margin: 0 -2px;
+}
+
+.status-progress :deep(.ant-progress-outer) {
+  padding: 0;
+}
+
+.status-progress :deep(.ant-progress-inner) {
+  border-radius: 2px;
 }
 
 .status-tag {
