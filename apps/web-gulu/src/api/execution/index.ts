@@ -154,6 +154,14 @@ export interface VUTimelineEvent {
   reason?: string;
 }
 
+export interface ReportConfig {
+  mode: string;
+  vus: number;
+  duration: string;
+  iterations?: number;
+  stages?: { duration: number; target: number; name?: string }[];
+}
+
 export interface PerformanceTestReport {
   execution_id: string;
   workflow_id: string;
@@ -167,6 +175,7 @@ export interface PerformanceTestReport {
   thresholds: ThresholdResult[];
   error_analysis: ErrorAnalysis;
   vu_timeline: VUTimelineEvent[];
+  config?: ReportConfig;
 }
 
 // --- Sample Logs ---

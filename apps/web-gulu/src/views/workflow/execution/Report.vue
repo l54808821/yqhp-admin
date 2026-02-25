@@ -13,6 +13,7 @@ import {
   InputNumber,
   message,
   Popconfirm,
+  Popover,
   Progress,
   Space,
   Spin,
@@ -38,6 +39,7 @@ import {
   stopExecutionApi,
 } from '#/api/execution';
 import { getWorkflowApi } from '#/api/workflow';
+import { EXECUTION_MODE_OPTIONS } from '#/api/workflow/performance';
 import SampleLogModal from './SampleLogModal.vue';
 
 const route = useRoute();
@@ -433,6 +435,52 @@ const perfConfig = computed(() => {
   } catch { return null; }
 });
 
+const reportMode = computed(() => {
+  const mode = finalReport.value?.config?.mode || perfConfig.value?.mode;
+  if (!mode) return null;
+  const opt = EXECUTION_MODE_OPTIONS.find((o) => o.value === mode);
+  return opt ? opt.label : mode;
+});
+
+function formatNsDuration(ns: number): string {
+  if (ns <= 0) return '0s';
+  const sec = ns / 1e9;
+  if (sec < 60) return `${sec}s`;
+  const min = Math.floor(sec / 60);
+  const remainSec = sec % 60;
+  return remainSec > 0 ? `${min}m${remainSec}s` : `${min}m`;
+}
+
+const reportConfigDetails = computed(() => {
+  const cfg = finalReport.value?.config || perfConfig.value;
+  if (!cfg) return null;
+  const mode = cfg.mode;
+  const items: { label: string; value: string }[] = [];
+
+  if ((mode === 'ramping-vus' || mode === 'ramping-arrival-rate') && cfg.stages?.length) {
+    const unit = mode === 'ramping-arrival-rate' ? 'RPS' : 'VU';
+    items.push({ label: '阶段数', value: `${cfg.stages.length} 个阶段` });
+    cfg.stages.forEach((s: any, i: number) => {
+      const dur = typeof s.duration === 'number' ? formatNsDuration(s.duration) : s.duration;
+      const name = s.name ? ` (${s.name})` : '';
+      items.push({ label: `阶段 ${i + 1}${name}`, value: `${dur} → ${s.target} ${unit}` });
+    });
+  } else if (mode === 'constant-vus') {
+    items.push({ label: '并发用户', value: `${cfg.vus || 0} VU` });
+    if (cfg.duration) items.push({ label: '持续时间', value: cfg.duration });
+  } else if (mode === 'constant-arrival-rate') {
+    items.push({ label: '目标速率', value: `${cfg.vus || cfg.iterations || 0} RPS` });
+    if (cfg.duration) items.push({ label: '持续时间', value: cfg.duration });
+  } else if (mode === 'per-vu-iterations') {
+    items.push({ label: '并发用户', value: `${cfg.vus || 0} VU` });
+    items.push({ label: '每 VU 迭代', value: `${cfg.iterations || 0} 次` });
+  } else if (mode === 'shared-iterations') {
+    items.push({ label: '并发用户', value: `${cfg.vus || 0} VU` });
+    items.push({ label: '总迭代数', value: `${cfg.iterations || 0} 次` });
+  }
+  return items.length > 0 ? items : null;
+});
+
 const totalExpectedMs = computed(() => {
   const cfg = perfConfig.value;
   if (!cfg) return 0;
@@ -540,6 +588,24 @@ const stepSelectOptions = computed(() => {
           <span class="meta-label">迭代</span>
           <span class="meta-value">{{ realtimeMetrics?.total_iterations || finalReport?.summary?.total_iterations || 0 }}</span>
         </span>
+        <template v-if="reportMode">
+          <span class="meta-divider" />
+          <span class="meta-item">
+            <span class="meta-label">模式</span>
+            <Popover v-if="reportConfigDetails" placement="bottom">
+              <template #content>
+                <div class="mode-popover-content">
+                  <div v-for="(item, idx) in reportConfigDetails" :key="idx" class="mode-popover-row">
+                    <span class="mode-popover-label">{{ item.label }}</span>
+                    <span class="mode-popover-value">{{ item.value }}</span>
+                  </div>
+                </div>
+              </template>
+              <Tag color="blue" class="meta-mode-tag clickable">{{ reportMode }}</Tag>
+            </Popover>
+            <Tag v-else color="blue" class="meta-mode-tag">{{ reportMode }}</Tag>
+          </span>
+        </template>
         <span class="meta-divider" />
         <span class="meta-item">
           <span class="meta-label">开始</span>
@@ -784,6 +850,44 @@ const stepSelectOptions = computed(() => {
   height: 12px;
   background: var(--ant-color-border, #e8e8e8);
   flex-shrink: 0;
+}
+
+.meta-mode-tag {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.meta-mode-tag.clickable {
+  cursor: pointer;
+}
+
+.mode-popover-content {
+  min-width: 160px;
+}
+
+.mode-popover-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 3px 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.mode-popover-row:not(:last-child) {
+  border-bottom: 1px dashed var(--ant-color-border-secondary, #f0f0f0);
+}
+
+.mode-popover-label {
+  color: var(--ant-color-text-tertiary, #999);
+  white-space: nowrap;
+}
+
+.mode-popover-value {
+  color: var(--ant-color-text, #333);
+  font-weight: 500;
+  text-align: right;
 }
 
 .remaining-text {
