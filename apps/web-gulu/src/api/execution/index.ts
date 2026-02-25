@@ -100,6 +100,9 @@ export interface ReportSummary {
   p99_response_time_ms: number;
   max_vus: number;
   total_iterations: number;
+  throughput_bytes_per_sec: number;
+  total_data_sent: number;
+  total_data_received: number;
   thresholds_pass_rate: number;
 }
 
@@ -115,6 +118,8 @@ export interface TimeSeriesPoint {
   active_vus: number;
   error_rate: number;
   iterations: number;
+  data_sent_per_sec: number;
+  data_received_per_sec: number;
 }
 
 export interface StepDetailReport {

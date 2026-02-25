@@ -20,7 +20,6 @@ import {
   Statistic,
   Table,
   Tag,
-  Tooltip,
 } from 'ant-design-vue';
 
 import type {
@@ -103,11 +102,13 @@ const qpsChartRef = ref<EchartsUIType>();
 const rtChartRef = ref<EchartsUIType>();
 const vuChartRef = ref<EchartsUIType>();
 const errorChartRef = ref<EchartsUIType>();
+const trafficChartRef = ref<EchartsUIType>();
 
 const { renderEcharts: renderQps, updateDate: updateQps } = useEcharts(qpsChartRef);
 const { renderEcharts: renderRt, updateDate: updateRt } = useEcharts(rtChartRef);
 const { renderEcharts: renderVu, updateDate: updateVu } = useEcharts(vuChartRef);
 const { renderEcharts: renderError, updateDate: updateError } = useEcharts(errorChartRef);
+const { renderEcharts: renderTraffic, updateDate: updateTraffic } = useEcharts(trafficChartRef);
 
 // --- Step metrics table ---
 
@@ -217,14 +218,19 @@ function startPolling() {
   pollTimer.value = setInterval(async () => {
     if (!executionId.value) return;
     try {
-      const [exec, metrics] = await Promise.all([
+      const [exec, metrics, tsData] = await Promise.all([
         getExecutionApi(executionId.value),
         getRealtimeMetricsApi(executionId.value),
+        getTimeSeriesApi(executionId.value),
       ]);
       execution.value = exec;
       realtimeMetrics.value = metrics;
 
-      appendTimePoint(metrics);
+      if (tsData && tsData.length > 0) {
+        timeSeriesData.value = tsData;
+      } else {
+        appendTimePoint(metrics);
+      }
 
       if (!chartsInitialized.value) {
         chartsInitialized.value = true;
@@ -284,6 +290,8 @@ function appendTimePoint(m: RealtimeMetrics) {
     active_vus: m.total_vus,
     error_rate: m.error_rate,
     iterations: m.total_iterations,
+    data_sent_per_sec: 0,
+    data_received_per_sec: 0,
   });
   if (timeSeriesData.value.length > 600) {
     timeSeriesData.value.shift();
@@ -299,6 +307,13 @@ const baseChartOption = {
   yAxis: { type: 'value' as const, splitLine: { lineStyle: { type: 'dashed' as const } }, axisLabel: { fontSize: 10 } },
 };
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
 function getTimeLabels() {
   return timeSeriesData.value.map((p) => {
     const d = new Date(p.timestamp);
@@ -312,11 +327,23 @@ function renderAllCharts() {
   const vuData = timeSeriesData.value.map((p) => p.active_vus);
   const errorData = timeSeriesData.value.map((p) => p.error_rate);
   const rtData = timeSeriesData.value.map((p) => p.p95_rt_ms || p.avg_rt_ms);
+  const sentData = timeSeriesData.value.map((p) => Number(((p.data_sent_per_sec || 0) / 1024).toFixed(2)));
+  const receivedData = timeSeriesData.value.map((p) => Number(((p.data_received_per_sec || 0) / 1024).toFixed(2)));
 
   renderQps({ ...baseChartOption, xAxis: { ...baseChartOption.xAxis, data: labels }, series: [{ name: 'QPS', type: 'line', smooth: true, showSymbol: false, data: qpsData, areaStyle: { opacity: 0.15 }, itemStyle: { color: '#1890ff' } }] });
   renderRt({ ...baseChartOption, xAxis: { ...baseChartOption.xAxis, data: labels }, series: [{ name: 'P95 RT(ms)', type: 'line', smooth: true, showSymbol: false, data: rtData, areaStyle: { opacity: 0.15 }, itemStyle: { color: '#52c41a' } }] });
   renderVu({ ...baseChartOption, xAxis: { ...baseChartOption.xAxis, data: labels }, series: [{ name: 'VUs', type: 'line', smooth: true, showSymbol: false, data: vuData, areaStyle: { opacity: 0.15 }, itemStyle: { color: '#722ed1' } }] });
   renderError({ ...baseChartOption, xAxis: { ...baseChartOption.xAxis, data: labels }, yAxis: { ...baseChartOption.yAxis, axisLabel: { ...baseChartOption.yAxis.axisLabel, formatter: '{value}%' } }, series: [{ name: '错误率', type: 'line', smooth: true, showSymbol: false, data: errorData, areaStyle: { opacity: 0.15 }, itemStyle: { color: '#ff4d4f' } }] });
+  renderTraffic({
+    ...baseChartOption,
+    tooltip: { trigger: 'axis' as const, formatter: (params: any) => { if (!Array.isArray(params)) return ''; return params.map((p: any) => `${p.marker} ${p.seriesName}: ${p.value} KB/s`).join('<br/>'); } },
+    legend: { data: ['发送', '接收'], top: 0, right: 0, textStyle: { fontSize: 10 } },
+    xAxis: { ...baseChartOption.xAxis, data: labels },
+    series: [
+      { name: '发送', type: 'line', smooth: true, showSymbol: false, data: sentData, areaStyle: { opacity: 0.15 }, itemStyle: { color: '#fa8c16' } },
+      { name: '接收', type: 'line', smooth: true, showSymbol: false, data: receivedData, areaStyle: { opacity: 0.15 }, itemStyle: { color: '#13c2c2' } },
+    ],
+  });
 }
 
 function updateAllCharts() {
@@ -325,6 +352,13 @@ function updateAllCharts() {
   updateRt({ xAxis: { data: labels }, series: [{ data: timeSeriesData.value.map((p) => p.p95_rt_ms || p.avg_rt_ms) }] });
   updateVu({ xAxis: { data: labels }, series: [{ data: timeSeriesData.value.map((p) => p.active_vus) }] });
   updateError({ xAxis: { data: labels }, series: [{ data: timeSeriesData.value.map((p) => p.error_rate) }] });
+  updateTraffic({
+    xAxis: { data: labels },
+    series: [
+      { data: timeSeriesData.value.map((p) => Number(((p.data_sent_per_sec || 0) / 1024).toFixed(2))) },
+      { data: timeSeriesData.value.map((p) => Number(((p.data_received_per_sec || 0) / 1024).toFixed(2))) },
+    ],
+  });
 }
 
 // --- Actions ---
@@ -429,6 +463,17 @@ watch(() => realtimeMetrics.value?.total_vus, (vus) => {
             <Card class="stat-card" :bordered="false">
               <Statistic title="P95 RT" :value="finalReport.summary.p95_response_time_ms.toFixed(1)" suffix="ms" :value-style="{ fontSize: '28px' }" />
             </Card>
+            <Card class="stat-card" :bordered="false">
+              <Statistic title="数据流量">
+                <template #formatter>
+                  <div style="font-size: 20px">
+                    <span style="color: #fa8c16">↑{{ formatBytes(finalReport.summary.total_data_sent || 0) }}</span>
+                    <span style="margin: 0 4px; color: #999">/</span>
+                    <span style="color: #13c2c2">↓{{ formatBytes(finalReport.summary.total_data_received || 0) }}</span>
+                  </div>
+                </template>
+              </Statistic>
+            </Card>
           </template>
         </div>
 
@@ -475,6 +520,9 @@ watch(() => realtimeMetrics.value?.total_vus, (vus) => {
           </Card>
           <Card title="错误率 (%)" :bordered="false" size="small">
             <EchartsUI ref="errorChartRef" height="220px" />
+          </Card>
+          <Card title="数据流量 (KB/s)" :bordered="false" size="small">
+            <EchartsUI ref="trafficChartRef" height="220px" />
           </Card>
         </div>
 
