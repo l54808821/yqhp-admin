@@ -96,8 +96,13 @@ function applyPreset(key: string) {
 
 const dragIndex = ref<number | null>(null);
 
-function handleDragStart(index: number) {
+function handleDragStart(e: DragEvent, index: number) {
   dragIndex.value = index;
+  const handle = e.target as HTMLElement;
+  const row = handle.closest('.stage-row') as HTMLElement | null;
+  if (row && e.dataTransfer) {
+    e.dataTransfer.setDragImage(row, 0, row.offsetHeight / 2);
+  }
 }
 
 function handleDragOver(e: DragEvent, index: number) {
@@ -148,12 +153,15 @@ function handleDragEnd() {
         :key="index"
         class="stage-row"
         :class="{ dragging: dragIndex === index }"
-        :draggable="!readonly"
-        @dragstart="handleDragStart(index)"
         @dragover="(e) => handleDragOver(e, index)"
-        @dragend="handleDragEnd"
       >
-        <div v-if="!readonly" class="drag-handle">
+        <div
+          v-if="!readonly"
+          class="drag-handle"
+          draggable="true"
+          @dragstart="(e: DragEvent) => handleDragStart(e, index)"
+          @dragend="handleDragEnd"
+        >
           <GripVertical class="size-3.5 text-gray-400" />
         </div>
         <span class="stage-index">{{ index + 1 }}</span>
