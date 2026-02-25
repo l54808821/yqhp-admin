@@ -313,10 +313,10 @@ function renderAllCharts() {
   const errorData = timeSeriesData.value.map((p) => p.error_rate);
   const rtData = timeSeriesData.value.map((p) => p.p95_rt_ms || p.avg_rt_ms);
 
-  renderQps({ ...baseChartOption, xAxis: { ...baseChartOption.xAxis, data: labels }, series: [{ name: 'QPS', type: 'line', smooth: true, data: qpsData, areaStyle: { opacity: 0.15 }, itemStyle: { color: '#1890ff' } }] });
-  renderRt({ ...baseChartOption, xAxis: { ...baseChartOption.xAxis, data: labels }, series: [{ name: 'P95 RT(ms)', type: 'line', smooth: true, data: rtData, areaStyle: { opacity: 0.15 }, itemStyle: { color: '#52c41a' } }] });
-  renderVu({ ...baseChartOption, xAxis: { ...baseChartOption.xAxis, data: labels }, series: [{ name: 'VUs', type: 'line', smooth: true, data: vuData, areaStyle: { opacity: 0.15 }, itemStyle: { color: '#722ed1' } }] });
-  renderError({ ...baseChartOption, xAxis: { ...baseChartOption.xAxis, data: labels }, yAxis: { ...baseChartOption.yAxis, axisLabel: { ...baseChartOption.yAxis.axisLabel, formatter: '{value}%' } }, series: [{ name: '错误率', type: 'line', smooth: true, data: errorData, areaStyle: { opacity: 0.15 }, itemStyle: { color: '#ff4d4f' } }] });
+  renderQps({ ...baseChartOption, xAxis: { ...baseChartOption.xAxis, data: labels }, series: [{ name: 'QPS', type: 'line', smooth: true, showSymbol: false, data: qpsData, areaStyle: { opacity: 0.15 }, itemStyle: { color: '#1890ff' } }] });
+  renderRt({ ...baseChartOption, xAxis: { ...baseChartOption.xAxis, data: labels }, series: [{ name: 'P95 RT(ms)', type: 'line', smooth: true, showSymbol: false, data: rtData, areaStyle: { opacity: 0.15 }, itemStyle: { color: '#52c41a' } }] });
+  renderVu({ ...baseChartOption, xAxis: { ...baseChartOption.xAxis, data: labels }, series: [{ name: 'VUs', type: 'line', smooth: true, showSymbol: false, data: vuData, areaStyle: { opacity: 0.15 }, itemStyle: { color: '#722ed1' } }] });
+  renderError({ ...baseChartOption, xAxis: { ...baseChartOption.xAxis, data: labels }, yAxis: { ...baseChartOption.yAxis, axisLabel: { ...baseChartOption.yAxis.axisLabel, formatter: '{value}%' } }, series: [{ name: '错误率', type: 'line', smooth: true, showSymbol: false, data: errorData, areaStyle: { opacity: 0.15 }, itemStyle: { color: '#ff4d4f' } }] });
 }
 
 function updateAllCharts() {
