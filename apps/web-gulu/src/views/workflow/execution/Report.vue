@@ -39,6 +39,7 @@ import {
   stopExecutionApi,
 } from '#/api/execution';
 import { getWorkflowApi } from '#/api/workflow';
+import SampleLogModal from './SampleLogModal.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -408,6 +409,16 @@ watch(() => realtimeMetrics.value?.total_vus, (vus) => {
     newVUs.value = vus;
   }
 });
+
+// --- Sample Log Modal ---
+const sampleLogModalOpen = ref(false);
+
+const stepSelectOptions = computed(() => {
+  return stepMetricsData.value.map((s: any) => ({
+    label: s.display_name,
+    value: s.step_id,
+  }));
+});
 </script>
 
 <template>
@@ -529,7 +540,13 @@ watch(() => realtimeMetrics.value?.total_vus, (vus) => {
         </div>
 
         <!-- Step Metrics Table -->
-        <Card v-if="stepMetricsData.length > 0" title="步骤指标" :bordered="false" class="step-metrics-card">
+        <Card v-if="stepMetricsData.length > 0" :bordered="false" class="step-metrics-card">
+          <template #title>步骤指标</template>
+          <template #extra>
+            <Button size="small" type="link" @click="sampleLogModalOpen = true">
+              采样日志
+            </Button>
+          </template>
           <Table
             :columns="stepMetricsColumns"
             :data-source="stepMetricsData"
@@ -538,6 +555,12 @@ watch(() => realtimeMetrics.value?.total_vus, (vus) => {
             :scroll="{ x: 950 }"
           />
         </Card>
+
+        <SampleLogModal
+          v-model:open="sampleLogModalOpen"
+          :execution-id="executionId"
+          :step-options="stepSelectOptions"
+        />
 
         <!-- VU Timeline (Final Report) -->
         <Card v-if="isCompleted && finalReport?.vu_timeline?.length" title="VU 调度时间线" :bordered="false" size="small">

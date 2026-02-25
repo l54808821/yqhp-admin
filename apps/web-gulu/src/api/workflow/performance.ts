@@ -17,6 +17,8 @@ export interface Threshold {
   condition: string;
 }
 
+export type SamplingMode = 'none' | 'errors' | 'smart';
+
 export interface PerformanceConfig {
   mode: ExecutionMode;
   vus?: number;
@@ -25,6 +27,7 @@ export interface PerformanceConfig {
   stages?: Stage[];
   thresholds?: Threshold[];
   httpEngine?: 'fasthttp' | 'standard';
+  samplingMode?: SamplingMode;
   tags?: Record<string, string>;
 }
 

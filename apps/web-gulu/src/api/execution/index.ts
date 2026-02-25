@@ -176,6 +176,36 @@ export interface PerformanceTestReport {
   vu_timeline: VUTimelineEvent[];
 }
 
+// --- Sample Logs ---
+
+export type SampleLogStatus = 'success' | 'failed' | 'timeout';
+
+export interface SampleLog {
+  id: number;
+  execution_id: string;
+  step_id: string;
+  step_name?: string;
+  timestamp: string;
+  status: SampleLogStatus;
+  duration_ms: number;
+  request_method: string;
+  request_url: string;
+  request_headers?: Record<string, string>;
+  request_body?: string;
+  response_status?: number;
+  response_headers?: Record<string, string>;
+  response_body?: string;
+  error_message?: string;
+}
+
+export interface SampleLogQuery {
+  page?: number;
+  pageSize?: number;
+  step_id?: string;
+  status?: string;
+  keyword?: string;
+}
+
 // Legacy compat alias
 export type ExecutionMetrics = RealtimeMetrics;
 
@@ -263,6 +293,13 @@ export async function getTimeSeriesApi(id: number) {
  */
 export async function scaleVUsApi(id: number, vus: number) {
   return requestClient.post(`/execution-records/${id}/scale`, { vus });
+}
+
+/**
+ * 获取采样日志
+ */
+export async function getSampleLogsApi(id: number, params?: SampleLogQuery) {
+  return requestClient.get<PageResult<SampleLog>>(`/execution-records/${id}/sample-logs`, { params });
 }
 
 /**

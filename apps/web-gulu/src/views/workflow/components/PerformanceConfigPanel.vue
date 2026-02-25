@@ -307,6 +307,21 @@ const showAdvanced = ref<string[]>([]);
                 <Radio.Button value="standard">Standard</Radio.Button>
               </Radio.Group>
             </div>
+            <div class="option-row">
+              <label class="param-label">采样设置</label>
+              <Radio.Group
+                :value="localConfig.samplingMode || 'none'"
+                :disabled="readonly"
+                @change="(e: any) => { localConfig.samplingMode = e.target.value; emitUpdate(); }"
+              >
+                <Radio.Button value="none">不采样</Radio.Button>
+                <Radio.Button value="errors">采样错误</Radio.Button>
+                <Radio.Button value="smart">智能采样</Radio.Button>
+              </Radio.Group>
+              <Typography.Text type="secondary" style="font-size: 11px">
+                {{ localConfig.samplingMode === 'errors' ? '仅记录失败/超时的请求详情' : localConfig.samplingMode === 'smart' ? '记录所有错误 + 按比例采样成功请求（上限 1000 条）' : '不记录请求/响应详情' }}
+              </Typography.Text>
+            </div>
           </div>
         </CollapsePanel>
       </Collapse>
