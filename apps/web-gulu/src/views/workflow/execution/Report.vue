@@ -161,6 +161,7 @@ const stepMetricsData = computed(() => {
 onMounted(async () => {
   await loadData();
   if (isRunning.value) {
+    await loadExistingTimeSeries();
     startPolling();
   } else if (isCompleted.value) {
     await loadFinalReport();
@@ -186,6 +187,17 @@ async function loadData() {
   } finally {
     loading.value = false;
   }
+}
+
+async function loadExistingTimeSeries() {
+  try {
+    const data = await getTimeSeriesApi(executionId.value);
+    if (data && data.length > 0) {
+      timeSeriesData.value = data;
+      chartsInitialized.value = true;
+      renderAllCharts();
+    }
+  } catch { /* time series may not be available yet */ }
 }
 
 async function loadFinalReport() {
