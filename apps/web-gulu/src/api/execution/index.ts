@@ -58,6 +58,7 @@ export interface ExecutionLog {
 
 export interface StepMetricStats {
   step_id: string;
+  step_name?: string;
   count: number;
   success_count: number;
   failure_count: number;

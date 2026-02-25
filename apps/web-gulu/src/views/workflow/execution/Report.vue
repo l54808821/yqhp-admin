@@ -113,7 +113,7 @@ const { renderEcharts: renderTraffic, updateDate: updateTraffic } = useEcharts(t
 // --- Step metrics table ---
 
 const stepMetricsColumns = [
-  { title: '步骤', dataIndex: 'step_id', key: 'step_id', width: 200 },
+  { title: '步骤', dataIndex: 'display_name', key: 'display_name', width: 200 },
   { title: '请求数', dataIndex: 'count', key: 'count', width: 80 },
   { title: '成功', dataIndex: 'success_count', key: 'success_count', width: 80 },
   { title: '失败', dataIndex: 'failure_count', key: 'failure_count', width: 80 },
@@ -130,6 +130,7 @@ const stepMetricsData = computed(() => {
     return finalReport.value.step_details.map((s) => ({
       key: s.step_id,
       ...s,
+      display_name: s.step_name || s.step_id,
       avg_ms: s.avg_ms?.toFixed(1) ?? '-',
       p50_ms: s.p50_ms?.toFixed(1) ?? '-',
       p90_ms: s.p90_ms?.toFixed(1) ?? '-',
@@ -144,6 +145,7 @@ const stepMetricsData = computed(() => {
     ([key, s]: [string, StepMetricStats]) => ({
       key,
       step_id: s.step_id || key,
+      display_name: s.step_name || s.step_id || key,
       count: s.count,
       success_count: s.success_count,
       failure_count: s.failure_count,
