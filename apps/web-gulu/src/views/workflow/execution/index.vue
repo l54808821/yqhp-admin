@@ -10,18 +10,15 @@ import {
   Descriptions,
   message,
   Popconfirm,
-  Progress,
   Space,
   Spin,
   Tag,
-  Timeline,
 } from 'ant-design-vue';
 
 import type { Execution } from '#/api/execution';
 
 import {
   getExecutionApi,
-  getExecutionLogsApi,
   stopExecutionApi,
 } from '#/api/execution';
 
@@ -30,7 +27,6 @@ const router = useRouter();
 
 const loading = ref(false);
 const execution = ref<Execution | null>(null);
-const logs = ref<any[]>([]);
 const pollingTimer = ref<number | null>(null);
 
 const executionId = computed(() => Number(route.params.executionId));
@@ -44,16 +40,15 @@ const statusMap: Record<string, { color: string; text: string }> = {
   paused: { color: 'orange', text: '已暂停' },
 };
 
+const sourceTypeMap: Record<string, { color: string; text: string }> = {
+  performance: { color: 'purple', text: '性能测试' },
+  test_plan: { color: 'cyan', text: '测试计划' },
+  debug: { color: 'blue', text: '调试' },
+};
+
 const isRunning = computed(() =>
   execution.value?.status === 'pending' || execution.value?.status === 'running'
 );
-
-const progress = computed(() => {
-  if (!execution.value) return 0;
-  const total = execution.value.total_steps || 1;
-  const completed = execution.value.completed_steps || 0;
-  return Math.round((completed / total) * 100);
-});
 
 onMounted(async () => {
   await loadExecution();
@@ -86,12 +81,7 @@ async function loadExecution() {
 
   try {
     loading.value = !execution.value;
-    const [exec, logList] = await Promise.all([
-      getExecutionApi(executionId.value),
-      getExecutionLogsApi(executionId.value),
-    ]);
-    execution.value = exec;
-    logs.value = logList || [];
+    execution.value = await getExecutionApi(executionId.value);
   } catch {
     message.error('加载执行信息失败');
   } finally {
@@ -114,16 +104,6 @@ async function handleStop() {
 function handleBack() {
   const projectId = route.params.projectId;
   router.push({ name: 'HistoryIndex', params: { projectId } });
-}
-
-function getLogColor(level: string): string {
-  const colors: Record<string, string> = {
-    info: 'blue',
-    success: 'green',
-    warning: 'orange',
-    error: 'red',
-  };
-  return colors[level] || 'gray';
 }
 
 function formatDuration(ms: number | null | undefined): string {
@@ -150,64 +130,44 @@ function formatDuration(ms: number | null | undefined): string {
     </template>
 
     <Spin :spinning="loading">
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card title="执行信息">
-          <Descriptions :column="1" size="small">
-            <Descriptions.Item label="ID">
-              {{ execution?.id }}
-            </Descriptions.Item>
-            <Descriptions.Item label="执行ID">
-              {{ execution?.execution_id }}
-            </Descriptions.Item>
-            <Descriptions.Item label="工作流ID">
-              {{ execution?.workflow_id }}
-            </Descriptions.Item>
-            <Descriptions.Item label="环境ID">
-              {{ execution?.env_id }}
-            </Descriptions.Item>
-            <Descriptions.Item label="执行机ID">
-              {{ execution?.executor_id || '-' }}
-            </Descriptions.Item>
-            <Descriptions.Item label="状态">
-              <Tag :color="statusMap[execution?.status || 'pending']?.color">
-                {{ statusMap[execution?.status || 'pending']?.text }}
-              </Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="开始时间">
-              {{ execution?.start_time ? new Date(execution.start_time).toLocaleString('zh-CN') : '-' }}
-            </Descriptions.Item>
-            <Descriptions.Item label="结束时间">
-              {{ execution?.end_time ? new Date(execution.end_time).toLocaleString('zh-CN') : '-' }}
-            </Descriptions.Item>
-            <Descriptions.Item label="耗时">
-              {{ execution?.duration ? formatDuration(execution.duration) : '-' }}
-            </Descriptions.Item>
-          </Descriptions>
-
-          <div v-if="isRunning" class="mt-4">
-            <div class="text-sm text-gray-500 mb-2">执行进度</div>
-            <Progress :percent="progress" :status="isRunning ? 'active' : 'normal'" />
-          </div>
-        </Card>
-
-        <Card title="执行日志" class="max-h-96 overflow-y-auto">
-          <Timeline v-if="logs.length > 0">
-            <Timeline.Item
-              v-for="(log, index) in logs"
-              :key="index"
-              :color="getLogColor(log.level)"
-            >
-              <div class="text-xs text-gray-400">{{ log.timestamp }}</div>
-              <div :class="{ 'text-red-500': log.level === 'error' }">
-                {{ log.message }}
-              </div>
-            </Timeline.Item>
-          </Timeline>
-          <div v-else class="text-center text-gray-400 py-8">
-            暂无日志
-          </div>
-        </Card>
-      </div>
+      <Card title="执行信息">
+        <Descriptions :column="2" size="small">
+          <Descriptions.Item label="ID">
+            {{ execution?.id }}
+          </Descriptions.Item>
+          <Descriptions.Item label="执行ID">
+            {{ execution?.execution_id }}
+          </Descriptions.Item>
+          <Descriptions.Item label="工作流ID">
+            {{ execution?.workflow_id }}
+          </Descriptions.Item>
+          <Descriptions.Item label="环境ID">
+            {{ execution?.env_id }}
+          </Descriptions.Item>
+          <Descriptions.Item label="执行机ID">
+            {{ execution?.executor_id || '-' }}
+          </Descriptions.Item>
+          <Descriptions.Item label="来源类型">
+            <Tag :color="sourceTypeMap[execution?.source_type || '']?.color || 'default'">
+              {{ sourceTypeMap[execution?.source_type || '']?.text || execution?.source_type }}
+            </Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="状态">
+            <Tag :color="statusMap[execution?.status || 'pending']?.color">
+              {{ statusMap[execution?.status || 'pending']?.text }}
+            </Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="开始时间">
+            {{ execution?.start_time ? new Date(execution.start_time).toLocaleString('zh-CN') : '-' }}
+          </Descriptions.Item>
+          <Descriptions.Item label="结束时间">
+            {{ execution?.end_time ? new Date(execution.end_time).toLocaleString('zh-CN') : '-' }}
+          </Descriptions.Item>
+          <Descriptions.Item label="耗时">
+            {{ execution?.duration ? formatDuration(execution.duration) : '-' }}
+          </Descriptions.Item>
+        </Descriptions>
+      </Card>
     </Spin>
   </Page>
 </template>

@@ -35,18 +35,25 @@ const statusMap: Record<string, { color: string; text: string }> = {
   paused: { color: 'orange', text: '已暂停' },
 };
 
+// 来源类型映射
+const sourceTypeMap: Record<string, { color: string; text: string }> = {
+  performance: { color: 'purple', text: '性能测试' },
+  test_plan: { color: 'cyan', text: '测试计划' },
+  debug: { color: 'blue', text: '调试' },
+};
+
 // 搜索参数
 const searchParams = ref<ExecutionListParams>({
   page: 1,
   pageSize: 10,
   project_id: projectStore.currentProjectId,
-  workflow_id: undefined,
+  source_id: undefined,
   status: undefined,
 });
 
 // 搜索字段配置
 const searchFields: SearchFieldConfig[] = [
-  { field: 'workflow_id', label: '工作流ID', type: 'input', defaultValue: undefined },
+  { field: 'source_id', label: '来源ID', type: 'input', defaultValue: undefined },
   {
     field: 'status',
     label: '状态',
@@ -68,8 +75,8 @@ const searchFields: SearchFieldConfig[] = [
 // 表格列配置
 const columns: ColumnConfig[] = [
   { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
-  { title: '执行ID', dataIndex: 'execution_id', key: 'execution_id', width: 240 },
-  { title: '工作流ID', dataIndex: 'workflow_id', key: 'workflow_id', width: 100 },
+  { title: '标题', dataIndex: 'title', key: 'title', width: 200 },
+  { title: '类型', dataIndex: 'source_type', key: 'source_type', width: 100 },
   { title: '模式', dataIndex: 'mode', key: 'mode', width: 80 },
   { title: '环境ID', dataIndex: 'env_id', key: 'env_id', width: 80 },
   { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
@@ -198,7 +205,12 @@ function formatTime(time: string | null | undefined): string {
       @page-change="handlePageChange"
     >
       <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'mode'">
+        <template v-if="column.key === 'source_type'">
+          <Tag :color="sourceTypeMap[record.source_type]?.color || 'default'">
+            {{ sourceTypeMap[record.source_type]?.text || record.source_type }}
+          </Tag>
+        </template>
+        <template v-else-if="column.key === 'mode'">
           <Tag v-if="record.mode === 'execute'" color="green">执行</Tag>
           <Tag v-else-if="record.mode === 'debug'" color="blue">调试</Tag>
           <Tag v-else>{{ record.mode || '-' }}</Tag>
@@ -220,7 +232,7 @@ function formatTime(time: string | null | undefined): string {
         <template v-else-if="column.key === 'action'">
           <Space>
             <Button
-              v-if="record.mode === 'execute'"
+              v-if="record.source_type === 'performance'"
               type="link"
               size="small"
               @click="handleReport(record as Execution)"

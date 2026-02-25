@@ -180,9 +180,9 @@ async function loadData() {
   try {
     loading.value = true;
     execution.value = await getExecutionApi(executionId.value);
-    if (execution.value?.workflow_id) {
+    if (execution.value?.source_id) {
       try {
-        workflow.value = await getWorkflowApi(execution.value.workflow_id);
+        workflow.value = await getWorkflowApi(execution.value.source_id);
       } catch { /* workflow may have been deleted */ }
     }
   } catch {

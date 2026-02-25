@@ -8,30 +8,30 @@ export type ExecutionMode = 'debug' | 'execute';
 // 执行状态
 export type ExecutionStatus = 'pending' | 'running' | 'completed' | 'failed' | 'stopped' | 'timeout';
 
+// 来源类型
+export type SourceTypeEnum = 'performance' | 'test_plan' | 'debug';
+
 export interface Execution {
   id: number;
   created_at?: string;
   updated_at?: string;
   project_id: number;
-  workflow_id: number;
+  source_id: number;
   env_id: number;
   executor_id?: number;
   execution_id: string;
   mode?: ExecutionMode;
+  source_type: SourceTypeEnum;
+  title: string;
   status: ExecutionStatus;
   start_time?: string;
   end_time?: string;
   duration?: number;
-  total_steps?: number;
-  success_steps?: number;
-  failed_steps?: number;
-  result?: string;
-  logs?: string;
   created_by?: number;
 }
 
 export interface CreateExecutionParams {
-  workflow_id: number;
+  source_id: number;
   env_id: number;
   executor_id?: number;
   mode?: ExecutionMode;
@@ -42,16 +42,9 @@ export interface ExecutionListParams {
   page?: number;
   pageSize?: number;
   project_id?: number;
-  workflow_id?: number;
+  source_id?: number;
   env_id?: number;
   status?: string;
-}
-
-export interface ExecutionLog {
-  timestamp: string;
-  level: string;
-  message: string;
-  step_id?: string;
 }
 
 // --- Realtime Metrics (from engine's MetricsEngine) ---
@@ -228,13 +221,6 @@ export async function getExecutionListApi(params?: ExecutionListParams) {
  */
 export async function getExecutionApi(id: number) {
   return requestClient.get<Execution>(`/execution-records/${id}`);
-}
-
-/**
- * 获取执行日志
- */
-export async function getExecutionLogsApi(id: number) {
-  return requestClient.get<ExecutionLog[]>(`/execution-records/${id}/logs`);
 }
 
 /**
