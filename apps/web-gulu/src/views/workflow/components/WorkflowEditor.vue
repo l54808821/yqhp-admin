@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { message, Spin } from 'ant-design-vue';
+import { message, Modal, Spin } from 'ant-design-vue';
 
 import type { Workflow } from '#/api/workflow';
 import { getWorkflowApi, updateWorkflowApi, validateWorkflowDefinitionApi } from '#/api/workflow';
@@ -16,12 +16,12 @@ import type { StepNode } from '../editor/WorkflowTreeEditor.vue';
 
 import ExecutionModal from './ExecutionModal.vue';
 import EditorToolbar from './EditorToolbar.vue';
-import ExecuteModal from './ExecuteModal.vue';
 import DebugContextDrawer from './DebugContextDrawer.vue';
 import type { WorkflowParam } from './WorkflowParamsPanel.vue';
 import type { WorkflowReturn } from './WorkflowReturnsPanel.vue';
 import type { ExecutorConfig } from '#/api/executor';
 import type { PerformanceConfig } from '#/api/workflow/performance';
+import { createExecutionApi } from '#/api/execution';
 
 interface Props {
   workflowId: number;
@@ -42,7 +42,6 @@ const loading = ref(false);
 const saving = ref(false);
 const workflow = ref<Workflow | null>(null);
 const selectedNode = ref<StepNode | null>(null);
-const executeModalOpen = ref(false);
 const debugModalOpen = ref(false);
 const debugContextDrawerOpen = ref(false);
 const debugRunning = ref(false);
@@ -607,7 +606,46 @@ function handleExecute() {
     message.warning('请先保存工作流');
     return;
   }
-  executeModalOpen.value = true;
+
+  if (!projectStore.currentEnvId) {
+    message.warning('请先在右上角选择执行环境');
+    return;
+  }
+
+  const executorCfg = workflowDefinition.value.executorConfig;
+  if (!executorCfg || !executorCfg.strategy || executorCfg.strategy === 'local') {
+    message.warning('请先在「其他配置」中配置执行策略');
+    return;
+  }
+
+  const envId = projectStore.currentEnvId!;
+  const workflowId = workflow.value!.id;
+
+  Modal.confirm({
+    title: '确认执行',
+    content: '确定要执行该工作流吗？',
+    okText: '执行',
+    cancelText: '取消',
+    onOk: async () => {
+      try {
+        const execution = await createExecutionApi({
+          workflow_id: workflowId,
+          env_id: envId,
+          executor_id:
+            executorCfg.strategy === 'manual'
+              ? (executorCfg.executor_id ?? undefined)
+              : undefined,
+          mode: 'execute',
+          performance_config:
+            workflowDefinition.value.performanceConfig || undefined,
+        });
+        message.success('执行已提交');
+        handleExecuteSuccess(execution.id);
+      } catch {
+        message.error('提交执行失败');
+      }
+    },
+  });
 }
 
 function handleExecuteSuccess(executionId: number) {
@@ -747,13 +785,6 @@ async function handleRename(newName: string) {
         />
       </Spin>
     </div>
-
-    <!-- 执行对话框 -->
-    <ExecuteModal
-      v-model:open="executeModalOpen"
-      :workflow="workflow"
-      @success="handleExecuteSuccess"
-    />
 
     <!-- 执行对话框（调试模式：不入库） -->
     <ExecutionModal
