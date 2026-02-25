@@ -4,14 +4,12 @@ import type { EchartsUIType } from '@vben/plugins/echarts';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
-import { Page } from '@vben/common-ui';
 import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
 
 import {
   Alert,
   Button,
   Card,
-  Descriptions,
   InputNumber,
   message,
   Popconfirm,
@@ -514,41 +512,63 @@ const stepSelectOptions = computed(() => {
 </script>
 
 <template>
-  <Page title="性能测试报告" :description="workflow?.name || `执行ID: ${executionId}`">
-    <template #extra>
-      <Space>
-        <Popconfirm v-if="isRunning" title="确定停止执行？" @confirm="handleStop">
-          <Button danger :loading="stopping">终止压测</Button>
-        </Popconfirm>
-        <Button @click="handleBack">返回</Button>
-      </Space>
-    </template>
+  <div class="report-page">
+    <div class="report-header">
+      <div class="header-row-1">
+        <div class="header-title-group">
+          <h2 class="header-title">{{ workflow?.name || '压测报告' }}</h2>
+          <span class="header-exec-id">{{ execution?.execution_id || executionId }}</span>
+          <Tag :color="statusColor" class="header-status-tag">{{ statusText }}</Tag>
+          <span v-if="isRunning" class="running-indicator" />
+        </div>
+        <div class="header-actions">
+          <Space>
+            <Popconfirm v-if="isRunning" title="确定停止执行？" @confirm="handleStop">
+              <Button danger :loading="stopping">终止压测</Button>
+            </Popconfirm>
+            <Button @click="handleBack">返 回</Button>
+          </Space>
+        </div>
+      </div>
+      <div class="header-meta">
+        <span class="meta-item">
+          <span class="meta-label">耗时</span>
+          <span class="meta-value">{{ realtimeMetrics ? formatDuration(realtimeMetrics.elapsed_ms) : formatDuration(execution?.duration) }}</span>
+        </span>
+        <span class="meta-divider" />
+        <span class="meta-item">
+          <span class="meta-label">迭代</span>
+          <span class="meta-value">{{ realtimeMetrics?.total_iterations || finalReport?.summary?.total_iterations || 0 }}</span>
+        </span>
+        <span class="meta-divider" />
+        <span class="meta-item">
+          <span class="meta-label">开始</span>
+          <span class="meta-value">{{ execution?.start_time ? new Date(execution.start_time).toLocaleString('zh-CN') : '-' }}</span>
+        </span>
+        <span v-if="execution?.end_time" class="meta-divider" />
+        <span v-if="execution?.end_time" class="meta-item">
+          <span class="meta-label">结束</span>
+          <span class="meta-value">{{ new Date(execution.end_time).toLocaleString('zh-CN') }}</span>
+        </span>
+        <template v-if="isRunning && estimatedRemainingText">
+          <span class="meta-divider" />
+          <span class="meta-item">
+            <span class="meta-value remaining-text">{{ estimatedRemainingText }}</span>
+          </span>
+        </template>
+      </div>
+      <Progress
+        v-if="isRunning && progressPercent >= 0"
+        :percent="progressPercent"
+        :show-info="false"
+        :stroke-width="3"
+        status="active"
+        class="header-progress"
+      />
+    </div>
 
     <Spin :spinning="loading">
       <div class="report-container">
-        <!-- Status Bar -->
-        <div class="status-bar">
-          <div class="status-bar-top">
-            <Space size="large" align="center">
-              <Tag :color="statusColor" class="status-tag">{{ statusText }}</Tag>
-              <span v-if="isRunning" class="running-indicator" />
-              <span class="duration-text">
-                {{ realtimeMetrics ? formatDuration(realtimeMetrics.elapsed_ms) : formatDuration(execution?.duration) }}
-              </span>
-            </Space>
-            <span v-if="isRunning && estimatedRemainingText" class="remaining-text">
-              {{ estimatedRemainingText }}
-            </span>
-          </div>
-          <Progress
-            v-if="isRunning && progressPercent >= 0"
-            :percent="progressPercent"
-            :show-info="false"
-            :stroke-width="4"
-            status="active"
-            class="status-progress"
-          />
-        </div>
 
         <!-- VU Control Panel (only during execution) -->
         <Card v-if="isRunning" :bordered="false" size="small" class="vu-control-card">
@@ -678,73 +698,119 @@ const stepSelectOptions = computed(() => {
           </div>
         </Card>
 
-        <!-- Execution Details -->
-        <Card title="执行详情" :bordered="false" class="detail-card">
-          <Descriptions :column="2" size="small">
-            <Descriptions.Item label="执行ID">{{ execution?.execution_id }}</Descriptions.Item>
-            <Descriptions.Item label="工作流">{{ workflow?.name || execution?.workflow_id }}</Descriptions.Item>
-            <Descriptions.Item label="开始时间">{{ execution?.start_time ? new Date(execution.start_time).toLocaleString('zh-CN') : '-' }}</Descriptions.Item>
-            <Descriptions.Item label="结束时间">{{ execution?.end_time ? new Date(execution.end_time).toLocaleString('zh-CN') : '-' }}</Descriptions.Item>
-            <Descriptions.Item label="总耗时">{{ formatDuration(execution?.duration) }}</Descriptions.Item>
-            <Descriptions.Item label="总迭代">{{ realtimeMetrics?.total_iterations || finalReport?.summary?.total_iterations || 0 }}</Descriptions.Item>
-          </Descriptions>
-        </Card>
       </div>
     </Spin>
-  </Page>
+  </div>
 </template>
 
 <style scoped>
-.report-container {
+.report-page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  min-height: 100%;
 }
 
-.status-bar {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 12px 16px;
-  border-radius: 8px;
-  background: var(--ant-color-fill-quaternary, #fafafa);
+.report-header {
+  padding: 16px 24px 12px;
+  border-bottom: 1px solid var(--ant-color-border, #f0f0f0);
+  background: var(--ant-color-bg-container, #fff);
 }
 
-.status-bar-top {
+.header-row-1 {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.header-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.header-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-exec-id {
+  font-size: 12px;
+  color: var(--ant-color-text-quaternary, #bbb);
+  font-family: monospace;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.header-status-tag {
+  flex-shrink: 0;
+}
+
+.header-actions {
+  flex-shrink: 0;
+}
+
+.header-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.meta-label {
+  color: var(--ant-color-text-tertiary, #999);
+}
+
+.meta-value {
+  color: var(--ant-color-text-secondary, #666);
+}
+
+.meta-divider {
+  width: 1px;
+  height: 12px;
+  background: var(--ant-color-border, #e8e8e8);
+  flex-shrink: 0;
 }
 
 .remaining-text {
-  font-size: 12px;
-  color: var(--ant-color-text-secondary);
+  color: var(--ant-color-primary, #1890ff);
+  font-weight: 500;
 }
 
-.status-progress {
-  margin: 0 -2px;
+.header-progress {
+  margin: 10px -2px 0;
 }
 
-.status-progress :deep(.ant-progress-outer) {
+.header-progress :deep(.ant-progress-outer) {
   padding: 0;
 }
 
-.status-progress :deep(.ant-progress-inner) {
+.header-progress :deep(.ant-progress-inner) {
   border-radius: 2px;
-}
-
-.status-tag {
-  font-size: 14px;
-  padding: 4px 12px;
 }
 
 .running-indicator {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: #52c41a;
   animation: pulse 1.5s ease-in-out infinite;
+  flex-shrink: 0;
 }
 
 @keyframes pulse {
@@ -752,10 +818,11 @@ const stepSelectOptions = computed(() => {
   50% { opacity: 0.3; }
 }
 
-.duration-text {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--ant-color-text-secondary);
+.report-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
 }
 
 .vu-control-card {
