@@ -249,8 +249,10 @@ onUnmounted(() => {
               <div class="msg-avatar msg-avatar--user">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               </div>
-              <div class="msg-bubble msg-bubble--user">
-                {{ msg.content }}
+              <div class="msg-content-wrapper">
+                <div class="msg-bubble msg-bubble--user">
+                  {{ msg.content }}
+                </div>
               </div>
             </template>
 
@@ -573,7 +575,7 @@ onUnmounted(() => {
 }
 
 .message-row--user {
-  flex-direction: row-reverse;
+  flex-direction: row;
 }
 
 .msg-avatar {
@@ -601,7 +603,7 @@ onUnmounted(() => {
 }
 
 .msg-content-wrapper {
-  max-width: 680px;
+  flex: 1;
   min-width: 0;
 }
 
@@ -613,10 +615,10 @@ onUnmounted(() => {
 
 .msg-bubble--user {
   padding: 10px 16px;
-  background: linear-gradient(135deg, #1677ff 0%, #4096ff 100%);
-  color: #fff;
-  border-radius: 18px 18px 4px 18px;
-  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.15);
+  background: #e6f4ff;
+  color: #1a1a2e;
+  border-radius: 18px 18px 18px 4px;
+  border: 1px solid #bae0ff;
   font-size: 14px;
   white-space: pre-wrap;
 }
