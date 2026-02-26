@@ -189,7 +189,7 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
     };
     messages.value.push(userMsg);
 
-    const assistantMsg: ChatMessage = {
+    messages.value.push({
       id: generateId(),
       role: 'assistant',
       content: '',
@@ -197,8 +197,8 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
       stepEvents: [],
       toolCalls: [],
       timestamp: Date.now(),
-    };
-    messages.value.push(assistantMsg);
+    });
+    const assistantMsg = messages.value[messages.value.length - 1]!;
 
     streamStatus.value = 'connecting';
     abortController.value = new AbortController();
