@@ -16,6 +16,8 @@ const StopIcon = createIconifyIcon('lucide:square');
 const ArrowDownIcon = createIconifyIcon('lucide:arrow-down');
 const MessageCircle = createIconifyIcon('lucide:message-circle');
 const SparklesIcon = createIconifyIcon('lucide:sparkles');
+const PanelLeftClose = createIconifyIcon('lucide:panel-left-close');
+const PanelLeftOpen = createIconifyIcon('lucide:panel-left-open');
 
 interface Props {
   workflow: Workflow;
@@ -115,8 +117,8 @@ onUnmounted(() => {
           <span>{{ workflow.name || '对话' }}</span>
         </div>
         <Tooltip title="收起侧栏">
-          <button class="sidebar-toggle" @click="sidebarCollapsed = !sidebarCollapsed">
-            <MessageCircle class="size-4" />
+          <button class="sidebar-toggle" @click="sidebarCollapsed = true">
+            <PanelLeftClose class="size-4" />
           </button>
         </Tooltip>
       </div>
@@ -155,6 +157,15 @@ onUnmounted(() => {
 
     <!-- 右侧对话区域 -->
     <div class="chat-main">
+      <!-- 侧栏收起时的展开按钮 -->
+      <div v-if="!compact && sidebarCollapsed" class="sidebar-expand-bar">
+        <Tooltip title="展开侧栏" placement="right">
+          <button class="sidebar-expand-btn" @click="sidebarCollapsed = false">
+            <PanelLeftOpen class="size-4" />
+          </button>
+        </Tooltip>
+      </div>
+
       <!-- compact 模式下的顶部会话栏 -->
       <div v-if="compact" class="compact-topbar">
         <div class="compact-topbar-left">
@@ -351,7 +362,9 @@ onUnmounted(() => {
   flex-direction: column;
   width: 240px;
   min-width: 240px;
+  max-width: 240px;
   background: #fff;
+  overflow: hidden;
   border-right: 1px solid #eee;
   transition: width 0.2s, min-width 0.2s;
 }
@@ -378,6 +391,14 @@ onUnmounted(() => {
   font-weight: 600;
   font-size: 14px;
   color: #333;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.sidebar-title span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sidebar-title-icon {
@@ -406,7 +427,8 @@ onUnmounted(() => {
 }
 
 .new-conv-btn {
-  margin: 12px 16px;
+  margin: 12px 12px;
+  width: calc(100% - 24px);
 }
 
 .conv-list {
@@ -480,6 +502,35 @@ onUnmounted(() => {
   color: #999;
 }
 
+/* ============ 侧栏展开按钮 ============ */
+.sidebar-expand-bar {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+}
+
+.sidebar-expand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fff;
+  color: #666;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s;
+}
+
+.sidebar-expand-btn:hover {
+  border-color: #1677ff;
+  color: #1677ff;
+  background: #f0f5ff;
+}
+
 /* ============ 主对话区 ============ */
 .chat-main {
   flex: 1;
@@ -487,6 +538,7 @@ onUnmounted(() => {
   flex-direction: column;
   min-width: 0;
   overflow: hidden;
+  position: relative;
 }
 
 .chat-body {
