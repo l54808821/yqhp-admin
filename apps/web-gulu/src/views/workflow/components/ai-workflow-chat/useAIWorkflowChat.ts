@@ -224,7 +224,7 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
           },
           stream: true,
           mode: 'debug',
-          envId: envId || 0,
+          ...(envId ? { envId } : {}),
           conversationId: currentConversation.value?.id
             ? String(currentConversation.value.id)
             : undefined,
@@ -260,8 +260,9 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
             eventType = line.slice(7).trim();
           } else if (line.startsWith('data: ') && eventType) {
             try {
-              const data = JSON.parse(line.slice(6));
-              handleSSEEvent(eventType, data, assistantMsg);
+              const raw = JSON.parse(line.slice(6));
+              const eventData = raw.data || raw;
+              handleSSEEvent(eventType, eventData, assistantMsg);
             } catch {
               // ignore parse errors
             }
@@ -297,7 +298,7 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
     switch (eventType) {
       case 'ai_chunk':
         msg.loading = false;
-        msg.content += data.content || '';
+        msg.content += data.chunk || data.content || '';
         break;
 
       case 'ai_thinking':
@@ -310,21 +311,23 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
       case 'ai_tool_call_start':
         msg.toolCalls = msg.toolCalls || [];
         msg.toolCalls.push({
-          toolName: data.toolName || '',
-          arguments: data.arguments || '',
+          toolName: data.toolName || data.tool_name || '',
+          arguments: data.arguments || data.args || '',
           status: 'running',
         });
         break;
 
       case 'ai_tool_call_complete':
         if (msg.toolCalls?.length) {
+          const toolName = data.toolName || data.tool_name || '';
           const tc = msg.toolCalls.find(
-            (t) => t.toolName === data.toolName && t.status === 'running',
+            (t) => t.toolName === toolName && t.status === 'running',
           );
           if (tc) {
             tc.result = data.result || '';
-            tc.isError = data.isError || false;
-            tc.status = data.isError ? 'error' : 'completed';
+            tc.isError = data.isError || data.is_error || false;
+            tc.durationMs = data.durationMs || data.duration_ms;
+            tc.status = tc.isError ? 'error' : 'completed';
           }
         }
         break;
@@ -345,13 +348,14 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
             (s) => s.stepId === data.stepId && s.status === 'running',
           );
           if (step) {
-            step.status = data.success ? 'completed' : 'failed';
+            step.status = (data.success || data.status === 'success') ? 'completed' : 'failed';
             step.durationMs = data.durationMs;
-            step.result = data.result;
+            step.result = data.result || data.output;
           }
         }
         break;
 
+      case 'ai_complete':
       case 'message_complete':
         msg.loading = false;
         if (data.content) {
@@ -362,7 +366,11 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
         }
         msg.metadata = {
           ...msg.metadata,
-          usage: data.usage,
+          usage: data.usage || {
+            prompt_tokens: data.promptTokens,
+            completion_tokens: data.completionTokens,
+            total_tokens: data.totalTokens,
+          },
         };
         break;
 
@@ -379,6 +387,8 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
 
   async function persistMessages(userMsg: ChatMessage, assistantMsg: ChatMessage) {
     if (!currentConversation.value) return;
+    if (!userMsg.content?.trim()) return;
+
     const convId = currentConversation.value.id;
 
     try {
@@ -386,13 +396,15 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
         role: 'user',
         content: userMsg.content,
       });
-      await saveConversationMessageApi(convId, {
-        role: 'assistant',
-        content: assistantMsg.content,
-        metadata: assistantMsg.metadata,
-      });
 
-      // 用第一条消息自动设置标题
+      if (assistantMsg.content?.trim()) {
+        await saveConversationMessageApi(convId, {
+          role: 'assistant',
+          content: assistantMsg.content,
+          metadata: assistantMsg.metadata,
+        });
+      }
+
       if (
         currentConversation.value.title === '新的对话' ||
         !currentConversation.value.title

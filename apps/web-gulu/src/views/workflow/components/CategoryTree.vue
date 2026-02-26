@@ -253,11 +253,9 @@ async function handleSaveEdit() {
                 type: 'ai',
                 name: 'AI 对话',
                 config: {
-                  provider: 'openai',
-                  model: '',
-                  api_key: '',
+                  ai_model_id: 0,
                   system_prompt: '你是一个有用的助手。',
-                  prompt: '{{__user_message__}}',
+                  prompt: '${__user_message__}',
                   streaming: true,
                 },
               },

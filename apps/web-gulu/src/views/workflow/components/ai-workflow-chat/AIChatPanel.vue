@@ -108,7 +108,7 @@ onUnmounted(() => {
     <div v-if="!compact" class="sidebar" :class="{ 'sidebar--collapsed': sidebarCollapsed }">
       <div class="sidebar-header">
         <div class="sidebar-title">
-          <BotIcon class="sidebar-title-icon" />
+          <SparklesIcon class="sidebar-title-icon" />
           <span>{{ workflow.name || '对话' }}</span>
         </div>
         <Tooltip title="收起侧栏">
