@@ -245,6 +245,7 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
       streamStatus.value = 'streaming';
       const decoder = new TextDecoder();
       let buffer = '';
+      let eventType = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -254,7 +255,6 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
 
-        let eventType = '';
         for (const line of lines) {
           if (line.startsWith('event: ')) {
             eventType = line.slice(7).trim();
@@ -295,6 +295,7 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
   }
 
   function handleSSEEvent(eventType: string, data: any, msg: ChatMessage) {
+    console.log('[AI-SSE]', eventType, JSON.stringify(data));
     switch (eventType) {
       case 'ai_chunk':
         msg.loading = false;
@@ -317,20 +318,25 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
         });
         break;
 
-      case 'ai_tool_call_complete':
-        if (msg.toolCalls?.length) {
-          const toolName = data.toolName || data.tool_name || '';
-          const tc = msg.toolCalls.find(
-            (t) => t.toolName === toolName && t.status === 'running',
+      case 'ai_tool_call_complete': {
+        const tcName = data.toolName || data.tool_name || '';
+        if (msg.toolCalls?.length && tcName) {
+          const idx = msg.toolCalls.findIndex(
+            (t) => t.toolName === tcName && t.status === 'running',
           );
-          if (tc) {
-            tc.result = data.result || '';
-            tc.isError = data.isError || data.is_error || false;
-            tc.durationMs = data.durationMs || data.duration_ms;
-            tc.status = tc.isError ? 'error' : 'completed';
+          if (idx >= 0) {
+            const isErr = data.isError || data.is_error || false;
+            msg.toolCalls[idx] = {
+              ...msg.toolCalls[idx]!,
+              result: data.result || '',
+              isError: isErr,
+              durationMs: data.durationMs || data.duration_ms,
+              status: isErr ? 'error' : 'completed',
+            };
           }
         }
         break;
+      }
 
       case 'step_started':
         msg.stepEvents = msg.stepEvents || [];
@@ -342,18 +348,35 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
         });
         break;
 
-      case 'step_completed':
-        if (msg.stepEvents?.length) {
-          const step = msg.stepEvents.find(
-            (s) => s.stepId === data.stepId && s.status === 'running',
-          );
-          if (step) {
-            step.status = (data.success || data.status === 'success') ? 'completed' : 'failed';
-            step.durationMs = data.durationMs;
-            step.result = data.result || data.output;
+      case 'step_completed': {
+        if (msg.stepEvents?.length && data.stepId) {
+          const idx = msg.stepEvents.findIndex((s) => s.stepId === data.stepId);
+          if (idx >= 0) {
+            msg.stepEvents[idx] = {
+              ...msg.stepEvents[idx]!,
+              status: (data.success || data.status === 'success') ? 'completed' : 'failed',
+              durationMs: data.durationMs,
+              result: data.result || data.output,
+            };
           }
         }
         break;
+      }
+
+      case 'step_failed': {
+        if (msg.stepEvents?.length && data.stepId) {
+          const idx = msg.stepEvents.findIndex((s) => s.stepId === data.stepId);
+          if (idx >= 0) {
+            msg.stepEvents[idx] = {
+              ...msg.stepEvents[idx]!,
+              status: 'failed',
+              durationMs: data.durationMs,
+              result: data.result,
+            };
+          }
+        }
+        break;
+      }
 
       case 'ai_complete':
       case 'message_complete':
