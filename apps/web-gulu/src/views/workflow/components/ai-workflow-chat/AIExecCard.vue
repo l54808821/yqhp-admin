@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 
 import { Tag, Collapse, CollapsePanel } from 'ant-design-vue';
 import { createIconifyIcon } from '@vben/icons';
 
 import type { StepEvent, ToolCallInfo } from './useAIWorkflowChat';
+import { HttpResponsePanel, AIResponsePanel, ScriptResponsePanel } from '../shared';
 
-const ChevronRight = createIconifyIcon('lucide:chevron-right');
 const CheckCircle = createIconifyIcon('lucide:check-circle-2');
 const XCircle = createIconifyIcon('lucide:x-circle');
 const Loader = createIconifyIcon('lucide:loader');
@@ -20,6 +20,7 @@ interface Props {
 defineProps<Props>();
 
 const activeKeys = ref<string[]>([]);
+
 
 function stepIcon(status: string) {
   switch (status) {
@@ -102,7 +103,7 @@ function formatDuration(ms?: number) {
         </div>
       </div>
 
-      <!-- 可折叠详情 -->
+      <!-- 可折叠详情：专用面板 -->
       <Collapse
         v-if="step.result"
         v-model:activeKey="activeKeys"
@@ -110,7 +111,21 @@ function formatDuration(ms?: number) {
         class="exec-card-collapse"
       >
         <CollapsePanel :key="step.stepId" header="执行结果">
-          <pre class="exec-card-result">{{ typeof step.result === 'string' ? step.result : JSON.stringify(step.result, null, 2) }}</pre>
+          <div class="exec-card-detail">
+            <HttpResponsePanel
+              v-if="step.stepType === 'http'"
+              :response="step.result"
+            />
+            <AIResponsePanel
+              v-else-if="step.stepType === 'ai'"
+              :response="step.result"
+            />
+            <ScriptResponsePanel
+              v-else-if="step.stepType === 'script'"
+              :response="step.result"
+            />
+            <pre v-else class="exec-card-result">{{ typeof step.result === 'string' ? step.result : JSON.stringify(step.result, null, 2) }}</pre>
+          </div>
         </CollapsePanel>
       </Collapse>
     </div>
@@ -229,6 +244,19 @@ function formatDuration(ms?: number) {
 
 .exec-card-collapse :deep(.ant-collapse-content-box) {
   padding: 6px 12px !important;
+}
+
+.exec-card-detail {
+  max-height: 360px;
+  overflow: auto;
+}
+
+.exec-card-detail :deep(.http-response-panel),
+.exec-card-detail :deep(.ai-response-panel),
+.exec-card-detail :deep(.script-response-panel) {
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
 }
 
 .exec-card-result {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick, onUnmounted } from 'vue';
 
-import { Button, Typography, Tooltip, Popconfirm, Tag } from 'ant-design-vue';
+import { Button, Dropdown, Typography, Tooltip, Popconfirm, Tag } from 'ant-design-vue';
 import { Sender } from 'ant-design-x-vue';
 import { createIconifyIcon } from '@vben/icons';
 
@@ -152,6 +152,60 @@ onUnmounted(() => {
 
     <!-- 右侧对话区域 -->
     <div class="chat-main">
+      <!-- compact 模式下的顶部会话栏 -->
+      <div v-if="compact" class="compact-topbar">
+        <div class="compact-topbar-left">
+          <SparklesIcon class="compact-topbar-icon" />
+          <span class="compact-topbar-title">
+            {{ chat.currentConversation.value?.title || workflow.name || 'AI 对话' }}
+          </span>
+        </div>
+        <div class="compact-topbar-right">
+          <Tooltip title="历史对话">
+            <Dropdown placement="bottomRight" :trigger="['click']">
+              <button class="compact-topbar-btn">
+                <MessageCircle class="size-4" />
+              </button>
+              <template #overlay>
+                <div class="conv-dropdown">
+                  <div class="conv-dropdown-header">
+                    <span>历史对话</span>
+                    <Button type="link" size="small" @click="chat.startNewConversation()">
+                      <template #icon><PlusIcon class="size-3" /></template>
+                      新对话
+                    </Button>
+                  </div>
+                  <div class="conv-dropdown-list">
+                    <div
+                      v-for="conv in chat.conversations.value"
+                      :key="conv.id"
+                      class="conv-dropdown-item"
+                      :class="{ 'conv-dropdown-item--active': chat.currentConversation.value?.id === conv.id }"
+                      @click="chat.switchConversation(conv)"
+                    >
+                      <span class="conv-dropdown-item-title">{{ conv.title || '新的对话' }}</span>
+                      <Popconfirm title="确定删除？" @confirm.stop="chat.deleteConversation(conv.id)">
+                        <button class="conv-dropdown-item-delete" @click.stop>
+                          <TrashIcon class="size-3" />
+                        </button>
+                      </Popconfirm>
+                    </div>
+                    <div v-if="chat.conversations.value.length === 0" class="conv-dropdown-empty">
+                      暂无历史对话
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </Dropdown>
+          </Tooltip>
+          <Tooltip title="开启新对话">
+            <button class="compact-topbar-btn" @click="chat.startNewConversation()">
+              <PlusIcon class="size-4" />
+            </button>
+          </Tooltip>
+        </div>
+      </div>
+
       <!-- 对话内容 -->
       <div ref="chatBodyRef" class="chat-body" @scroll="handleScroll">
         <!-- 欢迎页 -->
@@ -707,6 +761,148 @@ onUnmounted(() => {
 
 .clear-btn:hover:not(:disabled) {
   color: #1677ff;
+}
+
+/* ============ compact 模式顶栏 ============ */
+.compact-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 44px;
+  padding: 0 12px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.compact-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.compact-topbar-icon {
+  width: 18px;
+  height: 18px;
+  color: #1677ff;
+  flex-shrink: 0;
+}
+
+.compact-topbar-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compact-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.compact-topbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.compact-topbar-btn:hover {
+  background: #f0f0f0;
+  color: #1677ff;
+}
+
+/* 会话下拉菜单 */
+.conv-dropdown {
+  width: 260px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.conv-dropdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+}
+
+.conv-dropdown-list {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 4px 6px 8px;
+}
+
+.conv-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.conv-dropdown-item:hover {
+  background: #f5f7fa;
+}
+
+.conv-dropdown-item--active {
+  background: #e6f4ff;
+}
+
+.conv-dropdown-item-title {
+  font-size: 13px;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.conv-dropdown-item-delete {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  color: #999;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.conv-dropdown-item:hover .conv-dropdown-item-delete {
+  display: flex;
+}
+
+.conv-dropdown-item-delete:hover {
+  color: #ff4d4f;
+  background: #fff1f0;
+}
+
+.conv-dropdown-empty {
+  text-align: center;
+  padding: 16px 0;
+  font-size: 12px;
+  color: #999;
 }
 
 /* compact 模式 */

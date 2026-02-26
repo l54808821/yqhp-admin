@@ -224,6 +224,7 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
           },
           stream: true,
           mode: 'debug',
+          persist: false,
           ...(envId ? { envId } : {}),
           conversationId: currentConversation.value?.id
             ? String(currentConversation.value.id)
@@ -295,7 +296,6 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
   }
 
   function handleSSEEvent(eventType: string, data: any, msg: ChatMessage) {
-    console.log('[AI-SSE]', eventType, JSON.stringify(data));
     switch (eventType) {
       case 'ai_chunk':
         msg.loading = false;
