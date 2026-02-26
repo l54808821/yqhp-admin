@@ -84,7 +84,7 @@ function goBack() {
   display: flex;
   flex-direction: column;
   height: calc(100vh - 50px);
-  background: #f5f7fa;
+  background: hsl(var(--accent) / 30%);
 }
 
 .app-header {
@@ -93,8 +93,8 @@ function goBack() {
   justify-content: space-between;
   height: 56px;
   padding: 0 20px;
-  background: #fff;
-  border-bottom: 1px solid #eee;
+  background: hsl(var(--background));
+  border-bottom: 1px solid hsl(var(--border));
   flex-shrink: 0;
 }
 
@@ -110,18 +110,18 @@ function goBack() {
   justify-content: center;
   width: 32px;
   height: 32px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid hsl(var(--border));
   border-radius: 8px;
-  background: #fff;
+  background: hsl(var(--background));
   cursor: pointer;
-  color: #666;
+  color: hsl(var(--muted-foreground));
   transition: all 0.2s;
 }
 
 .back-btn:hover {
-  border-color: #1677ff;
-  color: #1677ff;
-  background: #f0f5ff;
+  border-color: var(--ant-color-primary, #1677ff);
+  color: var(--ant-color-primary, #1677ff);
+  background: hsl(var(--accent));
 }
 
 .app-info {
@@ -132,14 +132,14 @@ function goBack() {
 .app-name {
   font-size: 16px;
   font-weight: 600;
-  color: #333;
+  color: hsl(var(--foreground));
   margin: 0;
   line-height: 1.3;
 }
 
 .app-desc {
   font-size: 12px;
-  color: #999;
+  color: hsl(var(--muted-foreground));
   line-height: 1.3;
 }
 
@@ -155,18 +155,18 @@ function goBack() {
   gap: 6px;
   padding: 6px 14px;
   font-size: 13px;
-  color: #666;
-  background: #fff;
-  border: 1px solid #e0e0e0;
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .settings-btn:hover {
-  color: #1677ff;
-  border-color: #1677ff;
-  background: #f0f5ff;
+  color: var(--ant-color-primary, #1677ff);
+  border-color: var(--ant-color-primary, #1677ff);
+  background: hsl(var(--accent));
 }
 
 .app-body {
@@ -187,6 +187,6 @@ function goBack() {
   justify-content: center;
   height: 100%;
   font-size: 14px;
-  color: #999;
+  color: hsl(var(--muted-foreground));
 }
 </style>

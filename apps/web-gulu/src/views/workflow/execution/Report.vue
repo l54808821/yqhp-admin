@@ -778,8 +778,8 @@ const stepSelectOptions = computed(() => {
 
 .report-header {
   padding: 16px 24px 12px;
-  border-bottom: 1px solid var(--ant-color-border, #f0f0f0);
-  background: var(--ant-color-bg-container, #fff);
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
 }
 
 .header-row-1 {
@@ -809,7 +809,7 @@ const stepSelectOptions = computed(() => {
 
 .header-exec-id {
   font-size: 12px;
-  color: var(--ant-color-text-quaternary, #bbb);
+  color: hsl(var(--muted-foreground));
   font-family: monospace;
   white-space: nowrap;
   flex-shrink: 0;
@@ -838,17 +838,17 @@ const stepSelectOptions = computed(() => {
 }
 
 .meta-label {
-  color: var(--ant-color-text-tertiary, #999);
+  color: hsl(var(--muted-foreground));
 }
 
 .meta-value {
-  color: var(--ant-color-text-secondary, #666);
+  color: hsl(var(--foreground));
 }
 
 .meta-divider {
   width: 1px;
   height: 12px;
-  background: var(--ant-color-border, #e8e8e8);
+  background: hsl(var(--border));
   flex-shrink: 0;
 }
 
@@ -876,16 +876,16 @@ const stepSelectOptions = computed(() => {
 }
 
 .mode-popover-row:not(:last-child) {
-  border-bottom: 1px dashed var(--ant-color-border-secondary, #f0f0f0);
+  border-bottom: 1px dashed hsl(var(--border));
 }
 
 .mode-popover-label {
-  color: var(--ant-color-text-tertiary, #999);
+  color: hsl(var(--muted-foreground));
   white-space: nowrap;
 }
 
 .mode-popover-value {
-  color: var(--ant-color-text, #333);
+  color: hsl(var(--foreground));
   font-weight: 500;
   text-align: right;
 }
@@ -930,7 +930,7 @@ const stepSelectOptions = computed(() => {
 }
 
 .vu-control-card {
-  background: var(--ant-color-fill-quaternary, #fafafa);
+  background: hsl(var(--accent) / 50%);
 }
 
 .vu-hint {

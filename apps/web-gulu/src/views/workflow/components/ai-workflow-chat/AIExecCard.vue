@@ -214,9 +214,9 @@ function toAIResponseData(step: StepEvent) {
 
 /* 每个面板就是一个卡片 */
 .exec-panel {
-  border: 1px solid #e8e8e8 !important;
+  border: 1px solid hsl(var(--border)) !important;
   border-radius: 10px !important;
-  background: #fafafa;
+  background: hsl(var(--background));
   overflow: hidden;
   margin-bottom: 6px;
   transition: border-color 0.2s;
@@ -236,11 +236,11 @@ function toAIResponseData(step: StepEvent) {
 
 .exec-panel :deep(.ant-collapse-expand-icon) {
   padding: 0 12px 0 0 !important;
-  color: #999;
+  color: hsl(var(--muted-foreground));
 }
 
 .exec-panel :deep(.ant-collapse-content) {
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid hsl(var(--border));
 }
 
 .exec-panel :deep(.ant-collapse-content-box) {
@@ -271,7 +271,7 @@ function toAIResponseData(step: StepEvent) {
 .exec-card-name {
   font-size: 13px;
   font-weight: 500;
-  color: #333;
+  color: hsl(var(--foreground));
 }
 
 .exec-card-tag {
@@ -289,7 +289,7 @@ function toAIResponseData(step: StepEvent) {
 
 .exec-card-duration {
   font-size: 12px;
-  color: #999;
+  color: hsl(var(--muted-foreground));
   font-variant-numeric: tabular-nums;
 }
 

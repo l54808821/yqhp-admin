@@ -353,7 +353,7 @@ onUnmounted(() => {
   display: flex;
   height: 100%;
   overflow: hidden;
-  background: #f5f7fa;
+  background: hsl(var(--accent) / 30%);
 }
 
 /* ============ 侧栏 ============ */
@@ -363,9 +363,9 @@ onUnmounted(() => {
   width: 240px;
   min-width: 240px;
   max-width: 240px;
-  background: #fff;
+  background: hsl(var(--background));
   overflow: hidden;
-  border-right: 1px solid #eee;
+  border-right: 1px solid hsl(var(--border));
   transition: width 0.2s, min-width 0.2s;
 }
 
@@ -381,7 +381,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 16px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid hsl(var(--border));
 }
 
 .sidebar-title {
@@ -390,7 +390,7 @@ onUnmounted(() => {
   gap: 8px;
   font-weight: 600;
   font-size: 14px;
-  color: #333;
+  color: hsl(var(--foreground));
   min-width: 0;
   overflow: hidden;
 }
@@ -416,14 +416,14 @@ onUnmounted(() => {
   border: none;
   background: transparent;
   border-radius: 6px;
-  color: #999;
+  color: hsl(var(--muted-foreground));
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .sidebar-toggle:hover {
-  background: #f0f0f0;
-  color: #333;
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
 }
 
 .new-conv-btn {
@@ -449,24 +449,24 @@ onUnmounted(() => {
 }
 
 .conv-item:hover {
-  background: #f5f7fa;
+  background: hsl(var(--accent));
 }
 
 .conv-item--active {
-  background: #e6f4ff;
+  background: hsl(var(--accent));
 }
 
 .conv-item-icon {
   width: 14px;
   height: 14px;
-  color: #999;
+  color: hsl(var(--muted-foreground));
   flex-shrink: 0;
 }
 
 .conv-item-title {
   flex: 1;
   font-size: 13px;
-  color: #333;
+  color: hsl(var(--foreground));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -481,7 +481,7 @@ onUnmounted(() => {
   border: none;
   background: transparent;
   border-radius: 4px;
-  color: #999;
+  color: hsl(var(--muted-foreground));
   cursor: pointer;
   flex-shrink: 0;
 }
@@ -499,7 +499,7 @@ onUnmounted(() => {
   text-align: center;
   padding: 24px 0;
   font-size: 13px;
-  color: #999;
+  color: hsl(var(--muted-foreground));
 }
 
 /* ============ 侧栏展开按钮 ============ */
@@ -516,19 +516,18 @@ onUnmounted(() => {
   justify-content: center;
   width: 32px;
   height: 32px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid hsl(var(--border));
   border-radius: 8px;
-  background: #fff;
-  color: #666;
+  background: hsl(var(--background));
+  color: hsl(var(--muted-foreground));
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
   transition: all 0.2s;
 }
 
 .sidebar-expand-btn:hover {
-  border-color: #1677ff;
-  color: #1677ff;
-  background: #f0f5ff;
+  border-color: var(--ant-color-primary, #1677ff);
+  color: var(--ant-color-primary, #1677ff);
+  background: hsl(var(--accent));
 }
 
 /* ============ 主对话区 ============ */
@@ -578,7 +577,7 @@ onUnmounted(() => {
 
 .welcome-title {
   margin-bottom: 8px !important;
-  color: #1a1a2e;
+  color: hsl(var(--foreground));
 }
 
 .welcome-desc {
@@ -599,18 +598,17 @@ onUnmounted(() => {
 .suggested-btn {
   padding: 8px 16px;
   font-size: 13px;
-  color: #1677ff;
-  background: #f0f5ff;
-  border: 1px solid #d6e4ff;
+  color: var(--ant-color-primary, #1677ff);
+  background: hsl(var(--accent));
+  border: 1px solid hsl(var(--border));
   border-radius: 20px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .suggested-btn:hover {
-  background: #e6f4ff;
-  border-color: #91caff;
-  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.1);
+  background: hsl(var(--accent) / 80%);
+  border-color: var(--ant-color-primary, #1677ff);
 }
 
 /* 消息列表 */
@@ -667,20 +665,19 @@ onUnmounted(() => {
 
 .msg-bubble--user {
   padding: 10px 16px;
-  background: #e6f4ff;
-  color: #1a1a2e;
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
   border-radius: 18px 18px 18px 4px;
-  border: 1px solid #bae0ff;
+  border: 1px solid hsl(var(--border));
   font-size: 14px;
   white-space: pre-wrap;
 }
 
 .msg-bubble--assistant {
   padding: 14px 18px;
-  background: #fff;
-  border: 1px solid #f0f0f0;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
   border-radius: 18px 18px 18px 4px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
   font-size: 14px;
 }
 
@@ -735,42 +732,38 @@ onUnmounted(() => {
 }
 
 .scroll-btn {
-  color: #595959;
-  background: #fff;
-  border: 1px solid #d9d9d9;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  color: hsl(var(--foreground));
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
 }
 
 .scroll-btn:hover {
-  color: #1677ff;
-  border-color: #1677ff;
-  background: #f0f5ff;
+  color: var(--ant-color-primary, #1677ff);
+  border-color: var(--ant-color-primary, #1677ff);
+  background: hsl(var(--accent));
 }
 
 .stop-btn {
   color: #ff4d4f;
-  background: #fff;
+  background: hsl(var(--background));
   border: 1px solid #ffccc7;
-  box-shadow: 0 2px 8px rgba(255, 77, 79, 0.1);
 }
 
 .stop-btn:hover {
-  background: #fff1f0;
+  background: hsl(var(--accent));
   border-color: #ff4d4f;
 }
 
 .sender-card {
   padding: 8px 12px;
-  background: #fff;
-  border: 1px solid #e0e0e0;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
   border-radius: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   transition: box-shadow 0.3s, border-color 0.3s;
 }
 
 .sender-card:focus-within {
-  border-color: #c0c0c0;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  border-color: hsl(var(--foreground) / 30%);
 }
 
 .sender-card :deep(.ant-sender) {
@@ -819,11 +812,11 @@ onUnmounted(() => {
 
 .clear-btn {
   font-size: 12px;
-  color: #999;
+  color: hsl(var(--muted-foreground));
 }
 
 .clear-btn:hover:not(:disabled) {
-  color: #1677ff;
+  color: var(--ant-color-primary, #1677ff);
 }
 
 /* ============ compact 模式顶栏 ============ */
@@ -833,8 +826,8 @@ onUnmounted(() => {
   justify-content: space-between;
   height: 44px;
   padding: 0 12px;
-  border-bottom: 1px solid #f0f0f0;
-  background: #fff;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
   flex-shrink: 0;
 }
 
@@ -855,7 +848,7 @@ onUnmounted(() => {
 .compact-topbar-title {
   font-size: 13px;
   font-weight: 500;
-  color: #333;
+  color: hsl(var(--foreground));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -876,20 +869,20 @@ onUnmounted(() => {
   border: none;
   background: transparent;
   border-radius: 6px;
-  color: #666;
+  color: hsl(var(--muted-foreground));
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .compact-topbar-btn:hover {
-  background: #f0f0f0;
-  color: #1677ff;
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
 }
 
 /* 会话下拉菜单 */
 .conv-dropdown {
   width: 260px;
-  background: #fff;
+  background: hsl(var(--background));
   border-radius: 8px;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
   overflow: hidden;
@@ -902,7 +895,7 @@ onUnmounted(() => {
   padding: 10px 12px 6px;
   font-size: 13px;
   font-weight: 500;
-  color: #333;
+  color: hsl(var(--foreground));
 }
 
 .conv-dropdown-list {
@@ -922,16 +915,16 @@ onUnmounted(() => {
 }
 
 .conv-dropdown-item:hover {
-  background: #f5f7fa;
+  background: hsl(var(--accent));
 }
 
 .conv-dropdown-item--active {
-  background: #e6f4ff;
+  background: hsl(var(--accent));
 }
 
 .conv-dropdown-item-title {
   font-size: 13px;
-  color: #333;
+  color: hsl(var(--foreground));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -947,7 +940,7 @@ onUnmounted(() => {
   border: none;
   background: transparent;
   border-radius: 4px;
-  color: #999;
+  color: hsl(var(--muted-foreground));
   cursor: pointer;
   flex-shrink: 0;
 }
@@ -965,12 +958,12 @@ onUnmounted(() => {
   text-align: center;
   padding: 16px 0;
   font-size: 12px;
-  color: #999;
+  color: hsl(var(--muted-foreground));
 }
 
 /* compact 模式 */
 .ai-chat-panel--compact {
-  background: #fff;
+  background: hsl(var(--background));
 }
 
 .ai-chat-panel--compact .chat-welcome {
