@@ -21,16 +21,19 @@ interface Props {
   workflow: Workflow;
   envId?: number;
   compact?: boolean;
+  persistConversation?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   envId: 0,
   compact: false,
+  persistConversation: true,
 });
 
 const chat = useAIWorkflowChat({
   workflow: props.workflow,
   envId: props.envId,
+  persistConversation: props.persistConversation,
 });
 
 const inputText = ref('');

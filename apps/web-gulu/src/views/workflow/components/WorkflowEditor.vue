@@ -832,6 +832,7 @@ async function handleRename(newName: string) {
                 :workflow="workflow"
                 :env-id="projectStore.currentEnvId"
                 compact
+                :persist-conversation="false"
               />
             </template>
           </SplitPane>

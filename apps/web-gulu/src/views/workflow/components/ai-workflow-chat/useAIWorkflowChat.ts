@@ -65,10 +65,11 @@ function getExecuteUrl(): string {
 export interface UseAIWorkflowChatOptions {
   workflow: Workflow;
   envId?: number;
+  persistConversation?: boolean;
 }
 
 export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
-  const { workflow, envId } = options;
+  const { workflow, envId, persistConversation = true } = options;
 
   const messages = ref<ChatMessage[]>([]);
   const conversations = ref<AIConversation[]>([]);
@@ -90,6 +91,7 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
   });
 
   async function loadConversations() {
+    if (!persistConversation) return;
     try {
       const result = await listConversationsApi(workflow.id);
       conversations.value = result || [];
@@ -99,6 +101,19 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
   }
 
   async function createConversation(variables?: Record<string, any>) {
+    if (!persistConversation) {
+      const localConv: AIConversation = {
+        id: Date.now(),
+        workflow_id: workflow.id,
+        title: '新的对话',
+        variables,
+      };
+      conversations.value.unshift(localConv);
+      currentConversation.value = localConv;
+      messages.value = [];
+      return localConv;
+    }
+
     try {
       const conv = await createConversationApi(workflow.id, { variables });
       conversations.value.unshift(conv);
@@ -113,6 +128,8 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
   async function switchConversation(conv: AIConversation) {
     currentConversation.value = conv;
     messages.value = [];
+
+    if (!persistConversation) return;
 
     try {
       const detail = await getConversationApi(conv.id);
@@ -131,6 +148,15 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
   }
 
   async function deleteConversation(convId: number) {
+    if (!persistConversation) {
+      conversations.value = conversations.value.filter((c) => c.id !== convId);
+      if (currentConversation.value?.id === convId) {
+        currentConversation.value = null;
+        messages.value = [];
+      }
+      return;
+    }
+
     try {
       await deleteConversationApi(convId);
       conversations.value = conversations.value.filter((c) => c.id !== convId);
@@ -144,10 +170,13 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
   }
 
   async function renameConversation(convId: number, title: string) {
+    const conv = conversations.value.find((c) => c.id === convId);
+    if (conv) conv.title = title;
+
+    if (!persistConversation) return;
+
     try {
       await updateConversationTitleApi(convId, title);
-      const conv = conversations.value.find((c) => c.id === convId);
-      if (conv) conv.title = title;
     } catch (err: any) {
       console.error('重命名会话失败:', err);
     }
@@ -409,6 +438,7 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
   }
 
   async function persistMessages(userMsg: ChatMessage, assistantMsg: ChatMessage) {
+    if (!persistConversation) return;
     if (!currentConversation.value) return;
     if (!userMsg.content?.trim()) return;
 
