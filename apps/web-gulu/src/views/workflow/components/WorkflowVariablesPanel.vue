@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 
 import { createIconifyIcon } from '@vben/icons';
 import {
@@ -7,26 +7,48 @@ import {
   Input,
   Popconfirm,
   Select,
-  SelectOption,
 } from 'ant-design-vue';
 
 const Plus = createIconifyIcon('lucide:plus');
 const Trash = createIconifyIcon('lucide:trash-2');
 
+export type VariableType = 'string' | 'paragraph' | 'select' | 'number' | 'boolean' | 'file' | 'file_list' | 'json';
+
 export interface VariableItem {
   key: string;
   value: string;
-  type: 'string' | 'number' | 'boolean' | 'json';
+  type: VariableType;
 }
+
+const allTypeOptions: Array<{ value: VariableType; label: string }> = [
+  { value: 'string', label: '文本 string' },
+  { value: 'paragraph', label: '段落 string' },
+  { value: 'select', label: '下拉选项 string' },
+  { value: 'number', label: '数字 number' },
+  { value: 'boolean', label: '复选框 boolean' },
+  { value: 'file', label: '单文件 file' },
+  { value: 'file_list', label: '文件列表 array[file]' },
+  { value: 'json', label: 'JSON object' },
+];
+
+const basicTypeOptions = allTypeOptions.filter((t) =>
+  ['string', 'number', 'boolean', 'json'].includes(t.value),
+);
 
 interface Props {
   variables: Record<string, any>;
   readonly?: boolean;
+  workflowType?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   readonly: false,
+  workflowType: 'normal',
 });
+
+const typeOptions = computed(() =>
+  props.workflowType === 'ai_workflow' ? allTypeOptions : basicTypeOptions,
+);
 
 const emit = defineEmits<{
   (e: 'update:variables', variables: Record<string, any>): void;
@@ -166,13 +188,9 @@ function isDuplicateKey(key: string, currentIndex: number): boolean {
           <Select
             :value="item.type"
             :disabled="readonly"
+            :options="typeOptions"
             @change="(val: any) => handleTypeChange(index, val)"
-          >
-            <SelectOption value="string">string</SelectOption>
-            <SelectOption value="number">number</SelectOption>
-            <SelectOption value="boolean">boolean</SelectOption>
-            <SelectOption value="json">json</SelectOption>
-          </Select>
+          />
         </div>
         <div class="col-action">
           <Popconfirm

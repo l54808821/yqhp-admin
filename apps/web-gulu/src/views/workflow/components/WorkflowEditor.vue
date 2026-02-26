@@ -17,11 +17,13 @@ import type { StepNode } from '../editor/WorkflowTreeEditor.vue';
 import ExecutionModal from './ExecutionModal.vue';
 import EditorToolbar from './EditorToolbar.vue';
 import DebugContextDrawer from './DebugContextDrawer.vue';
+import { AIChatPanel } from './ai-workflow-chat';
 import type { WorkflowParam } from './WorkflowParamsPanel.vue';
 import type { WorkflowReturn } from './WorkflowReturnsPanel.vue';
 import type { ExecutorConfig } from '#/api/executor';
 import type { PerformanceConfig } from '#/api/workflow/performance';
 import { createExecutionApi } from '#/api/execution';
+import { updateWorkflowStatusApi } from '#/api/workflow';
 
 interface Props {
   workflowId: number;
@@ -46,6 +48,9 @@ const debugModalOpen = ref(false);
 const debugContextDrawerOpen = ref(false);
 const debugRunning = ref(false);
 const showPropertyPanel = ref(false);
+const showAIChatPanel = ref(false);
+
+const isAIWorkflow = computed(() => workflow.value?.workflow_type === 'ai_workflow');
 interface WorkflowDefinitionData {
   name: string;
   variables?: Record<string, any>;
@@ -686,6 +691,31 @@ function handleViewDebugContext() {
   debugContextDrawerOpen.value = true;
 }
 
+// AI 工作流：对话调试
+function handleChatDebug() {
+  showAIChatPanel.value = !showAIChatPanel.value;
+}
+
+// AI 工作流：发布
+async function handlePublish() {
+  if (!workflow.value) return;
+  if (isModified.value) {
+    message.warning('请先保存工作流');
+    return;
+  }
+  try {
+    await updateWorkflowStatusApi(workflow.value.id, 1);
+    workflow.value.status = 1;
+    message.success('发布成功');
+    router.push({
+      name: 'AIWorkflowApp',
+      params: { workflowId: String(workflow.value.id) },
+    });
+  } catch {
+    message.error('发布失败');
+  }
+}
+
 // 处理重命名
 async function handleRename(newName: string) {
   if (!workflow.value) return;
@@ -720,69 +750,156 @@ async function handleRename(newName: string) {
       @view-debug-context="handleViewDebugContext"
       @show-debug-panel="handleShowDebugPanel"
       @rename="handleRename"
+      @chat-debug="handleChatDebug"
+      @publish="handlePublish"
     />
     <div class="editor-main">
       <Spin :spinning="loading" class="editor-spin">
-        <SplitPane
-          v-if="showPropertyPanel"
-          :default-width="450"
-          :min-width="300"
-          :max-width="800"
-          storage-key="workflow-editor-split"
-        >
-          <template #left>
-            <WorkflowTreeEditor
-              :definition="workflowDefinition"
-              :expanded-keys="treeExpandedKeys"
-              :selected-keys="treeSelectedKeys"
-              :checked-keys="treeCheckedKeys"
-              :project-id="workflow?.project_id"
-              :workflow-id="workflow?.id"
-              :workflow-type="workflow?.workflow_type"
-              @update="handleDefinitionUpdate"
-              @select="handleNodeSelect"
-              @update:expanded-keys="handleExpandedKeysChange"
-              @update:selected-keys="handleSelectedKeysChange"
-              @update:checked-keys="handleCheckedKeysChange"
-              @update:variables="handleVariablesUpdate"
-              @update:params="handleParamsUpdate"
-              @update:returns="handleReturnsUpdate"
-              @update:executor-config="handleExecutorConfigUpdate"
-              @update:performance-config="handlePerformanceConfigUpdate"
-            />
-          </template>
-          <template #right>
-            <PropertyPanel
-              :node="selectedNode"
-              :env-id="projectStore.currentEnvId"
-              :workflow-id="workflow?.id"
-              :project-id="workflow?.project_id"
-              @update="handleNodeUpdate"
-              @close="handleClosePropertyPanel"
-              @delete="handleNodeDelete"
-            />
-          </template>
-        </SplitPane>
-        <WorkflowTreeEditor
-          v-else
-          :definition="workflowDefinition"
-          :expanded-keys="treeExpandedKeys"
-          :selected-keys="treeSelectedKeys"
-          :checked-keys="treeCheckedKeys"
-          :project-id="workflow?.project_id"
-          :workflow-id="workflow?.id"
-          :workflow-type="workflow?.workflow_type"
-          @update="handleDefinitionUpdate"
-          @select="handleNodeSelect"
-          @update:expanded-keys="handleExpandedKeysChange"
-          @update:selected-keys="handleSelectedKeysChange"
-          @update:checked-keys="handleCheckedKeysChange"
-          @update:variables="handleVariablesUpdate"
-          @update:params="handleParamsUpdate"
-          @update:returns="handleReturnsUpdate"
-          @update:executor-config="handleExecutorConfigUpdate"
-          @update:performance-config="handlePerformanceConfigUpdate"
-        />
+        <!-- AI 工作流：对话面板模式 -->
+        <template v-if="isAIWorkflow && showAIChatPanel && workflow">
+          <SplitPane
+            :default-width="500"
+            :min-width="350"
+            :max-width="900"
+            storage-key="workflow-ai-chat-split"
+          >
+            <template #left>
+              <div class="ai-editor-left">
+                <SplitPane
+                  v-if="showPropertyPanel"
+                  :default-width="450"
+                  :min-width="300"
+                  :max-width="700"
+                  storage-key="workflow-editor-split"
+                >
+                  <template #left>
+                    <WorkflowTreeEditor
+                      :definition="workflowDefinition"
+                      :expanded-keys="treeExpandedKeys"
+                      :selected-keys="treeSelectedKeys"
+                      :checked-keys="treeCheckedKeys"
+                      :project-id="workflow?.project_id"
+                      :workflow-id="workflow?.id"
+                      :workflow-type="workflow?.workflow_type"
+                      @update="handleDefinitionUpdate"
+                      @select="handleNodeSelect"
+                      @update:expanded-keys="handleExpandedKeysChange"
+                      @update:selected-keys="handleSelectedKeysChange"
+                      @update:checked-keys="handleCheckedKeysChange"
+                      @update:variables="handleVariablesUpdate"
+                      @update:params="handleParamsUpdate"
+                      @update:returns="handleReturnsUpdate"
+                      @update:executor-config="handleExecutorConfigUpdate"
+                      @update:performance-config="handlePerformanceConfigUpdate"
+                    />
+                  </template>
+                  <template #right>
+                    <PropertyPanel
+                      :node="selectedNode"
+                      :env-id="projectStore.currentEnvId"
+                      :workflow-id="workflow?.id"
+                      :project-id="workflow?.project_id"
+                      @update="handleNodeUpdate"
+                      @close="handleClosePropertyPanel"
+                      @delete="handleNodeDelete"
+                    />
+                  </template>
+                </SplitPane>
+                <WorkflowTreeEditor
+                  v-else
+                  :definition="workflowDefinition"
+                  :expanded-keys="treeExpandedKeys"
+                  :selected-keys="treeSelectedKeys"
+                  :checked-keys="treeCheckedKeys"
+                  :project-id="workflow?.project_id"
+                  :workflow-id="workflow?.id"
+                  :workflow-type="workflow?.workflow_type"
+                  @update="handleDefinitionUpdate"
+                  @select="handleNodeSelect"
+                  @update:expanded-keys="handleExpandedKeysChange"
+                  @update:selected-keys="handleSelectedKeysChange"
+                  @update:checked-keys="handleCheckedKeysChange"
+                  @update:variables="handleVariablesUpdate"
+                  @update:params="handleParamsUpdate"
+                  @update:returns="handleReturnsUpdate"
+                  @update:executor-config="handleExecutorConfigUpdate"
+                  @update:performance-config="handlePerformanceConfigUpdate"
+                />
+              </div>
+            </template>
+            <template #right>
+              <AIChatPanel
+                :workflow="workflow"
+                :env-id="projectStore.currentEnvId"
+                compact
+              />
+            </template>
+          </SplitPane>
+        </template>
+
+        <!-- 普通编辑器模式 -->
+        <template v-else>
+          <SplitPane
+            v-if="showPropertyPanel"
+            :default-width="450"
+            :min-width="300"
+            :max-width="800"
+            storage-key="workflow-editor-split"
+          >
+            <template #left>
+              <WorkflowTreeEditor
+                :definition="workflowDefinition"
+                :expanded-keys="treeExpandedKeys"
+                :selected-keys="treeSelectedKeys"
+                :checked-keys="treeCheckedKeys"
+                :project-id="workflow?.project_id"
+                :workflow-id="workflow?.id"
+                :workflow-type="workflow?.workflow_type"
+                @update="handleDefinitionUpdate"
+                @select="handleNodeSelect"
+                @update:expanded-keys="handleExpandedKeysChange"
+                @update:selected-keys="handleSelectedKeysChange"
+                @update:checked-keys="handleCheckedKeysChange"
+                @update:variables="handleVariablesUpdate"
+                @update:params="handleParamsUpdate"
+                @update:returns="handleReturnsUpdate"
+                @update:executor-config="handleExecutorConfigUpdate"
+                @update:performance-config="handlePerformanceConfigUpdate"
+              />
+            </template>
+            <template #right>
+              <PropertyPanel
+                :node="selectedNode"
+                :env-id="projectStore.currentEnvId"
+                :workflow-id="workflow?.id"
+                :project-id="workflow?.project_id"
+                @update="handleNodeUpdate"
+                @close="handleClosePropertyPanel"
+                @delete="handleNodeDelete"
+              />
+            </template>
+          </SplitPane>
+          <WorkflowTreeEditor
+            v-else
+            :definition="workflowDefinition"
+            :expanded-keys="treeExpandedKeys"
+            :selected-keys="treeSelectedKeys"
+            :checked-keys="treeCheckedKeys"
+            :project-id="workflow?.project_id"
+            :workflow-id="workflow?.id"
+            :workflow-type="workflow?.workflow_type"
+            @update="handleDefinitionUpdate"
+            @select="handleNodeSelect"
+            @update:expanded-keys="handleExpandedKeysChange"
+            @update:selected-keys="handleSelectedKeysChange"
+            @update:checked-keys="handleCheckedKeysChange"
+            @update:variables="handleVariablesUpdate"
+            @update:params="handleParamsUpdate"
+            @update:returns="handleReturnsUpdate"
+            @update:executor-config="handleExecutorConfigUpdate"
+            @update:performance-config="handlePerformanceConfigUpdate"
+          />
+        </template>
       </Spin>
     </div>
 
@@ -863,5 +980,18 @@ async function handleRename(newName: string) {
   width: 100%;
   height: 100%;
   min-height: 0;
+}
+
+/* AI 编辑器左侧容器 */
+.ai-editor-left {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* AI 对话面板 */
+.editor-spin :deep(.ai-chat-panel) {
+  width: 100%;
+  height: 100%;
 }
 </style>

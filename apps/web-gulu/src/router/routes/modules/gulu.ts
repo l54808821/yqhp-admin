@@ -34,7 +34,15 @@ const routes: RouteRecordRaw[] = [
           title: '工作流管理',
         },
       },
-
+      {
+        name: 'AIWorkflowApp',
+        path: ':workflowId/app',
+        component: () => import('#/views/workflow/ai-app/index.vue'),
+        meta: {
+          hideInMenu: true,
+          title: 'AI 应用',
+        },
+      },
     ],
   },
   // 执行历史

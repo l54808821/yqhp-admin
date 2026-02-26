@@ -61,7 +61,7 @@ const editModalTitle = ref('');
 const editForm = ref({
   name: '',
   type: 'folder' as 'folder' | 'workflow',
-  workflow_type: 'normal' as 'normal' | 'performance' | 'data_generation',
+  workflow_type: 'normal' as 'normal' | 'performance' | 'data_generation' | 'ai_workflow',
 });
 const editingCategory = ref<CategoryTreeNode | null>(null);
 const isCreating = ref(false);
@@ -72,6 +72,7 @@ const workflowTypeOptions = [
   { label: '普通流程', value: 'normal' },
   { label: '压测流程', value: 'performance' },
   { label: '造数流程', value: 'data_generation' },
+  { label: 'AI工作流', value: 'ai_workflow' },
 ];
 
 // 将分类数据转换为树形结构
@@ -243,12 +244,36 @@ async function handleSaveEdit() {
     if (isCreating.value) {
       if (editForm.value.type === 'workflow') {
         // 先创建工作流
+        let defaultDefinition: Record<string, any> = { steps: [] };
+        if (editForm.value.workflow_type === 'ai_workflow') {
+          defaultDefinition = {
+            steps: [
+              {
+                id: 'ai_main',
+                type: 'ai',
+                name: 'AI 对话',
+                config: {
+                  provider: 'openai',
+                  model: '',
+                  api_key: '',
+                  system_prompt: '你是一个有用的助手。',
+                  prompt: '{{__user_message__}}',
+                  streaming: true,
+                },
+              },
+            ],
+            ai_config: {
+              opening_statement: '你好！有什么可以帮助你的吗？',
+              suggested_questions: [],
+            },
+          };
+        }
         const workflow = await createWorkflowApi({
           project_id: props.projectId,
           name: editForm.value.name,
           description: '',
           workflow_type: editForm.value.workflow_type,
-          definition: JSON.stringify({ steps: [] }),
+          definition: JSON.stringify(defaultDefinition),
         });
         // 再创建分类节点
         await createCategoryApi(props.projectId, {
@@ -461,6 +486,7 @@ defineExpose({
           />
           <div class="type-hint">
             <span v-if="editForm.workflow_type === 'normal'">普通流程仅支持调试</span>
+            <span v-else-if="editForm.workflow_type === 'ai_workflow'">AI 对话式工作流，支持多轮对话和记忆</span>
             <span v-else>支持调试和正式执行</span>
           </div>
         </div>

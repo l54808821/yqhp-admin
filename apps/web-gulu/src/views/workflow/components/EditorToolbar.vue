@@ -5,9 +5,9 @@ import { createIconifyIcon } from '@vben/icons';
 import { Button, Dropdown, Input, Menu, MenuItem, Space, Tag, Tooltip } from 'ant-design-vue';
 
 import type { Workflow } from '#/api/workflow';
+import { WORKFLOW_TYPE_COLORS, WORKFLOW_TYPE_LABELS } from '#/api/workflow';
 import { useDebugContext } from './execution/composables/useDebugContext';
 
-// 创建图标
 const Undo = createIconifyIcon('lucide:undo-2');
 const Redo = createIconifyIcon('lucide:redo-2');
 const Save = createIconifyIcon('lucide:save');
@@ -17,6 +17,8 @@ const Edit = createIconifyIcon('lucide:pencil');
 const Check = createIconifyIcon('lucide:check');
 const XIcon = createIconifyIcon('lucide:x');
 const FileSearch = createIconifyIcon('lucide:file-search');
+const MessageSquare = createIconifyIcon('lucide:message-square');
+const Globe = createIconifyIcon('lucide:globe');
 
 interface Props {
   workflow: Workflow | null;
@@ -38,6 +40,8 @@ const emit = defineEmits<{
   (e: 'viewDebugContext'): void;
   (e: 'showDebugPanel'): void;
   (e: 'rename', name: string): void;
+  (e: 'chatDebug'): void;
+  (e: 'publish'): void;
 }>();
 
 // 调试上下文
@@ -106,25 +110,21 @@ function handleNameKeydown(e: KeyboardEvent) {
   }
 }
 
-// 是否可以执行（仅压测和造数流程）
+const isAIWorkflow = computed(() => props.workflow?.workflow_type === 'ai_workflow');
+
 const canExecute = computed(() => {
   const type = props.workflow?.workflow_type;
   return type === 'performance' || type === 'data_generation';
 });
 
-// 工作流类型标签
 const workflowTypeLabel = computed(() => {
   const type = props.workflow?.workflow_type;
-  if (type === 'performance') return '压测';
-  if (type === 'data_generation') return '造数';
-  return '普通';
+  return WORKFLOW_TYPE_LABELS[type || 'normal'] || '普通';
 });
 
 const workflowTypeColor = computed(() => {
   const type = props.workflow?.workflow_type;
-  if (type === 'performance') return 'orange';
-  if (type === 'data_generation') return 'purple';
-  return 'default';
+  return WORKFLOW_TYPE_COLORS[type || 'normal'] || 'default';
 });
 </script>
 
@@ -176,49 +176,67 @@ const workflowTypeColor = computed(() => {
           <template #icon><Save class="size-4" /></template>
           保存
         </Button>
-        <template v-if="hasDebugCtx || debugRunning">
-          <Button.Group>
-            <Button type="default" @click="handleDebugClick">
-              <template #icon><Bug class="size-4" /></template>
-              {{ debugRunning ? '调试中...' : '调试' }}
+        <!-- AI 工作流专属按钮 -->
+        <template v-if="isAIWorkflow">
+          <Tooltip title="对话调试">
+            <Button type="default" @click="emit('chatDebug')">
+              <template #icon><MessageSquare class="size-4" /></template>
+              对话调试
             </Button>
-            <Dropdown placement="bottomRight" :trigger="['click']">
-              <Button type="default" class="debug-dropdown-trigger">
-                <template #icon>
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                </template>
-              </Button>
-              <template #overlay>
-                <Menu @click="handleDebugMenuClick">
-                  <MenuItem v-if="debugRunning" key="panel">
-                    <Space :size="6">
-                      <Bug class="size-4" />
-                      <span>查看进度</span>
-                    </Space>
-                  </MenuItem>
-                  <MenuItem v-if="hasDebugCtx" key="result">
-                    <Space :size="6">
-                      <FileSearch class="size-4" />
-                      <span>调试结果</span>
-                    </Space>
-                  </MenuItem>
-                </Menu>
-              </template>
-            </Dropdown>
-          </Button.Group>
+          </Tooltip>
+          <Tooltip title="发布为 AI 应用">
+            <Button type="primary" ghost @click="emit('publish')">
+              <template #icon><Globe class="size-4" /></template>
+              发布
+            </Button>
+          </Tooltip>
         </template>
-        <Tooltip v-else title="调试工作流（在 Master 上执行）">
-          <Button type="default" @click="emit('debug')">
-            <template #icon><Bug class="size-4" /></template>
-            调试
-          </Button>
-        </Tooltip>
-        <Tooltip v-if="canExecute" title="执行工作流（在 Slave 上执行）">
-          <Button type="primary" ghost @click="emit('execute')">
-            <template #icon><Play class="size-4" /></template>
-            执行
-          </Button>
-        </Tooltip>
+        <!-- 普通工作流按钮 -->
+        <template v-else>
+          <template v-if="hasDebugCtx || debugRunning">
+            <Button.Group>
+              <Button type="default" @click="handleDebugClick">
+                <template #icon><Bug class="size-4" /></template>
+                {{ debugRunning ? '调试中...' : '调试' }}
+              </Button>
+              <Dropdown placement="bottomRight" :trigger="['click']">
+                <Button type="default" class="debug-dropdown-trigger">
+                  <template #icon>
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                  </template>
+                </Button>
+                <template #overlay>
+                  <Menu @click="handleDebugMenuClick">
+                    <MenuItem v-if="debugRunning" key="panel">
+                      <Space :size="6">
+                        <Bug class="size-4" />
+                        <span>查看进度</span>
+                      </Space>
+                    </MenuItem>
+                    <MenuItem v-if="hasDebugCtx" key="result">
+                      <Space :size="6">
+                        <FileSearch class="size-4" />
+                        <span>调试结果</span>
+                      </Space>
+                    </MenuItem>
+                  </Menu>
+                </template>
+              </Dropdown>
+            </Button.Group>
+          </template>
+          <Tooltip v-else title="调试工作流（在 Master 上执行）">
+            <Button type="default" @click="emit('debug')">
+              <template #icon><Bug class="size-4" /></template>
+              调试
+            </Button>
+          </Tooltip>
+          <Tooltip v-if="canExecute" title="执行工作流（在 Slave 上执行）">
+            <Button type="primary" ghost @click="emit('execute')">
+              <template #icon><Play class="size-4" /></template>
+              执行
+            </Button>
+          </Tooltip>
+        </template>
       </Space>
     </div>
   </div>

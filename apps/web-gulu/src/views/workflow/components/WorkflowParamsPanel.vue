@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 
 import { createIconifyIcon } from '@vben/icons';
 import {
@@ -8,28 +8,51 @@ import {
   Input,
   Popconfirm,
   Select,
-  SelectOption,
 } from 'ant-design-vue';
 
 const Plus = createIconifyIcon('lucide:plus');
 const Trash = createIconifyIcon('lucide:trash-2');
 
+export type ParamType = 'string' | 'paragraph' | 'select' | 'number' | 'boolean' | 'file' | 'file_list' | 'json';
+
 export interface WorkflowParam {
   name: string;
-  type: 'string' | 'number' | 'boolean' | 'json';
+  type: ParamType;
   defaultValue?: string;
   description?: string;
   required: boolean;
+  options?: string[];
 }
+
+const allTypeOptions: Array<{ value: ParamType; label: string }> = [
+  { value: 'string', label: '文本 string' },
+  { value: 'paragraph', label: '段落 string' },
+  { value: 'select', label: '下拉选项 string' },
+  { value: 'number', label: '数字 number' },
+  { value: 'boolean', label: '复选框 boolean' },
+  { value: 'file', label: '单文件 file' },
+  { value: 'file_list', label: '文件列表 array[file]' },
+  { value: 'json', label: 'JSON object' },
+];
+
+const basicTypeOptions = allTypeOptions.filter((t) =>
+  ['string', 'number', 'boolean', 'json'].includes(t.value),
+);
 
 interface Props {
   params: WorkflowParam[];
   readonly?: boolean;
+  workflowType?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   readonly: false,
+  workflowType: 'normal',
 });
+
+const typeOptions = computed(() =>
+  props.workflowType === 'ai_workflow' ? allTypeOptions : basicTypeOptions,
+);
 
 const emit = defineEmits<{
   (e: 'update:params', params: WorkflowParam[]): void;
@@ -113,13 +136,9 @@ function isDuplicateName(name: string, currentIndex: number): boolean {
           <Select
             :value="item.type"
             :disabled="readonly"
+            :options="typeOptions"
             @change="(val: any) => handleFieldChange(index, 'type', val)"
-          >
-            <SelectOption value="string">string</SelectOption>
-            <SelectOption value="number">number</SelectOption>
-            <SelectOption value="boolean">boolean</SelectOption>
-            <SelectOption value="json">json</SelectOption>
-          </Select>
+          />
         </div>
         <div class="col-default">
           <Input
