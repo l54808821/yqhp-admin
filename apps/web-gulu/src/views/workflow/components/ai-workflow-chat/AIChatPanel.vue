@@ -617,7 +617,7 @@ onUnmounted(() => {
 .messages-container {
   max-width: 800px;
   margin: 0 auto;
-  padding: 24px 16px 16px;
+  padding: 16px 8px;
 }
 
 .message-row {
@@ -703,13 +703,19 @@ onUnmounted(() => {
 .chat-footer-inner {
   max-width: 800px;
   margin: 0 auto;
+  position: relative;
 }
 
 .action-bar {
   display: flex;
   gap: 8px;
   justify-content: center;
-  margin-bottom: 12px;
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 8px;
+  z-index: 10;
 }
 
 .float-btn {
