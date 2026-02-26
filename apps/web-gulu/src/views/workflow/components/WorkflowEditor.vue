@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
+import { createIconifyIcon } from '@vben/icons';
 import { message, Modal, Spin } from 'ant-design-vue';
 
 import type { Workflow } from '#/api/workflow';
@@ -9,6 +10,10 @@ import { getWorkflowApi, updateWorkflowApi, validateWorkflowDefinitionApi } from
 import SplitPane from '#/components/SplitPane.vue';
 import { useCategoryStore } from '#/store/category';
 import { useProjectStore } from '#/store/project';
+
+const XIcon = createIconifyIcon('lucide:x');
+const SparklesIcon = createIconifyIcon('lucide:sparkles');
+const SettingsIcon = createIconifyIcon('lucide:settings-2');
 
 import PropertyPanel from '../editor/PropertyPanel.vue';
 import WorkflowTreeEditor from '../editor/WorkflowTreeEditor.vue';
@@ -47,10 +52,21 @@ const selectedNode = ref<StepNode | null>(null);
 const debugModalOpen = ref(false);
 const debugContextDrawerOpen = ref(false);
 const debugRunning = ref(false);
-const showPropertyPanel = ref(false);
-const showAIChatPanel = ref(false);
+
+const chatPanelEnabled = ref(false);
+const activeRightTab = ref<'property' | 'chat'>('property');
 
 const isAIWorkflow = computed(() => workflow.value?.workflow_type === 'ai_workflow');
+
+const showRightPanel = computed(() => !!selectedNode.value || chatPanelEnabled.value);
+
+const effectiveTab = computed(() => {
+  if (activeRightTab.value === 'property' && selectedNode.value) return 'property';
+  if (activeRightTab.value === 'chat' && chatPanelEnabled.value) return 'chat';
+  if (selectedNode.value) return 'property';
+  if (chatPanelEnabled.value) return 'chat';
+  return null;
+});
 interface WorkflowDefinitionData {
   name: string;
   variables?: Record<string, any>;
@@ -214,7 +230,7 @@ async function loadWorkflow() {
     historyIndex.value = 0;
     isModified.value = false;
     selectedNode.value = null;
-    showPropertyPanel.value = false;
+    chatPanelEnabled.value = false;
     emit('modified', false);
     emit('titleChange', workflow.value?.name || '');
   } catch {
@@ -245,14 +261,12 @@ function undo() {
   if (historyIndex.value > 0) {
     historyIndex.value--;
     workflowDefinition.value = JSON.parse(historyStack.value[historyIndex.value]!);
-    // 尝试保持当前选中的节点（如果节点还存在）
     if (selectedNode.value) {
       const node = findNodeById(workflowDefinition.value.steps, selectedNode.value.id);
       if (node) {
         selectedNode.value = node;
       } else {
         selectedNode.value = null;
-        showPropertyPanel.value = false;
         treeSelectedKeys.value = [];
       }
     }
@@ -264,14 +278,12 @@ function redo() {
   if (historyIndex.value < historyStack.value.length - 1) {
     historyIndex.value++;
     workflowDefinition.value = JSON.parse(historyStack.value[historyIndex.value]!);
-    // 尝试保持当前选中的节点（如果节点还存在）
     if (selectedNode.value) {
       const node = findNodeById(workflowDefinition.value.steps, selectedNode.value.id);
       if (node) {
         selectedNode.value = node;
       } else {
         selectedNode.value = null;
-        showPropertyPanel.value = false;
         treeSelectedKeys.value = [];
       }
     }
@@ -365,8 +377,9 @@ async function handleSave() {
 
 function handleNodeSelect(node: StepNode | null) {
   selectedNode.value = node;
-  showPropertyPanel.value = !!node;
-  // 更新选中状态
+  if (node) {
+    activeRightTab.value = 'property';
+  }
   treeSelectedKeys.value = node ? [node.id] : [];
 }
 
@@ -378,9 +391,13 @@ function handleSelectedKeysChange(keys: string[]) {
   treeSelectedKeys.value = keys;
 }
 
-function handleClosePropertyPanel() {
-  showPropertyPanel.value = false;
+function closePropertyTab() {
   selectedNode.value = null;
+  treeSelectedKeys.value = [];
+}
+
+function closeChatTab() {
+  chatPanelEnabled.value = false;
 }
 
 function handleDefinitionUpdate(def: { name: string; steps: StepNode[] }) {
@@ -444,8 +461,6 @@ function handleNodeDelete(node: any) {
       node.branch.id,
     );
     if (deleted) {
-      // 关闭属性面板并清除选中状态
-      showPropertyPanel.value = false;
       selectedNode.value = null;
       treeSelectedKeys.value = [];
       pushHistory();
@@ -456,7 +471,6 @@ function handleNodeDelete(node: any) {
   // 普通步骤删除：按 ID 删除
   const deleted = deleteNodeFromSteps(workflowDefinition.value.steps, node.id);
   if (deleted) {
-    showPropertyPanel.value = false;
     selectedNode.value = null;
     treeSelectedKeys.value = [];
     pushHistory();
@@ -693,7 +707,12 @@ function handleViewDebugContext() {
 
 // AI 工作流：对话调试
 function handleChatDebug() {
-  showAIChatPanel.value = !showAIChatPanel.value;
+  if (chatPanelEnabled.value && activeRightTab.value === 'chat') {
+    chatPanelEnabled.value = false;
+  } else {
+    chatPanelEnabled.value = true;
+    activeRightTab.value = 'chat';
+  }
 }
 
 // AI 工作流：发布
@@ -742,6 +761,7 @@ async function handleRename(newName: string) {
       :can-redo="canRedo"
       :modified="isModified"
       :debug-running="debugRunning"
+      :chat-active="chatPanelEnabled"
       @save="handleSave"
       @undo="undo"
       @redo="redo"
@@ -755,152 +775,105 @@ async function handleRename(newName: string) {
     />
     <div class="editor-main">
       <Spin :spinning="loading" class="editor-spin">
-        <!-- AI 工作流：对话面板模式 -->
-        <template v-if="isAIWorkflow && showAIChatPanel && workflow">
-          <SplitPane
-            :default-width="500"
-            :min-width="350"
-            :max-width="900"
-            storage-key="workflow-ai-chat-split"
-          >
-            <template #left>
-              <div class="ai-editor-left">
-                <SplitPane
-                  v-if="showPropertyPanel"
-                  :default-width="450"
-                  :min-width="300"
-                  :max-width="700"
-                  storage-key="workflow-editor-split"
+        <SplitPane
+          v-if="showRightPanel"
+          :default-width="450"
+          :min-width="300"
+          :max-width="800"
+          storage-key="workflow-editor-split"
+        >
+          <template #left>
+            <WorkflowTreeEditor
+              :definition="workflowDefinition"
+              :expanded-keys="treeExpandedKeys"
+              :selected-keys="treeSelectedKeys"
+              :checked-keys="treeCheckedKeys"
+              :project-id="workflow?.project_id"
+              :workflow-id="workflow?.id"
+              :workflow-type="workflow?.workflow_type"
+              @update="handleDefinitionUpdate"
+              @select="handleNodeSelect"
+              @update:expanded-keys="handleExpandedKeysChange"
+              @update:selected-keys="handleSelectedKeysChange"
+              @update:checked-keys="handleCheckedKeysChange"
+              @update:variables="handleVariablesUpdate"
+              @update:params="handleParamsUpdate"
+              @update:returns="handleReturnsUpdate"
+              @update:executor-config="handleExecutorConfigUpdate"
+              @update:performance-config="handlePerformanceConfigUpdate"
+            />
+          </template>
+          <template #right>
+            <div class="right-tab-panel">
+              <div class="tab-bar">
+                <div
+                  v-if="selectedNode"
+                  class="tab-item"
+                  :class="{ 'tab-item--active': effectiveTab === 'property' }"
+                  @click="activeRightTab = 'property'"
                 >
-                  <template #left>
-                    <WorkflowTreeEditor
-                      :definition="workflowDefinition"
-                      :expanded-keys="treeExpandedKeys"
-                      :selected-keys="treeSelectedKeys"
-                      :checked-keys="treeCheckedKeys"
-                      :project-id="workflow?.project_id"
-                      :workflow-id="workflow?.id"
-                      :workflow-type="workflow?.workflow_type"
-                      @update="handleDefinitionUpdate"
-                      @select="handleNodeSelect"
-                      @update:expanded-keys="handleExpandedKeysChange"
-                      @update:selected-keys="handleSelectedKeysChange"
-                      @update:checked-keys="handleCheckedKeysChange"
-                      @update:variables="handleVariablesUpdate"
-                      @update:params="handleParamsUpdate"
-                      @update:returns="handleReturnsUpdate"
-                      @update:executor-config="handleExecutorConfigUpdate"
-                      @update:performance-config="handlePerformanceConfigUpdate"
-                    />
-                  </template>
-                  <template #right>
-                    <PropertyPanel
-                      :node="selectedNode"
-                      :env-id="projectStore.currentEnvId"
-                      :workflow-id="workflow?.id"
-                      :project-id="workflow?.project_id"
-                      @update="handleNodeUpdate"
-                      @close="handleClosePropertyPanel"
-                      @delete="handleNodeDelete"
-                    />
-                  </template>
-                </SplitPane>
-                <WorkflowTreeEditor
-                  v-else
-                  :definition="workflowDefinition"
-                  :expanded-keys="treeExpandedKeys"
-                  :selected-keys="treeSelectedKeys"
-                  :checked-keys="treeCheckedKeys"
-                  :project-id="workflow?.project_id"
+                  <SettingsIcon class="tab-item-icon" />
+                  <span class="tab-item-label">节点属性</span>
+                  <button class="tab-close" @click.stop="closePropertyTab">
+                    <XIcon class="size-3" />
+                  </button>
+                </div>
+                <div
+                  v-if="chatPanelEnabled"
+                  class="tab-item"
+                  :class="{ 'tab-item--active': effectiveTab === 'chat' }"
+                  @click="activeRightTab = 'chat'"
+                >
+                  <SparklesIcon class="tab-item-icon" />
+                  <span class="tab-item-label">AI 对话</span>
+                  <button class="tab-close" @click.stop="closeChatTab">
+                    <XIcon class="size-3" />
+                  </button>
+                </div>
+              </div>
+              <div class="tab-content">
+                <PropertyPanel
+                  v-show="effectiveTab === 'property'"
+                  :node="selectedNode"
+                  :env-id="projectStore.currentEnvId"
                   :workflow-id="workflow?.id"
-                  :workflow-type="workflow?.workflow_type"
-                  @update="handleDefinitionUpdate"
-                  @select="handleNodeSelect"
-                  @update:expanded-keys="handleExpandedKeysChange"
-                  @update:selected-keys="handleSelectedKeysChange"
-                  @update:checked-keys="handleCheckedKeysChange"
-                  @update:variables="handleVariablesUpdate"
-                  @update:params="handleParamsUpdate"
-                  @update:returns="handleReturnsUpdate"
-                  @update:executor-config="handleExecutorConfigUpdate"
-                  @update:performance-config="handlePerformanceConfigUpdate"
+                  :project-id="workflow?.project_id"
+                  @update="handleNodeUpdate"
+                  @close="closePropertyTab"
+                  @delete="handleNodeDelete"
+                />
+                <AIChatPanel
+                  v-if="isAIWorkflow && workflow"
+                  v-show="effectiveTab === 'chat'"
+                  :workflow="workflow"
+                  :env-id="projectStore.currentEnvId"
+                  compact
+                  :persist-conversation="false"
                 />
               </div>
-            </template>
-            <template #right>
-              <AIChatPanel
-                :workflow="workflow"
-                :env-id="projectStore.currentEnvId"
-                compact
-                :persist-conversation="false"
-              />
-            </template>
-          </SplitPane>
-        </template>
-
-        <!-- 普通编辑器模式 -->
-        <template v-else>
-          <SplitPane
-            v-if="showPropertyPanel"
-            :default-width="450"
-            :min-width="300"
-            :max-width="800"
-            storage-key="workflow-editor-split"
-          >
-            <template #left>
-              <WorkflowTreeEditor
-                :definition="workflowDefinition"
-                :expanded-keys="treeExpandedKeys"
-                :selected-keys="treeSelectedKeys"
-                :checked-keys="treeCheckedKeys"
-                :project-id="workflow?.project_id"
-                :workflow-id="workflow?.id"
-                :workflow-type="workflow?.workflow_type"
-                @update="handleDefinitionUpdate"
-                @select="handleNodeSelect"
-                @update:expanded-keys="handleExpandedKeysChange"
-                @update:selected-keys="handleSelectedKeysChange"
-                @update:checked-keys="handleCheckedKeysChange"
-                @update:variables="handleVariablesUpdate"
-                @update:params="handleParamsUpdate"
-                @update:returns="handleReturnsUpdate"
-                @update:executor-config="handleExecutorConfigUpdate"
-                @update:performance-config="handlePerformanceConfigUpdate"
-              />
-            </template>
-            <template #right>
-              <PropertyPanel
-                :node="selectedNode"
-                :env-id="projectStore.currentEnvId"
-                :workflow-id="workflow?.id"
-                :project-id="workflow?.project_id"
-                @update="handleNodeUpdate"
-                @close="handleClosePropertyPanel"
-                @delete="handleNodeDelete"
-              />
-            </template>
-          </SplitPane>
-          <WorkflowTreeEditor
-            v-else
-            :definition="workflowDefinition"
-            :expanded-keys="treeExpandedKeys"
-            :selected-keys="treeSelectedKeys"
-            :checked-keys="treeCheckedKeys"
-            :project-id="workflow?.project_id"
-            :workflow-id="workflow?.id"
-            :workflow-type="workflow?.workflow_type"
-            @update="handleDefinitionUpdate"
-            @select="handleNodeSelect"
-            @update:expanded-keys="handleExpandedKeysChange"
-            @update:selected-keys="handleSelectedKeysChange"
-            @update:checked-keys="handleCheckedKeysChange"
-            @update:variables="handleVariablesUpdate"
-            @update:params="handleParamsUpdate"
-            @update:returns="handleReturnsUpdate"
-            @update:executor-config="handleExecutorConfigUpdate"
-            @update:performance-config="handlePerformanceConfigUpdate"
-          />
-        </template>
+            </div>
+          </template>
+        </SplitPane>
+        <WorkflowTreeEditor
+          v-else
+          :definition="workflowDefinition"
+          :expanded-keys="treeExpandedKeys"
+          :selected-keys="treeSelectedKeys"
+          :checked-keys="treeCheckedKeys"
+          :project-id="workflow?.project_id"
+          :workflow-id="workflow?.id"
+          :workflow-type="workflow?.workflow_type"
+          @update="handleDefinitionUpdate"
+          @select="handleNodeSelect"
+          @update:expanded-keys="handleExpandedKeysChange"
+          @update:selected-keys="handleSelectedKeysChange"
+          @update:checked-keys="handleCheckedKeysChange"
+          @update:variables="handleVariablesUpdate"
+          @update:params="handleParamsUpdate"
+          @update:returns="handleReturnsUpdate"
+          @update:executor-config="handleExecutorConfigUpdate"
+          @update:performance-config="handlePerformanceConfigUpdate"
+        />
       </Spin>
     </div>
 
@@ -962,13 +935,11 @@ async function handleRename(newName: string) {
   height: 100%;
 }
 
-/* SplitPane 填满容器 */
 .editor-spin :deep(.split-pane) {
   width: 100%;
   height: 100%;
 }
 
-/* WorkflowTreeEditor 填满容器 */
 .editor-spin :deep(.workflow-tree-editor) {
   width: 100%;
   height: 100%;
@@ -976,22 +947,104 @@ async function handleRename(newName: string) {
   min-height: 0;
 }
 
-/* PropertyPanel 填满容器 */
 .editor-spin :deep(.property-panel) {
   width: 100%;
   height: 100%;
   min-height: 0;
 }
 
-/* AI 编辑器左侧容器 */
-.ai-editor-left {
-  width: 100%;
+/* Right tab panel */
+.right-tab-panel {
+  display: flex;
+  flex-direction: column;
   height: 100%;
-  overflow: hidden;
+  width: 100%;
+  min-height: 0;
 }
 
-/* AI 对话面板 */
-.editor-spin :deep(.ai-chat-panel) {
+.tab-bar {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+  flex-shrink: 0;
+  height: 36px;
+}
+
+.tab-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px 0 12px;
+  font-size: 13px;
+  color: hsl(var(--foreground) / 60%);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.tab-item:hover {
+  color: hsl(var(--foreground) / 85%);
+  background: hsl(var(--accent) / 20%);
+}
+
+.tab-item--active {
+  color: hsl(var(--foreground));
+  border-bottom-color: hsl(var(--primary));
+}
+
+.tab-item-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.tab-item-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  color: hsl(var(--foreground) / 40%);
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+
+.tab-item:hover .tab-close {
+  opacity: 1;
+}
+
+.tab-close:hover {
+  background: hsl(var(--foreground) / 10%);
+  color: hsl(var(--foreground) / 80%);
+}
+
+.tab-content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.tab-content :deep(.property-panel) {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.tab-content :deep(.ai-chat-panel) {
   width: 100%;
   height: 100%;
 }

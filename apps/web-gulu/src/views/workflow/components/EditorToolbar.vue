@@ -27,6 +27,7 @@ interface Props {
   canRedo?: boolean;
   modified?: boolean;
   debugRunning?: boolean;
+  chatActive?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -179,7 +180,11 @@ const workflowTypeColor = computed(() => {
         <!-- AI 工作流专属按钮 -->
         <template v-if="isAIWorkflow">
           <Tooltip title="对话调试">
-            <Button type="default" @click="emit('chatDebug')">
+            <Button
+              :type="props.chatActive ? 'primary' : 'default'"
+              :ghost="props.chatActive"
+              @click="emit('chatDebug')"
+            >
               <template #icon><MessageSquare class="size-4" /></template>
               对话调试
             </Button>
