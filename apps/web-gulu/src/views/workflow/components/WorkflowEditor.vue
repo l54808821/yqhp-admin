@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { createIconifyIcon } from '@vben/icons';
-import { message, Modal, Spin } from 'ant-design-vue';
+import { message, Modal, Spin, Tabs } from 'ant-design-vue';
 
 import type { Workflow } from '#/api/workflow';
 import { getWorkflowApi, updateWorkflowApi, validateWorkflowDefinitionApi } from '#/api/workflow';
@@ -14,6 +14,8 @@ import { useProjectStore } from '#/store/project';
 const XIcon = createIconifyIcon('lucide:x');
 const SparklesIcon = createIconifyIcon('lucide:sparkles');
 const SettingsIcon = createIconifyIcon('lucide:settings-2');
+const ServerIcon = createIconifyIcon('lucide:server');
+const GaugeIcon = createIconifyIcon('lucide:gauge');
 
 import PropertyPanel from '../editor/PropertyPanel.vue';
 import WorkflowTreeEditor from '../editor/WorkflowTreeEditor.vue';
@@ -23,6 +25,8 @@ import ExecutionModal from './ExecutionModal.vue';
 import EditorToolbar from './EditorToolbar.vue';
 import DebugContextDrawer from './DebugContextDrawer.vue';
 import { AIChatPanel } from './ai-workflow-chat';
+import ExecutorConfigPanel from './ExecutorConfigPanel.vue';
+import PerformanceConfigPanel from './PerformanceConfigPanel.vue';
 import type { WorkflowParam } from './WorkflowParamsPanel.vue';
 import type { WorkflowReturn } from './WorkflowReturnsPanel.vue';
 import type { ExecutorConfig } from '#/api/executor';
@@ -54,17 +58,22 @@ const debugContextDrawerOpen = ref(false);
 const debugRunning = ref(false);
 
 const chatPanelEnabled = ref(false);
-const activeRightTab = ref<'property' | 'chat'>('property');
+const configPanelEnabled = ref(false);
+const activeRightTab = ref<'property' | 'chat' | 'config'>('property');
 
 const isAIWorkflow = computed(() => workflow.value?.workflow_type === 'ai_workflow');
+const isPerformanceWorkflow = computed(() => workflow.value?.workflow_type === 'performance');
 
-const showRightPanel = computed(() => !!selectedNode.value || chatPanelEnabled.value);
+const showRightPanel = computed(() => !!selectedNode.value || chatPanelEnabled.value || configPanelEnabled.value);
 
 const effectiveTab = computed(() => {
-  if (activeRightTab.value === 'property' && selectedNode.value) return 'property';
-  if (activeRightTab.value === 'chat' && chatPanelEnabled.value) return 'chat';
+  const tab = activeRightTab.value;
+  if (tab === 'property' && selectedNode.value) return 'property';
+  if (tab === 'chat' && chatPanelEnabled.value) return 'chat';
+  if (tab === 'config' && configPanelEnabled.value) return 'config';
   if (selectedNode.value) return 'property';
   if (chatPanelEnabled.value) return 'chat';
+  if (configPanelEnabled.value) return 'config';
   return null;
 });
 interface WorkflowDefinitionData {
@@ -231,6 +240,7 @@ async function loadWorkflow() {
     isModified.value = false;
     selectedNode.value = null;
     chatPanelEnabled.value = false;
+    configPanelEnabled.value = false;
     emit('modified', false);
     emit('titleChange', workflow.value?.name || '');
   } catch {
@@ -398,6 +408,15 @@ function closePropertyTab() {
 
 function closeChatTab() {
   chatPanelEnabled.value = false;
+}
+
+function handleShowConfig() {
+  configPanelEnabled.value = true;
+  activeRightTab.value = 'config';
+}
+
+function closeConfigTab() {
+  configPanelEnabled.value = false;
 }
 
 function handleDefinitionUpdate(def: { name: string; steps: StepNode[] }) {
@@ -801,6 +820,7 @@ async function handleRename(newName: string) {
               @update:returns="handleReturnsUpdate"
               @update:executor-config="handleExecutorConfigUpdate"
               @update:performance-config="handlePerformanceConfigUpdate"
+              @show-config="handleShowConfig"
             />
           </template>
           <template #right>
@@ -830,6 +850,18 @@ async function handleRename(newName: string) {
                     <XIcon class="size-3" />
                   </button>
                 </div>
+                <div
+                  v-if="configPanelEnabled"
+                  class="tab-item"
+                  :class="{ 'tab-item--active': effectiveTab === 'config' }"
+                  @click="activeRightTab = 'config'"
+                >
+                  <ServerIcon class="tab-item-icon" />
+                  <span class="tab-item-label">其他配置</span>
+                  <button class="tab-close" @click.stop="closeConfigTab">
+                    <XIcon class="size-3" />
+                  </button>
+                </div>
               </div>
               <div class="tab-content">
                 <PropertyPanel
@@ -850,6 +882,38 @@ async function handleRename(newName: string) {
                   compact
                   :persist-conversation="false"
                 />
+                <div v-show="effectiveTab === 'config'" class="config-panel">
+                  <Tabs size="small" class="config-tabs">
+                    <Tabs.TabPane key="executor">
+                      <template #tab>
+                        <span class="config-tab-label">
+                          <ServerIcon class="config-tab-icon" />
+                          执行机配置
+                        </span>
+                      </template>
+                      <div class="config-tab-content">
+                        <ExecutorConfigPanel
+                          :config="workflowDefinition.executorConfig || null"
+                          @update:config="handleExecutorConfigUpdate"
+                        />
+                      </div>
+                    </Tabs.TabPane>
+                    <Tabs.TabPane v-if="isPerformanceWorkflow" key="performance">
+                      <template #tab>
+                        <span class="config-tab-label">
+                          <GaugeIcon class="config-tab-icon" />
+                          压测配置
+                        </span>
+                      </template>
+                      <div class="config-tab-content">
+                        <PerformanceConfigPanel
+                          :config="workflowDefinition.performanceConfig || null"
+                          @update:config="handlePerformanceConfigUpdate"
+                        />
+                      </div>
+                    </Tabs.TabPane>
+                  </Tabs>
+                </div>
               </div>
             </div>
           </template>
@@ -873,6 +937,7 @@ async function handleRename(newName: string) {
           @update:returns="handleReturnsUpdate"
           @update:executor-config="handleExecutorConfigUpdate"
           @update:performance-config="handlePerformanceConfigUpdate"
+          @show-config="handleShowConfig"
         />
       </Spin>
     </div>
@@ -1047,5 +1112,42 @@ async function handleRename(newName: string) {
 .tab-content :deep(.ai-chat-panel) {
   width: 100%;
   height: 100%;
+}
+
+/* Config panel */
+.config-panel {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.config-tabs {
+  height: 100%;
+}
+
+.config-tabs :deep(.ant-tabs-nav) {
+  padding: 0 16px;
+  margin-bottom: 0;
+}
+
+.config-tabs :deep(.ant-tabs-content) {
+  height: 100%;
+}
+
+.config-tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.config-tab-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.config-tab-content {
+  padding: 16px 20px;
+  overflow-y: auto;
+  height: calc(100% - 46px);
 }
 </style>

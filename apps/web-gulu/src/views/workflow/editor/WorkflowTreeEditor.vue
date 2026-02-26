@@ -37,10 +37,8 @@ import WorkflowParamsPanel from '../components/WorkflowParamsPanel.vue';
 import type { WorkflowParam } from '../components/WorkflowParamsPanel.vue';
 import WorkflowReturnsPanel from '../components/WorkflowReturnsPanel.vue';
 import type { WorkflowReturn } from '../components/WorkflowReturnsPanel.vue';
-import OtherConfigDrawer from '../components/OtherConfigDrawer.vue';
 import type { ExecutorConfig } from '#/api/executor';
 import type { PerformanceConfig } from '#/api/workflow/performance';
-import { getPerformanceConfigSummary } from '#/api/workflow/performance';
 import RefWorkflowSelectModal from '../components/RefWorkflowSelectModal.vue';
 
 export interface StepNode {
@@ -113,12 +111,12 @@ const emit = defineEmits<{
   (e: 'update:returns', returns: WorkflowReturn[]): void;
   (e: 'update:executorConfig', config: ExecutorConfig | null): void;
   (e: 'update:performanceConfig', config: PerformanceConfig | null): void;
+  (e: 'showConfig'): void;
 }>();
 
 const variablesPopoverOpen = ref(false);
 const paramsPopoverOpen = ref(false);
 const returnsPopoverOpen = ref(false);
-const otherConfigDrawerOpen = ref(false);
 
 const variableCount = computed(() => Object.keys(props.definition.variables || {}).length);
 const paramCount = computed(() => (props.definition.params || []).length);
@@ -134,38 +132,6 @@ function handleParamsUpdate(params: WorkflowParam[]) {
 
 function handleReturnsUpdate(returns: WorkflowReturn[]) {
   emit('update:returns', returns);
-}
-
-const executorConfig = computed(() => {
-  return (props.definition as any).executorConfig || null;
-});
-
-const executorStrategyLabel = computed(() => {
-  const cfg = executorConfig.value;
-  if (!cfg || cfg.strategy === 'local') return '';
-  if (cfg.strategy === 'auto') return '自动';
-  if (cfg.strategy === 'manual') return '指定';
-  return '';
-});
-
-function handleExecutorConfigUpdate(config: ExecutorConfig | null) {
-  emit('update:executorConfig', config);
-}
-
-const isPerformanceWorkflow = computed(() => props.workflowType === 'performance');
-
-const performanceConfig = computed(() => {
-  return (props.definition as any).performanceConfig || null;
-});
-
-const performanceConfigSummary = computed(() => {
-  const cfg = performanceConfig.value;
-  if (!cfg) return '';
-  return getPerformanceConfigSummary(cfg);
-});
-
-function handlePerformanceConfigUpdate(config: PerformanceConfig | null) {
-  emit('update:performanceConfig', config);
 }
 
 // 引用工作流选择弹窗
@@ -1210,21 +1176,11 @@ function renderInsertMenu(nodeId: string, nodeType: string, canHaveChildren: boo
           </div>
         </template>
       </Popover>
-      <Button size="small" @click="otherConfigDrawerOpen = true">
+      <Button size="small" @click="emit('showConfig')">
         <template #icon><Settings class="size-3.5" /></template>
         其他配置
       </Button>
     </div>
-
-    <OtherConfigDrawer
-      v-model:open="otherConfigDrawerOpen"
-      :executor-config="executorConfig"
-      :performance-config="performanceConfig"
-      :readonly="readonly"
-      :is-performance-workflow="isPerformanceWorkflow"
-      @update:executor-config="handleExecutorConfigUpdate"
-      @update:performance-config="handlePerformanceConfigUpdate"
-    />
 
     <!-- 树形结构 -->
     <div class="tree-content">
