@@ -36,8 +36,16 @@ function getMarked(): Marked {
       return `<code class="ai-inline-code">${text}</code>`;
     },
 
-    table({ header, body }: { header: string; body: string }) {
-      return `<div class="ai-table-wrapper"><table class="ai-table"><thead>${header}</thead><tbody>${body}</tbody></table></div>`;
+    table({ header, rows }: { header: any[]; rows: any[] }) {
+      const renderCell = (cell: any) => {
+        const text = cell?.text ?? cell?.tokens?.map((t: any) => t.raw || t.text || '').join('') ?? String(cell ?? '');
+        return text;
+      };
+      const ths = header.map((h: any) => `<th>${renderCell(h)}</th>`).join('');
+      const trs = rows.map((row: any[]) =>
+        `<tr>${row.map((cell: any) => `<td>${renderCell(cell)}</td>`).join('')}</tr>`,
+      ).join('');
+      return `<div class="ai-table-wrapper"><table class="ai-table"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`;
     },
 
     link({ href, text }: { href: string; text: string }) {
