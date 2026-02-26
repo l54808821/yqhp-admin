@@ -97,7 +97,7 @@ function toAIResponseData(step: StepEvent) {
       <CollapsePanel
         v-for="step in stepEvents"
         :key="step.stepId"
-        :collapsible="step.result ? 'header' : 'disabled'"
+        :collapsible="step.result ? undefined : 'disabled'"
         :show-arrow="!!step.result"
         class="exec-panel"
         :class="`exec-panel--${step.status}`"
@@ -159,7 +159,7 @@ function toAIResponseData(step: StepEvent) {
       <CollapsePanel
         v-for="(tc, idx) in toolCalls"
         :key="`tool_${idx}`"
-        :collapsible="tc.result ? 'header' : 'disabled'"
+        :collapsible="tc.result ? undefined : 'disabled'"
         :show-arrow="!!tc.result"
         class="exec-panel exec-panel--tool"
       >
@@ -278,6 +278,7 @@ function toAIResponseData(step: StepEvent) {
   font-size: 11px;
   line-height: 1;
   padding: 1px 6px;
+  pointer-events: none;
 }
 
 .exec-card-right {
@@ -294,8 +295,8 @@ function toAIResponseData(step: StepEvent) {
 
 /* 详情区 */
 .exec-card-detail {
-  max-height: 360px;
-  overflow: auto;
+  height: 320px;
+  overflow: hidden;
 }
 
 .exec-card-detail :deep(.http-response-panel),
@@ -304,6 +305,7 @@ function toAIResponseData(step: StepEvent) {
   border: none;
   box-shadow: none;
   border-radius: 0;
+  height: 100%;
 }
 
 .exec-card-result {
