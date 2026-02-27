@@ -216,7 +216,7 @@ function toAIResponseData(step: StepEvent) {
 .exec-panel {
   border: 1px solid hsl(var(--border)) !important;
   border-radius: 10px !important;
-  background: hsl(var(--background));
+  background: hsl(var(--accent));
   overflow: hidden;
   margin-bottom: 6px;
   transition: border-color 0.2s;
