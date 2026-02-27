@@ -636,6 +636,7 @@ onUnmounted(() => {
   height: 36px;
   border-radius: 50%;
   flex-shrink: 0;
+  margin-top: 6px;
 }
 
 .msg-avatar--user {
@@ -644,6 +645,7 @@ onUnmounted(() => {
 
 .msg-avatar--assistant {
   background: linear-gradient(135deg, #1677ff 0%, #722ed1 100%);
+
 }
 
 .msg-avatar-icon {
