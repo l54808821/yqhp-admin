@@ -130,7 +130,7 @@ function toAIResponseData(step: StepEvent) {
           </div>
         </template>
 
-        <div v-if="step.result" class="exec-card-detail">
+        <div v-if="step.result" class="exec-card-detail" :class="{ 'exec-card-detail--fixed': step.stepType === 'http' || step.stepType === 'script' }">
           <HttpResponsePanel
             v-if="step.stepType === 'http'"
             :response="step.result"
@@ -295,8 +295,11 @@ function toAIResponseData(step: StepEvent) {
 
 /* 详情区 */
 .exec-card-detail {
-  height: 320px;
   overflow: hidden;
+}
+
+.exec-card-detail--fixed {
+  height: 320px;
 }
 
 .exec-card-detail :deep(.http-response-panel),

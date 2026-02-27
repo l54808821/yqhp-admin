@@ -293,9 +293,7 @@ watch(() => props.response.toolCalls?.length, () => {
 .ai-response-panel {
   display: flex;
   flex-direction: column;
-  height: 100%;
   padding: 0 10px 10px;
-  overflow: hidden;
   position: relative;
 }
 
@@ -419,13 +417,10 @@ watch(() => props.response.toolCalls?.length, () => {
 }
 
 .response-content {
-  flex: 1;
-  min-height: 0;
   overflow: hidden;
 }
 
 .tab-content {
-  height: 100%;
   overflow: auto;
 }
 
