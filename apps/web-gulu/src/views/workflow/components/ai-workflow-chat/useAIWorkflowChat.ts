@@ -16,6 +16,8 @@ import {
   updateConversationTitleApi,
   saveConversationMessageApi,
 } from '#/api/workflow';
+import type { AIInteractionData } from '#/api/debug';
+import { submitInteractionApi } from '#/api/debug';
 
 export type StreamStatus = 'idle' | 'connecting' | 'streaming' | 'done' | 'error' | 'aborted';
 
@@ -76,6 +78,12 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
   const currentConversation = ref<AIConversation | null>(null);
   const streamStatus = ref<StreamStatus>('idle');
   const abortController = shallowRef<AbortController | null>(null);
+  const sessionId = ref<string | null>(null);
+
+  const interactionData = ref<AIInteractionData | null>(null);
+  const interactionValue = ref('');
+  const interactionCountdown = ref(0);
+  let interactionTimer: ReturnType<typeof setInterval> | null = null;
 
   const isStreaming = computed(
     () => streamStatus.value === 'streaming' || streamStatus.value === 'connecting',
@@ -230,6 +238,7 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
     const assistantMsg = messages.value[messages.value.length - 1]!;
 
     streamStatus.value = 'connecting';
+    sessionId.value = null;
     abortController.value = new AbortController();
 
     try {
@@ -291,6 +300,9 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
           } else if (line.startsWith('data: ') && eventType) {
             try {
               const raw = JSON.parse(line.slice(6));
+              if (raw.sessionId && !sessionId.value) {
+                sessionId.value = raw.sessionId;
+              }
               const eventData = raw.data || raw;
               handleSSEEvent(eventType, eventData, assistantMsg);
             } catch {
@@ -426,6 +438,20 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
         };
         break;
 
+      case 'ai_interaction_required':
+        interactionData.value = data as AIInteractionData;
+        interactionValue.value = data.defaultValue || '';
+        if (data.timeout > 0) {
+          interactionCountdown.value = data.timeout;
+          interactionTimer = setInterval(() => {
+            interactionCountdown.value--;
+            if (interactionCountdown.value <= 0) {
+              submitInteraction(interactionData.value?.defaultValue || '', true);
+            }
+          }, 1000);
+        }
+        break;
+
       case 'workflow_completed':
         msg.loading = false;
         break;
@@ -470,14 +496,46 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
     }
   }
 
+  async function submitInteraction(value: string, skipped: boolean = false) {
+    if (!sessionId.value) return;
+    try {
+      await submitInteractionApi(sessionId.value, { value, skipped });
+    } catch {
+      // ignore
+    } finally {
+      clearInteraction();
+    }
+  }
+
+  function confirmInteraction() {
+    submitInteraction(interactionValue.value, false);
+  }
+
+  function skipInteraction() {
+    submitInteraction('', true);
+  }
+
+  function clearInteraction() {
+    interactionData.value = null;
+    interactionValue.value = '';
+    interactionCountdown.value = 0;
+    if (interactionTimer) {
+      clearInterval(interactionTimer);
+      interactionTimer = null;
+    }
+  }
+
   function stopGeneration() {
     abortController.value?.abort();
+    clearInteraction();
   }
 
   function startNewConversation() {
     currentConversation.value = null;
     messages.value = [];
     streamStatus.value = 'idle';
+    sessionId.value = null;
+    clearInteraction();
   }
 
   return {
@@ -487,6 +545,9 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
     streamStatus,
     isStreaming,
     aiConfig,
+    interactionData,
+    interactionValue,
+    interactionCountdown,
     loadConversations,
     createConversation,
     switchConversation,
@@ -495,5 +556,7 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
     sendMessage,
     stopGeneration,
     startNewConversation,
+    confirmInteraction,
+    skipInteraction,
   };
 }

@@ -8,6 +8,7 @@ import { createIconifyIcon } from '@vben/icons';
 import type { Workflow } from '#/api/workflow';
 import AiBubbleContent from '#/components/ai-chat/AiBubbleContent.vue';
 import AIExecCard from './AIExecCard.vue';
+import AIInteractionCard from './AIInteractionCard.vue';
 import { useAIWorkflowChat } from './useAIWorkflowChat';
 
 const PlusIcon = createIconifyIcon('lucide:plus');
@@ -100,6 +101,11 @@ function handleSend(text: string) {
 
 function handleSuggestedQuestion(q: string) {
   chat.sendMessage(q);
+}
+
+function handleInteractionConfirm(value: string) {
+  chat.interactionValue.value = value;
+  chat.confirmInteraction();
 }
 
 onUnmounted(() => {
@@ -278,6 +284,15 @@ onUnmounted(() => {
                   v-if="msg.stepEvents?.length || msg.toolCalls?.length"
                   :step-events="msg.stepEvents"
                   :tool-calls="msg.toolCalls"
+                />
+
+                <!-- 人机交互卡片 -->
+                <AIInteractionCard
+                  v-if="chat.interactionData.value && msg === chat.messages.value[chat.messages.value.length - 1]"
+                  :data="chat.interactionData.value"
+                  :countdown="chat.interactionCountdown.value"
+                  @confirm="handleInteractionConfirm"
+                  @skip="chat.skipInteraction()"
                 />
 
                 <!-- AI 响应内容 -->
@@ -982,4 +997,5 @@ onUnmounted(() => {
 .ai-chat-panel--compact .welcome-avatar-icon {
   font-size: 24px;
 }
+
 </style>
