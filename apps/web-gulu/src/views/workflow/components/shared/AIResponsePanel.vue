@@ -295,6 +295,8 @@ watch(() => props.response.toolCalls?.length, () => {
   flex-direction: column;
   padding: 0 10px 10px;
   position: relative;
+  height: 100%;
+  overflow: hidden;
 }
 
 .scroll-to-bottom-btn {
@@ -417,10 +419,16 @@ watch(() => props.response.toolCalls?.length, () => {
 }
 
 .response-content {
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .tab-content {
+  flex: 1;
+  min-height: 0;
   overflow: auto;
 }
 

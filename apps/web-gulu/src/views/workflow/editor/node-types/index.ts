@@ -11,6 +11,20 @@ import {
 } from '#/components/icons';
 
 import AIProperty from './ai/AIPropertyPanel.vue';
+import ChatPropertyPanel from './ai/chat/ChatPropertyPanel.vue';
+import AgentPropertyPanel from './ai/agent/AgentPropertyPanel.vue';
+import PlanExecutePropertyPanel from './ai/plan-execute/PlanExecutePropertyPanel.vue';
+import ReflectionPropertyPanel from './ai/reflection/ReflectionPropertyPanel.vue';
+import SupervisorPropertyPanel from './ai/supervisor/SupervisorPropertyPanel.vue';
+import DeepAgentPropertyPanel from './ai/deep-agent/DeepAgentPropertyPanel.vue';
+import {
+  createDefaultChatConfig,
+  createDefaultAgentConfig,
+  createDefaultPlanExecuteConfig,
+  createDefaultReflectionConfig,
+  createDefaultSupervisorConfig,
+  createDefaultDeepAgentConfig,
+} from './ai/shared/types';
 import ConditionProperty from './ConditionProperty.vue';
 import ConditionBranchProperty from './ConditionBranchProperty.vue';
 import DatabasePropertyPanel from './database/DatabasePropertyPanel.vue';
@@ -24,6 +38,12 @@ import WaitProperty from './WaitProperty.vue';
 import { createIconifyIcon } from '@vben/icons';
 const Sparkles = createIconifyIcon('lucide:sparkles');
 const Workflow = createIconifyIcon('lucide:workflow');
+const Bot = createIconifyIcon('lucide:bot');
+const BrainCircuit = createIconifyIcon('lucide:brain-circuit');
+const ListChecks = createIconifyIcon('lucide:list-checks');
+const RefreshCw = createIconifyIcon('lucide:refresh-cw');
+const Users = createIconifyIcon('lucide:users');
+const Layers = createIconifyIcon('lucide:layers');
 
 export interface NodeTypeConfig {
   key: string;
@@ -112,6 +132,60 @@ export const nodeTypeRegistry: Record<string, NodeTypeConfig> = {
       if (!config) return '';
       return config.ai_model_name || '未选择模型';
     },
+  },
+  ai_chat: {
+    key: 'ai_chat',
+    label: 'AI 对话',
+    icon: Bot,
+    color: '#1677ff',
+    propertyComponent: ChatPropertyPanel,
+    defaultConfig: () => ({ config: createDefaultChatConfig() }),
+    getDescription: (node) => node.config?.ai_model_name || '未选择模型',
+  },
+  ai_agent: {
+    key: 'ai_agent',
+    label: 'ReAct Agent',
+    icon: BrainCircuit,
+    color: '#722ed1',
+    propertyComponent: AgentPropertyPanel,
+    defaultConfig: () => ({ config: createDefaultAgentConfig() }),
+    getDescription: (node) => node.config?.ai_model_name || '未选择模型',
+  },
+  ai_plan_execute: {
+    key: 'ai_plan_execute',
+    label: '规划执行',
+    icon: ListChecks,
+    color: '#13c2c2',
+    propertyComponent: PlanExecutePropertyPanel,
+    defaultConfig: () => ({ config: createDefaultPlanExecuteConfig() }),
+    getDescription: (node) => node.config?.ai_model_name || '未选择模型',
+  },
+  ai_reflection: {
+    key: 'ai_reflection',
+    label: '反思迭代',
+    icon: RefreshCw,
+    color: '#eb2f96',
+    propertyComponent: ReflectionPropertyPanel,
+    defaultConfig: () => ({ config: createDefaultReflectionConfig() }),
+    getDescription: (node) => node.config?.ai_model_name || '未选择模型',
+  },
+  ai_supervisor: {
+    key: 'ai_supervisor',
+    label: '监督者协调',
+    icon: Users,
+    color: '#fa8c16',
+    propertyComponent: SupervisorPropertyPanel,
+    defaultConfig: () => ({ config: createDefaultSupervisorConfig() }),
+    getDescription: (node) => node.config?.ai_model_name || '未选择模型',
+  },
+  ai_deep_agent: {
+    key: 'ai_deep_agent',
+    label: '深度代理',
+    icon: Layers,
+    color: '#52c41a',
+    propertyComponent: DeepAgentPropertyPanel,
+    defaultConfig: () => ({ config: createDefaultDeepAgentConfig() }),
+    getDescription: (node) => node.config?.ai_model_name || '未选择模型',
   },
   condition: {
     key: 'condition',
