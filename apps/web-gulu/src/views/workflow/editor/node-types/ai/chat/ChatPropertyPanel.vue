@@ -347,6 +347,9 @@ function stopDrag() {
         :streaming-content="streamingContent"
         :is-streaming="isStreaming"
       />
+      <div v-else-if="isDebugging" class="loading-placeholder">
+        <span class="waiting-text" style="color: hsl(var(--primary) / 70%)">AI 正在思考...</span>
+      </div>
       <div v-else class="loading-placeholder">
         <span class="waiting-text">等待 AI 回复...</span>
       </div>

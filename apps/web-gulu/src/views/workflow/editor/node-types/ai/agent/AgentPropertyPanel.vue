@@ -64,6 +64,7 @@ const localNode = ref<AgentStepNode | null>(null);
 
 // 流式工具调用的中间状态（在 step_completed 前由钩子维护）
 const pendingToolCalls = ref<ToolCallRecord[]>([]);
+const agentThinkingHint = ref<string | null>(null);
 
 function transformResult(step: StepExecutionResult): AIResponseData {
   const r = step.result as any;
@@ -120,6 +121,7 @@ const {
     transformResult,
     transformError,
     onToolCallStart(data: AIToolCallStartData) {
+      agentThinkingHint.value = null;
       pendingToolCalls.value.push({
         round: pendingToolCalls.value.length + 1,
         tool_name: data.toolName,
@@ -141,12 +143,13 @@ const {
           duration_ms: data.durationMs,
         };
       }
+      agentThinkingHint.value = 'AI 正在分析工具结果...';
     },
   });
 
 const streamingFallbackResponse = computed<AIResponseData>(() => ({
   success: true,
-  content: '',
+  content: agentThinkingHint.value || '',
   model: '',
   promptTokens: 0,
   completionTokens: 0,
@@ -231,6 +234,7 @@ function handleRun() {
   }
 
   pendingToolCalls.value = [];
+  agentThinkingHint.value = null;
 
   run({
     id: localNode.value.id,
@@ -519,11 +523,14 @@ function stopDrag() {
       :style="{ height: `calc(${100 - editorPanelHeight}% - 4px)` }"
     >
       <AIResponsePanel
-        v-if="debugResponse || streamingContent || pendingToolCalls.length > 0"
+        v-if="debugResponse || streamingContent || pendingToolCalls.length > 0 || agentThinkingHint"
         :response="debugResponse || streamingFallbackResponse"
         :streaming-content="streamingContent"
         :is-streaming="isStreaming"
       />
+      <div v-else-if="isDebugging" class="loading-placeholder">
+        <span class="waiting-text thinking-text">AI 正在思考...</span>
+      </div>
       <div v-else class="loading-placeholder">
         <span class="waiting-text">等待 AI 回复...</span>
       </div>
@@ -705,6 +712,10 @@ function stopDrag() {
 .waiting-text {
   font-size: 13px;
   color: hsl(var(--foreground) / 40%);
+}
+
+.thinking-text {
+  color: hsl(var(--primary) / 70%);
   animation: pulse 1.5s ease-in-out infinite;
 }
 

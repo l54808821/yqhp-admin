@@ -17,9 +17,22 @@ function truncate(text: string, max = 500): string {
   return text.length > max ? `${text.slice(0, max)}...` : text;
 }
 
-const cardClass = computed(() =>
-  props.toolCall.is_error ? 'tc-card--error' : 'tc-card--success',
-);
+const isPending = computed(() => !props.toolCall.result && !props.toolCall.is_error && props.toolCall.duration_ms === 0);
+
+const cardClass = computed(() => {
+  if (isPending.value) return 'tc-card--pending';
+  return props.toolCall.is_error ? 'tc-card--error' : 'tc-card--success';
+});
+
+const statusText = computed(() => {
+  if (isPending.value) return '执行中';
+  return props.toolCall.is_error ? '执行失败' : '执行成功';
+});
+
+const statusClass = computed(() => {
+  if (isPending.value) return 'tc-status--pending';
+  return props.toolCall.is_error ? 'tc-status--error' : 'tc-status--success';
+});
 </script>
 
 <template>
@@ -29,11 +42,8 @@ const cardClass = computed(() =>
         <div class="tc-header">
           <span class="tc-icon">⚙</span>
           <span class="tc-name">{{ toolCall.tool_name }}</span>
-          <span
-            class="tc-status"
-            :class="toolCall.is_error ? 'tc-status--error' : 'tc-status--success'"
-          >
-            {{ toolCall.is_error ? '执行失败' : '执行成功' }}
+          <span class="tc-status" :class="statusClass">
+            {{ statusText }}
           </span>
           <Tag size="small" color="purple" class="tc-tag">local</Tag>
           <span class="tc-spacer" />
@@ -124,6 +134,8 @@ const cardClass = computed(() =>
 
 .tc-status--success { color: #52c41a; }
 .tc-status--error { color: #ff4d4f; }
+.tc-status--pending { color: #1677ff; animation: pulse 1.5s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
 .tc-tag {
   margin: 0;

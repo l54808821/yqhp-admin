@@ -113,10 +113,16 @@ export function useStepDebug<TResponse>(options: UseStepDebugOptions<TResponse>)
     if (sessionId) {
       stopExecutionApi(sessionId).catch(() => {});
     }
-    const hadStreaming = !!streamingContent.value;
+    const savedContent = streamingContent.value;
     finish();
-    if (!debugResponse.value && hadStreaming) {
-      debugResponse.value = transformError('已手动停止', Date.now() - startTime);
+    if (!debugResponse.value) {
+      const errResp = transformError('已手动停止', Date.now() - startTime);
+      if (savedContent && errResp) {
+        (errResp as any).content = savedContent;
+      }
+      debugResponse.value = errResp;
+    } else if (savedContent && debugResponse.value) {
+      (debugResponse.value as any).content = savedContent;
     }
     streamingContent.value = null;
   }
