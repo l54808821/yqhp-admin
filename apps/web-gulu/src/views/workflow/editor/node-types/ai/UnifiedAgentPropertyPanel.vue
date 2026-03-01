@@ -1,49 +1,44 @@
 <script setup lang="ts">
-/**
- * ReAct Agent 节点属性面板（主编排组件）
- * 将配置拆分为子面板，保留调试/运行逻辑
- */
 import { computed, ref, toRef, watch } from 'vue';
 
 import { createIconifyIcon } from '@vben/icons';
-import { Button, Checkbox, Form, InputNumber, Switch, Tabs, Tooltip, message } from 'ant-design-vue';
+import { Button, Form, InputNumber, Switch, Tabs, Tooltip, message } from 'ant-design-vue';
 
 import type {
   StepExecutionResult,
   AIToolCallStartData,
   AIToolCallCompleteData,
 } from '#/api/debug';
-import { useStepDebug } from '../../../../components/execution/composables/useStepDebug';
-import { useDebugContext } from '../../../../components/execution/composables/useDebugContext';
+import { useStepDebug } from '../../../components/execution/composables/useStepDebug';
+import { useDebugContext } from '../../../components/execution/composables/useDebugContext';
 import {
   AIResponsePanel,
   type AIResponseData,
-} from '../../../../components/shared';
-import type { ToolCallRecord } from '../../../../components/shared/types';
-import AIInteractionModal from '../../../../components/execution/AIInteractionModal.vue';
+} from '../../../components/shared';
+import type { ToolCallRecord } from '../../../components/shared/types';
+import AIInteractionModal from '../../../components/execution/AIInteractionModal.vue';
 
-import type { KeywordConfig } from '../../../types';
-import ProcessorPanel from '../../http/ProcessorPanel.vue';
-import type { AgentConfig } from '../shared/types';
-import { createDefaultAgentConfig, builtinTools } from '../shared/types';
-import type { AIConfig } from '../types';
-import PromptPanel from '../PromptPanel.vue';
-import ModelSelector from '../shared/ModelSelector.vue';
-import ModelParamsPanel from '../ModelParamsPanel.vue';
-import ToolsPanel from '../ToolsPanel.vue';
-import KnowledgePanel from '../KnowledgePanel.vue';
+import type { KeywordConfig } from '../../types';
+import ProcessorPanel from '../http/ProcessorPanel.vue';
+import type { UnifiedAgentConfig } from './shared/types';
+import { createDefaultUnifiedAgentConfig, builtinTools } from './shared/types';
+import type { AIConfig } from './types';
+import PromptPanel from './PromptPanel.vue';
+import ModelSelector from './shared/ModelSelector.vue';
+import ModelParamsPanel from './ModelParamsPanel.vue';
+import ToolsPanel from './ToolsPanel.vue';
+import KnowledgePanel from './KnowledgePanel.vue';
 
-// 图标
 const PlayIcon = createIconifyIcon('lucide:play');
 const StopIcon = createIconifyIcon('lucide:square');
 const GripHorizontalIcon = createIconifyIcon('lucide:grip-horizontal');
-const SparklesIcon = createIconifyIcon('lucide:sparkles');
+const BrainIcon = createIconifyIcon('lucide:brain-circuit');
 
 interface AgentStepNode {
   id: string;
   type: string;
   name: string;
-  config: AgentConfig;
+  config: UnifiedAgentConfig;
   postProcessors?: KeywordConfig[];
 }
 
@@ -59,10 +54,7 @@ const emit = defineEmits<{
   (e: 'update', node: AgentStepNode): void;
 }>();
 
-// 本地副本
 const localNode = ref<AgentStepNode | null>(null);
-
-// 流式工具调用的中间状态（在 step_completed 前由钩子维护）
 const pendingToolCalls = ref<ToolCallRecord[]>([]);
 const agentThinkingHint = ref<string | null>(null);
 
@@ -158,25 +150,22 @@ const streamingFallbackResponse = computed<AIResponseData>(() => ({
   toolCalls: pendingToolCalls.value.length ? [...pendingToolCalls.value] : undefined,
 }));
 
-// 调试上下文（用于 UI 指示器）
 const debugContext = useDebugContext();
 const hasDebugCtx = computed(() =>
   !!props.workflowId && debugContext.hasContext(props.workflowId),
 );
 
-// 分割条
 const containerRef = ref<HTMLElement | null>(null);
 const editorPanelHeight = ref(60);
 const isDragging = ref(false);
 
-// 同步 props
 watch(
   () => props.node,
   (newNode) => {
     if (newNode) {
       localNode.value = JSON.parse(JSON.stringify(newNode));
       if (!localNode.value!.config) {
-        localNode.value!.config = createDefaultAgentConfig();
+        localNode.value!.config = createDefaultUnifiedAgentConfig();
       }
       if (!localNode.value!.postProcessors) {
         localNode.value!.postProcessors = [];
@@ -192,20 +181,17 @@ function emitUpdate() {
   }
 }
 
-// 子面板更新处理
-function handleConfigUpdate(patch: Partial<AgentConfig>) {
+function handleConfigUpdate(patch: Partial<UnifiedAgentConfig>) {
   if (!localNode.value?.config) return;
   Object.assign(localNode.value.config, patch);
   emitUpdate();
 }
 
-// 后置处理器计数
 const postProcessorsCount = computed(() => {
   const processors = localNode.value?.postProcessors;
   return Array.isArray(processors) ? processors.filter((p: KeywordConfig) => p.enabled).length : 0;
 });
 
-// 更新后置处理器
 function updatePostProcessors(processors: KeywordConfig[]) {
   if (localNode.value) {
     localNode.value.postProcessors = processors;
@@ -224,14 +210,6 @@ function handleRun() {
     message.warning('请输入用户提示词');
     return;
   }
-  const hasTools =
-    (localNode.value.config.tools?.length ?? 0) > 0 ||
-    (localNode.value.config.skill_ids?.length ?? 0) > 0 ||
-    (localNode.value.config.mcp_server_ids?.length ?? 0) > 0;
-  if (!hasTools) {
-    message.warning('ReAct Agent 需配合工具使用，请至少添加一个工具');
-    return;
-  }
 
   pendingToolCalls.value = [];
   agentThinkingHint.value = null;
@@ -239,7 +217,7 @@ function handleRun() {
   run({
     id: localNode.value.id,
     type: 'ai_agent',
-    name: localNode.value.name || 'ReAct Agent 节点',
+    name: localNode.value.name || '智能 Agent',
     config: {
       ai_model_id: localNode.value.config.ai_model_id,
       ai_model_name: localNode.value.config.ai_model_name || '',
@@ -257,10 +235,10 @@ function handleRun() {
       knowledge_base_ids: localNode.value.config.knowledge_base_ids || [],
       kb_top_k: localNode.value.config.kb_top_k || 5,
       kb_score_threshold: localNode.value.config.kb_score_threshold || 0.7,
-      max_tool_rounds: localNode.value.config.max_tool_rounds || 10,
+      max_tool_rounds: localNode.value.config.max_tool_rounds || 15,
       interaction_timeout: localNode.value.config.interaction_timeout || 300,
-      hitl_enabled: localNode.value.config.hitl_enabled ?? false,
-      hitl_approve_tools: localNode.value.config.hitl_approve_tools || [],
+      enable_plan_mode: localNode.value.config.enable_plan_mode ?? true,
+      max_plan_steps: localNode.value.config.max_plan_steps || 10,
     },
     postProcessors: localNode.value.postProcessors?.map((p: KeywordConfig) => ({
       id: p.id,
@@ -272,7 +250,6 @@ function handleRun() {
   });
 }
 
-// 拖拽分割条
 function startDrag(e: MouseEvent) {
   isDragging.value = true;
   document.addEventListener('mousemove', onDrag);
@@ -297,7 +274,6 @@ function stopDrag() {
 
 <template>
   <div ref="containerRef" class="ai-panel" v-if="localNode">
-    <!-- 配置区域 -->
     <div
       class="config-section"
       :style="{
@@ -305,15 +281,14 @@ function stopDrag() {
           debugResponse || isDebugging || streamingContent ? `${editorPanelHeight}%` : '100%',
       }"
     >
-      <!-- 工具栏 -->
       <div class="toolbar">
         <div class="toolbar-header">
           <div class="toolbar-title">
-            <SparklesIcon class="size-4" />
-            <span>ReAct Agent</span>
+            <BrainIcon class="size-4" />
+            <span>智能 Agent</span>
           </div>
           <div class="agent-mode-tip">
-            多轮「思考 → 行动 → 观察」循环推理，需配合工具使用
+            自动路由：直接回答 / 工具调用 / Plan 模式
           </div>
         </div>
         <div class="toolbar-spacer" />
@@ -334,13 +309,7 @@ function stopDrag() {
           v-else
           type="primary"
           size="small"
-          :disabled="
-            !localNode.config?.ai_model_id ||
-            !localNode.config?.prompt?.trim() ||
-            ((localNode.config?.tools?.length ?? 0) === 0 &&
-              (localNode.config?.skill_ids?.length ?? 0) === 0 &&
-              (localNode.config?.mcp_server_ids?.length ?? 0) === 0)
-          "
+          :disabled="!localNode.config?.ai_model_id || !localNode.config?.prompt?.trim()"
           @click="handleRun"
         >
           <template #icon><PlayIcon class="size-4" /></template>
@@ -348,7 +317,6 @@ function stopDrag() {
         </Button>
       </div>
 
-      <!-- 配置内容（可滚动） -->
       <div class="config-content">
         <Tabs size="small">
           <Tabs.TabPane key="prompt" tab="提示词">
@@ -370,18 +338,31 @@ function stopDrag() {
                   :checked="localNode.config.streaming ?? true"
                   @change="(val: any) => handleConfigUpdate({ streaming: val })"
                 />
-                <div class="param-hint">
-                  启用后，AI 输出将实时流式显示
-                </div>
+                <div class="param-hint">启用后，AI 输出将实时流式显示</div>
               </Form.Item>
               <Form.Item label="交互模式">
                 <Switch
                   :checked="localNode.config.interactive ?? false"
                   @change="(val: any) => handleConfigUpdate({ interactive: val })"
                 />
-                <div class="param-hint">
-                  启用后，AI 可以在执行过程中请求用户交互（确认、输入、选择等）
-                </div>
+                <div class="param-hint">启用后，AI 可在执行过程中请求用户交互</div>
+              </Form.Item>
+              <Form.Item label="Plan 模式">
+                <Switch
+                  :checked="localNode.config.enable_plan_mode ?? true"
+                  @change="(val: any) => handleConfigUpdate({ enable_plan_mode: val })"
+                />
+                <div class="param-hint">启用后，Agent 遇到复杂任务会自动切换到分步规划执行模式</div>
+              </Form.Item>
+              <Form.Item v-if="localNode.config.enable_plan_mode" label="最大计划步骤">
+                <InputNumber
+                  :value="localNode.config.max_plan_steps"
+                  :min="2"
+                  :max="20"
+                  style="width: 100%"
+                  @change="(val: any) => handleConfigUpdate({ max_plan_steps: val })"
+                />
+                <div class="param-hint">Plan 模式下最大步骤数</div>
               </Form.Item>
               <Form.Item label="最大工具调用轮次">
                 <InputNumber
@@ -391,9 +372,7 @@ function stopDrag() {
                   style="width: 100%"
                   @change="(val: any) => handleConfigUpdate({ max_tool_rounds: val })"
                 />
-                <div class="param-hint">
-                  AI 模型调用工具（含 Skill）的最大轮次，防止无限循环
-                </div>
+                <div class="param-hint">ReAct 循环中工具调用的最大轮次</div>
               </Form.Item>
               <Form.Item label="超时时间（秒）">
                 <InputNumber
@@ -403,9 +382,7 @@ function stopDrag() {
                   style="width: 100%"
                   @change="(val: any) => handleConfigUpdate({ timeout: val })"
                 />
-                <div class="param-hint">
-                  节点执行的最大超时时间，0 表示不限制
-                </div>
+                <div class="param-hint">节点执行的最大超时时间，0 表示不限制</div>
               </Form.Item>
               <Form.Item
                 v-if="localNode.config.interactive"
@@ -418,9 +395,7 @@ function stopDrag() {
                   style="width: 100%"
                   @change="(val: any) => handleConfigUpdate({ interaction_timeout: val })"
                 />
-                <div class="param-hint">
-                  单次用户交互等待的最大时间
-                </div>
+                <div class="param-hint">单次用户交互等待的最大时间</div>
               </Form.Item>
             </Form>
           </Tabs.TabPane>
@@ -437,9 +412,6 @@ function stopDrag() {
               :config="(localNode.config as unknown as AIConfig)"
               @update="handleConfigUpdate"
             />
-            <div class="tools-required-hint">
-              必填：ReAct Agent 需至少添加一个工具（内置工具 / Skill / MCP）才能正常运行
-            </div>
           </Tabs.TabPane>
 
           <Tabs.TabPane key="knowledge" tab="知识库">
@@ -447,48 +419,6 @@ function stopDrag() {
               :config="(localNode.config as unknown as AIConfig)"
               @update="handleConfigUpdate"
             />
-          </Tabs.TabPane>
-
-          <Tabs.TabPane key="hitl" tab="HITL">
-            <Form layout="vertical" class="config-form">
-              <Form.Item label="启用 HITL（人在回路）">
-                <Switch
-                  :checked="localNode.config.hitl_enabled ?? false"
-                  @change="(val: any) => handleConfigUpdate({ hitl_enabled: val })"
-                />
-                <div class="param-hint">
-                  启用后，指定的工具调用需要人工审批后才能执行。
-                </div>
-              </Form.Item>
-
-              <Form.Item
-                v-if="localNode.config.hitl_enabled"
-                label="需要审批的工具"
-              >
-                <Checkbox.Group
-                  :value="localNode.config.hitl_approve_tools || []"
-                  @change="(val: any) => handleConfigUpdate({ hitl_approve_tools: val as string[] })"
-                >
-                  <div class="hitl-tools-list">
-                    <div
-                      v-for="toolName in localNode.config.tools || []"
-                      :key="toolName"
-                      class="hitl-tool-item"
-                    >
-                      <Checkbox :value="toolName">
-                        {{ builtinTools.find((t) => t.name === toolName)?.label || toolName }}
-                      </Checkbox>
-                    </div>
-                    <div v-if="(localNode.config.tools || []).length === 0" class="hitl-empty-hint">
-                      请先在「工具」标签页添加工具
-                    </div>
-                  </div>
-                </Checkbox.Group>
-                <div class="param-hint">
-                  选择需要人工审批后才能执行的工具。只有已添加的工具才会显示在此列表中。
-                </div>
-              </Form.Item>
-            </Form>
           </Tabs.TabPane>
 
           <Tabs.TabPane key="post">
@@ -506,7 +436,6 @@ function stopDrag() {
       </div>
     </div>
 
-    <!-- 分割条 -->
     <div
       v-if="debugResponse || isDebugging || streamingContent"
       class="resize-bar"
@@ -516,7 +445,6 @@ function stopDrag() {
       <GripHorizontalIcon class="resize-icon" />
     </div>
 
-    <!-- 调试响应区域 -->
     <div
       v-if="debugResponse || isDebugging || streamingContent"
       class="response-section"
@@ -536,7 +464,6 @@ function stopDrag() {
       </div>
     </div>
 
-    <!-- 人机交互弹窗 -->
     <AIInteractionModal
       :open="interactionOpen"
       :data="interactionData"
@@ -634,37 +561,6 @@ function stopDrag() {
   margin-top: 4px;
 }
 
-.tools-required-hint {
-  font-size: 12px;
-  color: hsl(var(--muted-foreground));
-  margin-top: 12px;
-  padding: 8px 12px;
-  background: hsl(var(--primary) / 8%);
-  border-radius: 6px;
-}
-
-.hitl-tools-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid hsl(var(--border));
-  border-radius: 8px;
-  background: hsl(var(--card));
-}
-
-.hitl-tool-item {
-  padding: 4px 0;
-}
-
-.hitl-empty-hint {
-  font-size: 12px;
-  color: hsl(var(--muted-foreground));
-  text-align: center;
-  padding: 16px 0;
-}
-
-/* 分割条 */
 .resize-bar {
   display: flex;
   align-items: center;
@@ -692,7 +588,6 @@ function stopDrag() {
   color: hsl(var(--primary));
 }
 
-/* 响应区域 */
 .response-section {
   display: flex;
   flex-direction: column;

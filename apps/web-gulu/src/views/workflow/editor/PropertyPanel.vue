@@ -68,7 +68,7 @@ const isScriptNode = computed(() => localNode.value?.type === 'script');
 // 是否是 AI 节点（使用特殊布局）
 const isAiNode = computed(() => {
   const t = localNode.value?.type;
-  return t === 'ai' || t === 'ai_chat' || t === 'ai_agent' || t === 'ai_plan_execute' || t === 'ai_reflection' || t === 'ai_supervisor' || t === 'ai_deep_agent';
+  return t === 'ai_agent' || t === 'ai' || t === 'ai_chat' || t === 'ai_plan_execute' || t === 'ai_reflection' || t === 'ai_supervisor' || t === 'ai_deep_agent';
 });
 
 // 是否是数据库节点（使用特殊布局）

@@ -10,21 +10,8 @@ import {
   MessageSquare,
 } from '#/components/icons';
 
-import AIProperty from './ai/AIPropertyPanel.vue';
-import ChatPropertyPanel from './ai/chat/ChatPropertyPanel.vue';
-import AgentPropertyPanel from './ai/agent/AgentPropertyPanel.vue';
-import PlanExecutePropertyPanel from './ai/plan-execute/PlanExecutePropertyPanel.vue';
-import ReflectionPropertyPanel from './ai/reflection/ReflectionPropertyPanel.vue';
-import SupervisorPropertyPanel from './ai/supervisor/SupervisorPropertyPanel.vue';
-import DeepAgentPropertyPanel from './ai/deep-agent/DeepAgentPropertyPanel.vue';
-import {
-  createDefaultChatConfig,
-  createDefaultAgentConfig,
-  createDefaultPlanExecuteConfig,
-  createDefaultReflectionConfig,
-  createDefaultSupervisorConfig,
-  createDefaultDeepAgentConfig,
-} from './ai/shared/types';
+import UnifiedAgentPropertyPanel from './ai/UnifiedAgentPropertyPanel.vue';
+import { createDefaultUnifiedAgentConfig } from './ai/shared/types';
 import ConditionProperty from './ConditionProperty.vue';
 import ConditionBranchProperty from './ConditionBranchProperty.vue';
 import DatabasePropertyPanel from './database/DatabasePropertyPanel.vue';
@@ -36,29 +23,22 @@ import ScriptPropertyPanel from './ScriptPropertyPanel.vue';
 import WaitProperty from './WaitProperty.vue';
 
 import { createIconifyIcon } from '@vben/icons';
-const Sparkles = createIconifyIcon('lucide:sparkles');
-const Workflow = createIconifyIcon('lucide:workflow');
-const Bot = createIconifyIcon('lucide:bot');
 const BrainCircuit = createIconifyIcon('lucide:brain-circuit');
-const ListChecks = createIconifyIcon('lucide:list-checks');
-const RefreshCw = createIconifyIcon('lucide:refresh-cw');
-const Users = createIconifyIcon('lucide:users');
-const Layers = createIconifyIcon('lucide:layers');
+const Workflow = createIconifyIcon('lucide:workflow');
 
 export interface NodeTypeConfig {
   key: string;
   label: string;
   icon: Component;
   color: string;
-  // 属性编辑组件
   propertyComponent: Component;
-  // 创建节点时的默认配置
   defaultConfig: () => Record<string, any>;
-  // 获取节点描述（用于树形列表显示）
   getDescription?: (node: any) => string;
-  // 是否可以有子节点
   canHaveChildren?: boolean;
 }
+
+// 旧 AI 节点类型列表（用于兼容迁移）
+const legacyAITypes = ['ai', 'ai_chat', 'ai_plan_execute', 'ai_reflection', 'ai_supervisor', 'ai_deep_agent'];
 
 // 节点类型注册表
 export const nodeTypeRegistry: Record<string, NodeTypeConfig> = {
@@ -104,87 +84,13 @@ export const nodeTypeRegistry: Record<string, NodeTypeConfig> = {
     }),
     getDescription: (node) => node.config?.language || 'javascript',
   },
-  ai: {
-    key: 'ai',
-    label: 'AI 节点',
-    icon: Sparkles,
-    color: '#1677ff',
-    propertyComponent: AIProperty,
-    defaultConfig: () => ({
-      config: {
-        ai_model_id: null,
-        ai_model_name: '',
-        system_prompt: '',
-        prompt: '',
-        temperature: 0.7,
-        max_tokens: 4096,
-        top_p: 1,
-        streaming: true,
-        interactive: false,
-        interaction_timeout: 300,
-        timeout: 300,
-        agent_mode: '',
-        max_reflection_rounds: 2,
-      },
-    }),
-    getDescription: (node) => {
-      const config = node.config;
-      if (!config) return '';
-      return config.ai_model_name || '未选择模型';
-    },
-  },
-  ai_chat: {
-    key: 'ai_chat',
-    label: 'AI 对话',
-    icon: Bot,
-    color: '#1677ff',
-    propertyComponent: ChatPropertyPanel,
-    defaultConfig: () => ({ config: createDefaultChatConfig() }),
-    getDescription: (node) => node.config?.ai_model_name || '未选择模型',
-  },
   ai_agent: {
     key: 'ai_agent',
-    label: 'ReAct Agent',
+    label: '智能 Agent',
     icon: BrainCircuit,
     color: '#722ed1',
-    propertyComponent: AgentPropertyPanel,
-    defaultConfig: () => ({ config: createDefaultAgentConfig() }),
-    getDescription: (node) => node.config?.ai_model_name || '未选择模型',
-  },
-  ai_plan_execute: {
-    key: 'ai_plan_execute',
-    label: '规划执行',
-    icon: ListChecks,
-    color: '#13c2c2',
-    propertyComponent: PlanExecutePropertyPanel,
-    defaultConfig: () => ({ config: createDefaultPlanExecuteConfig() }),
-    getDescription: (node) => node.config?.ai_model_name || '未选择模型',
-  },
-  ai_reflection: {
-    key: 'ai_reflection',
-    label: '反思迭代',
-    icon: RefreshCw,
-    color: '#eb2f96',
-    propertyComponent: ReflectionPropertyPanel,
-    defaultConfig: () => ({ config: createDefaultReflectionConfig() }),
-    getDescription: (node) => node.config?.ai_model_name || '未选择模型',
-  },
-  ai_supervisor: {
-    key: 'ai_supervisor',
-    label: '监督者协调',
-    icon: Users,
-    color: '#fa8c16',
-    propertyComponent: SupervisorPropertyPanel,
-    defaultConfig: () => ({ config: createDefaultSupervisorConfig() }),
-    getDescription: (node) => node.config?.ai_model_name || '未选择模型',
-  },
-  ai_deep_agent: {
-    key: 'ai_deep_agent',
-    label: '深度代理',
-    icon: Layers,
-    color: '#52c41a',
-    propertyComponent: DeepAgentPropertyPanel,
-    defaultConfig: () => ({ config: createDefaultDeepAgentConfig() }),
+    propertyComponent: UnifiedAgentPropertyPanel,
+    defaultConfig: () => ({ config: createDefaultUnifiedAgentConfig() }),
     getDescription: (node) => node.config?.ai_model_name || '未选择模型',
   },
   condition: {
@@ -351,12 +257,15 @@ export function getNodeTypes(): NodeTypeConfig[] {
   return Object.values(nodeTypeRegistry);
 }
 
-// 获取节点类型配置
+// 获取节点类型配置（支持旧类型自动映射到 ai_agent）
 export function getNodeTypeConfig(type: string): NodeTypeConfig | undefined {
+  if (legacyAITypes.includes(type)) {
+    return nodeTypeRegistry['ai_agent'];
+  }
   return nodeTypeRegistry[type];
 }
 
-// 注册新的节点类型（用于扩展）
+// 注册新的节点类型
 export function registerNodeType(config: NodeTypeConfig) {
   nodeTypeRegistry[config.key] = config;
 }
