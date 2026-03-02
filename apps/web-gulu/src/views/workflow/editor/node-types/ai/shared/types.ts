@@ -24,6 +24,7 @@ export interface UnifiedAgentConfig extends BaseAIConfig {
   kb_top_k: number;
   kb_score_threshold: number;
   max_tool_rounds: number;
+  tool_timeout: number;
   interactive: boolean;
   interaction_timeout: number;
   enable_plan_mode: boolean;
@@ -62,6 +63,7 @@ export function createDefaultUnifiedAgentConfig(): UnifiedAgentConfig {
     kb_top_k: 5,
     kb_score_threshold: 0.7,
     max_tool_rounds: 15,
+    tool_timeout: 180,
     interactive: false,
     interaction_timeout: 300,
     enable_plan_mode: true,

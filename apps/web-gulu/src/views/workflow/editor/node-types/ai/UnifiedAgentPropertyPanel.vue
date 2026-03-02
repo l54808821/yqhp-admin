@@ -236,6 +236,7 @@ function handleRun() {
       kb_top_k: localNode.value.config.kb_top_k || 5,
       kb_score_threshold: localNode.value.config.kb_score_threshold || 0.7,
       max_tool_rounds: localNode.value.config.max_tool_rounds || 15,
+      tool_timeout: localNode.value.config.tool_timeout || 180,
       interaction_timeout: localNode.value.config.interaction_timeout || 300,
       enable_plan_mode: localNode.value.config.enable_plan_mode ?? true,
       max_plan_steps: localNode.value.config.max_plan_steps || 10,
@@ -373,6 +374,16 @@ function stopDrag() {
                   @change="(val: any) => handleConfigUpdate({ max_tool_rounds: val })"
                 />
                 <div class="param-hint">ReAct 循环中工具调用的最大轮次</div>
+              </Form.Item>
+              <Form.Item label="单工具超时（秒）">
+                <InputNumber
+                  :value="localNode.config.tool_timeout"
+                  :min="10"
+                  :max="600"
+                  style="width: 100%"
+                  @change="(val: any) => handleConfigUpdate({ tool_timeout: val })"
+                />
+                <div class="param-hint">单个工具（含 Skill）执行的最大超时时间，默认 180 秒</div>
               </Form.Item>
               <Form.Item label="超时时间（秒）">
                 <InputNumber
