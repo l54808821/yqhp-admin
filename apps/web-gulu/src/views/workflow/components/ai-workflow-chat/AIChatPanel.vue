@@ -682,7 +682,6 @@ onUnmounted(() => {
 }
 
 .msg-bubble {
-  border-radius: 16px;
   line-height: 1.7;
   word-break: break-word;
 }
@@ -692,16 +691,14 @@ onUnmounted(() => {
   background: hsl(var(--accent));
   color: hsl(var(--foreground));
   border-radius: 18px 18px 18px 4px;
-  border: 1px solid hsl(var(--border));
+  border: none;
   font-size: 14px;
   white-space: pre-wrap;
 }
 
 .msg-bubble--assistant {
-  padding: 14px 18px;
   background: hsl(var(--background));
-  border: 1px solid hsl(var(--border));
-  border-radius: 18px 18px 18px 4px;
+  border: none;
   font-size: 14px;
 }
 
