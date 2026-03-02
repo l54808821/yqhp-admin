@@ -178,6 +178,8 @@ export function useStepDebug<TResponse>(options: UseStepDebugOptions<TResponse>)
 
       case 'step_completed':
       case 'step_failed': {
+        // 确保计划步骤状态更新
+        handleBlockEvent(streamingBlocks.value, type, data);
         const stepData = data as any;
         const stepResult: StepExecutionResult = {
           stepId: stepData.stepId || '',

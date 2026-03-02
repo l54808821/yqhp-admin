@@ -209,6 +209,14 @@ export function useExecution(options: UseExecutionOptions) {
           ...completedData,
           output: completedData.output || completedData.result,
         } as StepResult);
+        // 同步更新该步骤的 block 状态（如计划步骤标记为完成）
+        const sid = completedData.stepId;
+        if (sid && aiStreamingBlocks.value.has(sid)) {
+          const blocks = aiStreamingBlocks.value.get(sid)!;
+          handleBlockEvent(blocks, 'step_completed', completedData);
+          aiStreamingBlocks.value.set(sid, [...blocks]);
+          triggerBlocksReactivity();
+        }
         break;
       }
       case 'step_failed': {
@@ -329,6 +337,30 @@ export function useExecution(options: UseExecutionOptions) {
   }
 
   function handleWorkflowComplete(data: WorkflowCompletedData) {
+    // 确保所有计划步骤标记为完成（兜底机制）
+    for (const [stepId, blocks] of aiStreamingBlocks.value) {
+      let changed = false;
+      for (const block of blocks) {
+        if (block.type === 'plan') {
+          const pb = block as any;
+          if (pb.status !== 'completed') {
+            pb.status = 'completed';
+            changed = true;
+          }
+          for (const s of pb.steps || []) {
+            if (s.status !== 'completed' && s.status !== 'failed') {
+              s.status = 'completed';
+              changed = true;
+            }
+          }
+        }
+      }
+      if (changed) {
+        aiStreamingBlocks.value.set(stepId, [...blocks]);
+      }
+    }
+    triggerBlocksReactivity();
+
     executionSummary.value = {
       sessionId: data.sessionId,
       totalSteps: data.totalSteps,
@@ -352,6 +384,8 @@ export function useExecution(options: UseExecutionOptions) {
     currentAIStepId.value = stepId;
     const blocks = getOrCreateBlocks(stepId);
     handleBlockEvent(blocks, eventType, data);
+    // 替换数组引用，确保 Vue 检测到 blocks 内部对象的属性变更并触发组件重渲染
+    aiStreamingBlocks.value.set(stepId, [...blocks]);
     triggerBlocksReactivity();
   }
 

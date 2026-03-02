@@ -205,8 +205,10 @@ const hasBlocks = computed(() => responseBlocks.value.length > 0);
 
 const responseTabRef = ref<HTMLDivElement>();
 const isAtBottom = ref(true);
+let programmaticScroll = false;
 
 function handleResponseScroll(e: Event) {
+  if (programmaticScroll) return;
   const el = e.target as HTMLElement;
   isAtBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight <= 30;
 }
@@ -214,21 +216,27 @@ function handleResponseScroll(e: Event) {
 function scrollToBottom() {
   const el = responseTabRef.value;
   if (el) {
+    programmaticScroll = true;
     el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
     isAtBottom.value = true;
+    setTimeout(() => { programmaticScroll = false; }, 300);
   }
 }
 
-watch([responseBlocks, () => props.blocks?.length], () => {
+function autoScrollToBottom() {
+  const el = responseTabRef.value;
+  if (el) {
+    programmaticScroll = true;
+    el.scrollTop = el.scrollHeight;
+    requestAnimationFrame(() => { programmaticScroll = false; });
+  }
+}
+
+watch(responseBlocks, () => {
   if (activeTab.value !== 'response') return;
   if (!isAtBottom.value) return;
-  nextTick(() => {
-    const el = responseTabRef.value;
-    if (el) {
-      el.scrollTop = el.scrollHeight;
-    }
-  });
-});
+  nextTick(autoScrollToBottom);
+}, { deep: true });
 </script>
 
 <template>
