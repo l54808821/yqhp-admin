@@ -283,15 +283,6 @@ onUnmounted(() => {
                 <SparklesIcon class="msg-avatar-icon" />
               </div>
               <div class="msg-content-wrapper">
-                <!-- 人机交互卡片 -->
-                <AIInteractionCard
-                  v-if="chat.interactionData.value && msg === chat.messages.value[chat.messages.value.length - 1]"
-                  :data="chat.interactionData.value"
-                  :countdown="chat.interactionCountdown.value"
-                  @confirm="handleInteractionConfirm"
-                  @skip="chat.skipInteraction()"
-                />
-
                 <!-- ContentBlock 渲染 -->
                 <div class="msg-bubble msg-bubble--assistant">
                   <ContentBlockRenderer
@@ -312,6 +303,15 @@ onUnmounted(() => {
                     <span class="loading-dot" /><span class="loading-dot" /><span class="loading-dot" />
                   </div>
                 </div>
+
+                <!-- 人机交互卡片（放在消息底部） -->
+                <AIInteractionCard
+                  v-if="chat.interactionData.value && msg === chat.messages.value[chat.messages.value.length - 1]"
+                  :data="chat.interactionData.value"
+                  :countdown="chat.interactionCountdown.value"
+                  @confirm="handleInteractionConfirm"
+                  @skip="chat.skipInteraction()"
+                />
 
                 <!-- Token 用量 -->
                 <div v-if="msg.metadata?.usage" class="msg-usage">
@@ -557,6 +557,7 @@ onUnmounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
+  background: hsl(var(--background));
   min-width: 0;
   overflow: hidden;
   position: relative;
@@ -658,7 +659,7 @@ onUnmounted(() => {
   height: 36px;
   border-radius: 50%;
   flex-shrink: 0;
-  margin-top: 6px;
+  margin-top: 2px;
 }
 
 .msg-avatar--user {
@@ -697,7 +698,6 @@ onUnmounted(() => {
 }
 
 .msg-bubble--assistant {
-  background: hsl(var(--background));
   border: none;
   font-size: 14px;
 }

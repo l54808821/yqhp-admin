@@ -583,14 +583,7 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
       }
 
       case 'step_skipped':
-        msg.blocks.push({
-          type: 'step_exec',
-          stepId: data.stepId,
-          stepName: data.stepName,
-          stepType: data.stepType,
-          status: 'skipped',
-          reason: data.reason,
-        } as StepExecBlock);
+        // 跳过的步骤不展示在聊天中
         break;
 
       case 'ai_complete':
