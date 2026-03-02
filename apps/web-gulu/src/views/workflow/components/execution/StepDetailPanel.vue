@@ -2,6 +2,7 @@
 import { createIconifyIcon } from '@vben/icons';
 import { Alert, Card, Descriptions, Tag } from 'ant-design-vue';
 import type { StepResult, TreeNode } from './types';
+import type { ContentBlock } from '../shared/types';
 
 import AIStepDetail from './step-details/AIStepDetail.vue';
 import DatabaseStepDetail from './step-details/DatabaseStepDetail.vue';
@@ -22,9 +23,8 @@ interface Props {
   selectedStep: StepResult | null;
   selectedTreeNode: TreeNode | null;
   isIterationSelected: boolean;
-  aiContent: string | null;
-  aiToolCalls: Array<{ toolName: string; arguments: string; result?: string; isError?: boolean; durationMs?: number; status: 'running' | 'done' }> | null;
   currentAIStepId: string | null;
+  aiStreamingBlocks?: ContentBlock[] | null;
 }
 
 defineProps<Props>();
@@ -114,9 +114,8 @@ function formatDuration(ms?: number) {
           <AIStepDetail
             v-else-if="selectedStep.stepType === 'ai' || selectedStep.stepType === 'ai_agent'"
             :step-result="selectedStep"
-            :ai-content="aiContent"
-            :ai-tool-calls="aiToolCalls"
             :current-a-i-step-id="currentAIStepId"
+            :streaming-blocks="aiStreamingBlocks"
           />
 
           <!-- 引用工作流步骤使用专用组件 -->

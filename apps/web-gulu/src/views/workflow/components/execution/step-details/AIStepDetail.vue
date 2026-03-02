@@ -14,6 +14,8 @@ import {
   ConsoleLogPanel,
   type AIResponseData,
   type ConsoleLogEntry,
+  type ContentBlock,
+  type AgentTrace,
 } from '../../shared';
 
 // AI 输出类型定义（后端返回的 snake_case 格式）
@@ -34,17 +36,16 @@ interface AIOutput {
     is_error: boolean;
     duration_ms: number;
   }>;
+  agent_trace?: AgentTrace;
   console_logs?: ConsoleLogEntry[];
 }
 
 interface Props {
   stepResult: StepResult;
-  /** 流式 AI 内容（SSE 实时推送） */
-  aiContent?: string | null;
-  /** 实时工具调用记录（SSE 推送） */
-  aiToolCalls?: Array<{ toolName: string; arguments: string; result?: string; isError?: boolean; durationMs?: number; status: 'running' | 'done' }> | null;
   /** 当前正在流式输出的 AI 步骤 ID */
   currentAIStepId?: string | null;
+  /** 外部实时构建的 ContentBlock[]（流式渲染） */
+  streamingBlocks?: ContentBlock[] | null;
 }
 
 const props = defineProps<Props>();
@@ -53,27 +54,11 @@ const props = defineProps<Props>();
 const aiResponse = computed<AIResponseData | null>(() => {
   const output = props.stepResult.output as AIOutput | undefined;
   const isRunning = props.stepResult.status === 'running';
-  const hasStreamContent = props.currentAIStepId === props.stepResult.stepId && !!props.aiContent;
+  const hasBlocks = props.streamingBlocks && props.streamingBlocks.length > 0;
 
-  // 有 output、有 error、正在运行、或有流式内容时都要渲染面板
-  if (!output && !props.stepResult.error && !isRunning && !hasStreamContent) return null;
+  if (!output && !props.stepResult.error && !isRunning && !hasBlocks) return null;
 
   const status = props.stepResult.status;
-
-  // 合并工具调用：优先使用最终 output 中的，否则使用实时推送的
-  let toolCalls = output?.tool_calls;
-  if (!toolCalls && props.aiToolCalls && props.aiToolCalls.length > 0) {
-    // 将实时推送的工具调用转换为 output 格式
-    let round = 1;
-    toolCalls = props.aiToolCalls.map((tc) => ({
-      round: round++,
-      tool_name: tc.toolName,
-      arguments: tc.arguments,
-      result: tc.result || (tc.status === 'running' ? '执行中...' : ''),
-      is_error: tc.isError || false,
-      duration_ms: tc.durationMs || 0,
-    }));
-  }
 
   return {
     success: status === 'success' || status === 'completed',
@@ -84,24 +69,25 @@ const aiResponse = computed<AIResponseData | null>(() => {
     totalTokens: output?.total_tokens || 0,
     durationMs: props.stepResult.durationMs || 0,
     error: props.stepResult.error || undefined,
-    toolCalls,
+    toolCalls: output?.tool_calls,
+    agentTrace: output?.agent_trace || undefined,
     systemPrompt: output?.system_prompt,
     prompt: output?.prompt,
     finishReason: output?.finish_reason,
   };
 });
 
-// 流式内容
-const streamingContent = computed(() => {
-  if (props.currentAIStepId === props.stepResult.stepId && props.aiContent) {
-    return props.aiContent;
-  }
-  return null;
-});
-
 // 是否正在流式输出
 const isStreaming = computed(() => {
   return props.currentAIStepId === props.stepResult.stepId && props.stepResult.status === 'running';
+});
+
+// 实时构建的 blocks（流式期间使用）
+const activeBlocks = computed<ContentBlock[] | undefined>(() => {
+  if (props.streamingBlocks && props.streamingBlocks.length > 0) {
+    return props.streamingBlocks;
+  }
+  return undefined;
 });
 
 // 后置处理器日志
@@ -125,8 +111,8 @@ const consoleLogs = computed<ConsoleLogEntry[]>(() => {
     <AIResponsePanel
       v-if="aiResponse"
       :response="aiResponse"
-      :streaming-content="streamingContent"
       :is-streaming="isStreaming"
+      :blocks="activeBlocks"
     />
 
     <!-- 后置处理器日志 -->

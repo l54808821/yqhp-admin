@@ -24,6 +24,8 @@ import type {
   StepStartedData,
 } from '#/api/debug';
 import { useAccessStore } from '@vben/stores';
+import type { ContentBlock } from '../../shared/types';
+import { handleBlockEvent } from '../../shared/blockEventHandler';
 
 export interface UseExecutionOptions {
   workflowId: Ref<number>;
@@ -92,6 +94,7 @@ export function useExecution(options: UseExecutionOptions) {
   const aiContent = ref<Map<string, string>>(new Map());
   const currentAIStepId = ref<string | null>(null);
   const aiToolCalls = ref<Map<string, Array<{ toolName: string; arguments: string; result?: string; isError?: boolean; durationMs?: number; status: 'running' | 'done' }>>>(new Map());
+  const aiStreamingBlocks = ref<Map<string, ContentBlock[]>>(new Map());
 
   // AI 交互状态
   const interactionOpen = ref(false);
@@ -109,6 +112,19 @@ export function useExecution(options: UseExecutionOptions) {
   let lastSSEParams: any = null;
   let lastSSEToken = '';
   let sseService: SSEService | null = null;
+
+  function getOrCreateBlocks(stepId: string): ContentBlock[] {
+    let blocks = aiStreamingBlocks.value.get(stepId);
+    if (!blocks) {
+      blocks = [];
+      aiStreamingBlocks.value.set(stepId, blocks);
+    }
+    return blocks;
+  }
+
+  function triggerBlocksReactivity() {
+    aiStreamingBlocks.value = new Map(aiStreamingBlocks.value);
+  }
 
   // 计算属性
   const isRunning = computed(() => sseState.value === 'connected' && !executionSummary.value);
@@ -224,6 +240,12 @@ export function useExecution(options: UseExecutionOptions) {
       case 'ai_chunk':
         handleAIChunk(event.data as AIChunkData);
         break;
+      case 'ai_thinking':
+      case 'ai_plan_started':
+      case 'ai_plan_step_update':
+      case 'ai_plan_completed':
+        handleAIBlockEvent(event.type, event.data);
+        break;
       case 'ai_complete':
         handleAIComplete(event.data as AICompleteData);
         break;
@@ -324,25 +346,36 @@ export function useExecution(options: UseExecutionOptions) {
     sseService?.disconnect();
   }
 
+  function handleAIBlockEvent(eventType: string, data: any) {
+    const stepId = data.stepId || currentAIStepId.value;
+    if (!stepId) return;
+    currentAIStepId.value = stepId;
+    const blocks = getOrCreateBlocks(stepId);
+    handleBlockEvent(blocks, eventType, data);
+    triggerBlocksReactivity();
+  }
+
   function handleAIChunk(data: AIChunkData) {
     currentAIStepId.value = data.stepId;
-    // index === 0 表示新一轮流式输出开始，重置之前累积的内容
-    // 这样在多轮工具调用场景下，每轮的流式内容不会互相叠加
     const current = data.index === 0 ? '' : (aiContent.value.get(data.stepId) || '');
     aiContent.value.set(data.stepId, current + data.chunk);
     aiContent.value = new Map(aiContent.value);
+
+    const blocks = getOrCreateBlocks(data.stepId);
+    handleBlockEvent(blocks, 'ai_chunk', data);
+    triggerBlocksReactivity();
   }
 
   function handleAIComplete(data: AICompleteData) {
-    // 设置最终内容（覆盖流式累积的内容，确保最终内容正确）
     aiContent.value.set(data.stepId, data.content);
     aiContent.value = new Map(aiContent.value);
-    // 注意：不在这里清除 currentAIStepId，让 step_completed 事件来处理过渡
-    // 这样可以避免 ai_complete 和 step_completed 之间的短暂空白
+
+    const blocks = getOrCreateBlocks(data.stepId);
+    handleBlockEvent(blocks, 'ai_complete', data);
+    triggerBlocksReactivity();
   }
 
   function handleAIToolCallStart(data: AIToolCallStartData) {
-    // 设置当前 AI 步骤 ID，确保面板在工具调用阶段就能渲染
     currentAIStepId.value = data.stepId;
     const calls = aiToolCalls.value.get(data.stepId) || [];
     calls.push({
@@ -352,11 +385,14 @@ export function useExecution(options: UseExecutionOptions) {
     });
     aiToolCalls.value.set(data.stepId, calls);
     aiToolCalls.value = new Map(aiToolCalls.value);
+
+    const blocks = getOrCreateBlocks(data.stepId);
+    handleBlockEvent(blocks, 'ai_tool_call_start', data);
+    triggerBlocksReactivity();
   }
 
   function handleAIToolCallComplete(data: AIToolCallCompleteData) {
     const calls = aiToolCalls.value.get(data.stepId) || [];
-    // 找到对应的 running 状态的调用并更新
     const idx = calls.findIndex(
       (c) => c.toolName === data.toolName && c.status === 'running'
     );
@@ -380,6 +416,10 @@ export function useExecution(options: UseExecutionOptions) {
     }
     aiToolCalls.value.set(data.stepId, calls);
     aiToolCalls.value = new Map(aiToolCalls.value);
+
+    const blocks = getOrCreateBlocks(data.stepId);
+    handleBlockEvent(blocks, 'ai_tool_call_complete', data);
+    triggerBlocksReactivity();
   }
 
   function handleAIInteraction(data: AIInteractionData) {
@@ -500,6 +540,7 @@ export function useExecution(options: UseExecutionOptions) {
       logs.value = [];
       aiContent.value = new Map();
       aiToolCalls.value = new Map();
+      aiStreamingBlocks.value = new Map();
       currentAIStepId.value = null;
       reconnectAttempts.value = 0;
       reconnecting.value = false;
@@ -648,6 +689,7 @@ export function useExecution(options: UseExecutionOptions) {
     // AI 状态
     aiContent,
     aiToolCalls,
+    aiStreamingBlocks,
     currentAIStepId,
 
     // AI 交互状态

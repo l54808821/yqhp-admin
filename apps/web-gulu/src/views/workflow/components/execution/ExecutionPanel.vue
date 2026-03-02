@@ -66,16 +66,10 @@ const stepTree = useStepTree({
 // 日志弹窗状态
 const showLogsModal = ref(false);
 
-// 选中步骤的 AI 内容
-const selectedStepAIContent = computed(() => {
+// 选中步骤的 AI 流式 blocks
+const selectedStepStreamingBlocks = computed(() => {
   if (!stepTree.selectedStep.value) return null;
-  return execution.aiContent.value.get(stepTree.selectedStep.value.stepId) || null;
-});
-
-// 选中步骤的 AI 工具调用
-const selectedStepAIToolCalls = computed(() => {
-  if (!stepTree.selectedStep.value) return null;
-  return execution.aiToolCalls.value.get(stepTree.selectedStep.value.stepId) || null;
+  return execution.aiStreamingBlocks.value.get(stepTree.selectedStep.value.stepId) || null;
 });
 
 // 组件卸载时清理
@@ -155,9 +149,8 @@ defineExpose({
         :selected-step="stepTree.selectedStep.value"
         :selected-tree-node="stepTree.selectedTreeNode.value"
         :is-iteration-selected="stepTree.isIterationSelected.value"
-        :ai-content="selectedStepAIContent"
-        :ai-tool-calls="selectedStepAIToolCalls"
         :current-a-i-step-id="execution.currentAIStepId.value"
+        :ai-streaming-blocks="selectedStepStreamingBlocks"
       />
     </div>
 
