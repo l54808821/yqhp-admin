@@ -71,7 +71,18 @@ export function handleBlockEvent(
         if (pb) pb.status = 'planning';
       } else if (thinking.startsWith('计划制定完成')) {
         const pb = findPlanBlock(blocks);
-        if (pb) pb.status = 'executing';
+        if (pb) {
+          pb.status = 'executing';
+          // 从消息中解析步骤列表，一次性填充所有步骤
+          const stepMatches = [...thinking.matchAll(/\n(\d+)\.\s+(.+)/g)];
+          if (stepMatches.length > 0) {
+            pb.steps = stepMatches.map((m) => ({
+              index: parseInt(m[1]!, 10),
+              task: m[2]!.trim(),
+              status: 'pending' as const,
+            }));
+          }
+        }
       } else if (thinking.startsWith('执行步骤')) {
         const pb = findPlanBlock(blocks);
         if (pb) {
@@ -107,17 +118,26 @@ export function handleBlockEvent(
     }
 
     case 'ai_plan_started': {
-      blocks.push({
-        type: 'plan',
-        reason: data.reason || '',
-        planText: data.planText,
-        steps: (data.steps || []).map((s: any) => ({
-          index: s.index,
-          task: s.task,
-          status: 'pending' as const,
-        })),
-        status: 'executing',
-      } as PlanBlock);
+      const existingPb = findPlanBlock(blocks);
+      const stepsData = (data.steps || []).map((s: any) => ({
+        index: s.index,
+        task: s.task,
+        status: 'pending' as const,
+      }));
+      if (existingPb) {
+        existingPb.reason = data.reason || existingPb.reason;
+        existingPb.planText = data.planText;
+        existingPb.steps = stepsData;
+        existingPb.status = 'executing';
+      } else {
+        blocks.push({
+          type: 'plan',
+          reason: data.reason || '',
+          planText: data.planText,
+          steps: stepsData,
+          status: 'executing',
+        } as PlanBlock);
+      }
       return true;
     }
 
