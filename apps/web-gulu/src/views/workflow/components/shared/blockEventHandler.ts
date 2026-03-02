@@ -161,7 +161,9 @@ export function handleBlockEvent(
         pb.status = 'completed';
         if (data.synthesis) pb.synthesis = data.synthesis;
         for (const s of pb.steps) {
-          if (s.status === 'running') s.status = 'completed';
+          if (s.status !== 'completed' && s.status !== 'failed') {
+            s.status = 'completed';
+          }
         }
         return true;
       }
@@ -272,7 +274,9 @@ export function handleBlockEvent(
       const pb = findPlanBlock(blocks);
       if (pb && pb.status === 'executing') {
         for (const s of pb.steps) {
-          if (s.status === 'running') s.status = 'completed';
+          if (s.status !== 'completed' && s.status !== 'failed') {
+            s.status = 'completed';
+          }
         }
         pb.status = 'completed';
       }
