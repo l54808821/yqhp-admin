@@ -119,54 +119,181 @@ export interface ToolCallRecord {
   duration_ms: number;
 }
 
+// ============ ContentBlock 多模态消息系统 ============
+
+export type ContentBlockType =
+  | 'text'
+  | 'thinking'
+  | 'image'
+  | 'file'
+  | 'tool_call'
+  | 'plan'
+  | 'step_exec'
+  | 'error';
+
+export interface TextBlock {
+  type: 'text';
+  content: string;
+}
+
+export interface ThinkingBlock {
+  type: 'thinking';
+  content: string;
+  isComplete: boolean;
+}
+
+export interface ImageBlock {
+  type: 'image';
+  url: string;
+  name?: string;
+}
+
+export interface FileBlock {
+  type: 'file';
+  url: string;
+  name: string;
+  size?: number;
+  mimeType?: string;
+}
+
+export interface ToolCallBlock {
+  type: 'tool_call';
+  id?: string;
+  name: string;
+  arguments: string;
+  result?: string;
+  isError?: boolean;
+  durationMs?: number;
+  status: 'running' | 'completed' | 'error';
+}
+
+export interface PlanStepBlock {
+  index: number;
+  task: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  result?: string;
+  toolCalls?: ToolCallBlock[];
+}
+
+export interface PlanBlock {
+  type: 'plan';
+  reason: string;
+  planText?: string;
+  steps: PlanStepBlock[];
+  synthesis?: string;
+  status: 'planning' | 'executing' | 'completed' | 'failed';
+}
+
+export interface StepExecBlock {
+  type: 'step_exec';
+  stepId: string;
+  stepName: string;
+  stepType: string;
+  status: 'running' | 'completed' | 'failed' | 'skipped';
+  durationMs?: number;
+  result?: any;
+  reason?: string;
+}
+
+export interface ErrorBlock {
+  type: 'error';
+  message: string;
+}
+
+export type ContentBlock =
+  | TextBlock
+  | ThinkingBlock
+  | ImageBlock
+  | FileBlock
+  | ToolCallBlock
+  | PlanBlock
+  | StepExecBlock
+  | ErrorBlock;
+
+/**
+ * Parse message content: if JSON array → ContentBlock[], otherwise wrap as single TextBlock.
+ */
+export function parseMessageContent(content: string): ContentBlock[] {
+  if (!content) return [];
+  const trimmed = content.trim();
+  if (trimmed.startsWith('[')) {
+    try {
+      const blocks = JSON.parse(trimmed) as ContentBlock[];
+      if (Array.isArray(blocks) && blocks.length > 0 && blocks[0]?.type) {
+        return blocks;
+      }
+    } catch {
+      // not valid JSON, fall through
+    }
+  }
+  return [{ type: 'text', content }];
+}
+
+/**
+ * Serialize ContentBlock[] to string for persistence.
+ */
+export function serializeBlocks(blocks: ContentBlock[]): string {
+  if (!blocks || blocks.length === 0) return '';
+  if (blocks.length === 1 && blocks[0]!.type === 'text') {
+    return (blocks[0] as TextBlock).content;
+  }
+  return JSON.stringify(blocks);
+}
+
+/**
+ * Extract plain text from blocks for display/search.
+ */
+export function blocksToPlainText(blocks: ContentBlock[]): string {
+  return blocks
+    .filter((b): b is TextBlock => b.type === 'text')
+    .map((b) => b.content)
+    .join('');
+}
+
 // ============ Agent 模式轨迹类型 ============
 
-// ReAct 单轮推理记录（Thinking → Action → Observation）
 export interface ReActRound {
   round: number;
   thinking: string;
   tool_calls: ToolCallRecord[];
 }
 
-// Plan-and-Execute 计划步骤
 export interface PlanStep {
   index: number;
   task: string;
-  status: string; // pending | running | completed | failed
+  status: string;
   thinking?: string;
   result?: string;
   tool_calls?: ToolCallRecord[];
 }
 
-// Plan-and-Execute 执行轨迹
 export interface PlanExecTrace {
   plan: string;
+  plan_text?: string;
+  reason?: string;
   steps: PlanStep[];
   synthesis?: string;
 }
 
-// Reflection 单轮反思记录
 export interface ReflectionRound {
   round: number;
   draft: string;
   critique: string;
 }
 
-// Reflection 执行轨迹
 export interface ReflectionTrace {
   rounds: ReflectionRound[];
   final_answer?: string;
 }
 
-// 统一的 Agent 模式执行轨迹
 export interface AgentTrace {
-  mode: string; // "react" | "plan_and_execute" | "reflection"
+  mode: string;
   react?: ReActRound[];
   plan_and_execute?: PlanExecTrace;
+  plan?: PlanExecTrace;
   reflection?: ReflectionTrace;
 }
 
-// 统一的 AI 响应数据结构（camelCase）
 export interface AIResponseData {
   success: boolean;
   content: string;

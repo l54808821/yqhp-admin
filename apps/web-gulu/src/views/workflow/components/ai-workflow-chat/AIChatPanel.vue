@@ -7,7 +7,7 @@ import { createIconifyIcon } from '@vben/icons';
 
 import type { Workflow } from '#/api/workflow';
 import AiBubbleContent from '#/components/ai-chat/AiBubbleContent.vue';
-import AIExecCard from './AIExecCard.vue';
+import { ContentBlockRenderer } from '../shared/blocks';
 import AIInteractionCard from './AIInteractionCard.vue';
 import { useAIWorkflowChat } from './useAIWorkflowChat';
 
@@ -67,12 +67,12 @@ watch(
   },
 );
 
-// 监听最新消息内容变化（流式更新时滚动）
+// 监听最新消息内容/blocks变化（流式更新时滚动）
 watch(
   () => {
     const msgs = chat.messages.value;
     const last = msgs[msgs.length - 1];
-    return last?.content?.length || 0;
+    return (last?.blocks?.length || 0) + (last?.content?.length || 0);
   },
   () => {
     if (isAtBottom.value) {
@@ -268,7 +268,11 @@ onUnmounted(() => {
               </div>
               <div class="msg-content-wrapper">
                 <div class="msg-bubble msg-bubble--user">
-                  {{ msg.content }}
+                  <ContentBlockRenderer
+                    v-if="msg.blocks?.length"
+                    :blocks="msg.blocks"
+                  />
+                  <template v-else>{{ msg.content }}</template>
                 </div>
               </div>
             </template>
@@ -279,13 +283,6 @@ onUnmounted(() => {
                 <SparklesIcon class="msg-avatar-icon" />
               </div>
               <div class="msg-content-wrapper">
-                <!-- 执行过程卡片 -->
-                <AIExecCard
-                  v-if="msg.stepEvents?.length || msg.toolCalls?.length"
-                  :step-events="msg.stepEvents"
-                  :tool-calls="msg.toolCalls"
-                />
-
                 <!-- 人机交互卡片 -->
                 <AIInteractionCard
                   v-if="chat.interactionData.value && msg === chat.messages.value[chat.messages.value.length - 1]"
@@ -295,15 +292,25 @@ onUnmounted(() => {
                   @skip="chat.skipInteraction()"
                 />
 
-                <!-- AI 响应内容 -->
+                <!-- ContentBlock 渲染 -->
                 <div class="msg-bubble msg-bubble--assistant">
+                  <ContentBlockRenderer
+                    v-if="msg.blocks?.length"
+                    :blocks="msg.blocks"
+                    :streaming="chat.isStreaming.value && msg === chat.messages.value[chat.messages.value.length - 1]"
+                  />
+                  <!-- 兼容：blocks 为空时回退到旧渲染 -->
                   <AiBubbleContent
+                    v-else
                     :content="msg.content"
-                    :thinking="msg.thinking"
                     :loading="msg.loading"
                     :streaming="chat.isStreaming.value && msg === chat.messages.value[chat.messages.value.length - 1]"
                     :error="msg.error"
                   />
+                  <!-- Loading indicator -->
+                  <div v-if="msg.loading && !msg.blocks?.length && !msg.content" class="msg-loading">
+                    <span class="loading-dot" /><span class="loading-dot" /><span class="loading-dot" />
+                  </div>
                 </div>
 
                 <!-- Token 用量 -->
@@ -996,6 +1003,28 @@ onUnmounted(() => {
 
 .ai-chat-panel--compact .welcome-avatar-icon {
   font-size: 24px;
+}
+
+.msg-loading {
+  display: flex;
+  gap: 4px;
+  padding: 8px 0;
+}
+
+.loading-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: hsl(var(--primary) / 60%);
+  animation: dot-pulse 1.4s ease-in-out infinite;
+}
+
+.loading-dot:nth-child(2) { animation-delay: 0.2s; }
+.loading-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes dot-pulse {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
 }
 
 </style>

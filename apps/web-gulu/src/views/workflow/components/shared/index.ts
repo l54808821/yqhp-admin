@@ -2,6 +2,9 @@
  * 工作流共享组件和工具
  */
 
+// ContentBlock 渲染组件
+export { ContentBlockRenderer } from './blocks';
+
 // 组件
 export { default as AIResponsePanel } from './AIResponsePanel.vue';
 export { default as ReActTracePanel } from './ReActTracePanel.vue';
@@ -30,4 +33,22 @@ export type {
   AssertionResult,
   ActualRequest,
   DebugStepApiResponse,
+  // ContentBlock 多模态消息系统
+  ContentBlock,
+  ContentBlockType,
+  TextBlock,
+  ThinkingBlock,
+  ImageBlock,
+  FileBlock,
+  ToolCallBlock,
+  PlanBlock,
+  PlanStepBlock,
+  StepExecBlock,
+  ErrorBlock,
+} from './types';
+
+export {
+  parseMessageContent,
+  serializeBlocks,
+  blocksToPlainText,
 } from './types';
