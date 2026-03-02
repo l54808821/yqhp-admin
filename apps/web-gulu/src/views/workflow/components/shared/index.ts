@@ -52,3 +52,10 @@ export {
   serializeBlocks,
   blocksToPlainText,
 } from './types';
+
+export {
+  handleBlockEvent,
+  findLastBlock,
+  findPlanBlock,
+  ensureTextBlock,
+} from './blockEventHandler';

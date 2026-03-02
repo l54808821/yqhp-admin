@@ -11,8 +11,8 @@ import { Tabs, Tag } from 'ant-design-vue';
 
 const ArrowDownIcon = createIconifyIcon('lucide:arrow-down');
 
-import { AiBubbleContent } from '#/components/ai-chat';
-import type { AIResponseData } from './types';
+import type { AIResponseData, ContentBlock, ThinkingBlock, ToolCallBlock, PlanBlock, PlanStepBlock } from './types';
+import { ContentBlockRenderer } from './blocks';
 import ReActTracePanel from './ReActTracePanel.vue';
 import PlanExecTracePanel from './PlanExecTracePanel.vue';
 import ReflectionTracePanel from './ReflectionTracePanel.vue';
@@ -26,17 +26,13 @@ interface Props {
   streamingContent?: string | null;
   /** 是否正在流式输出 */
   isStreaming?: boolean;
+  /** 外部实时构建的 ContentBlock[]，优先级高于从 response 转换 */
+  blocks?: ContentBlock[];
 }
 
 const props = defineProps<Props>();
 
 const activeTab = ref('response');
-
-// 显示的内容（优先流式内容）
-const displayContent = computed(() => {
-  if (props.streamingContent) return props.streamingContent;
-  return props.response.content || '';
-});
 
 // 状态颜色
 const statusColor = computed(() => {
@@ -74,8 +70,6 @@ const tokenStats = computed(() => {
 // 是否有输入数据
 const hasInput = computed(() => !!props.response.systemPrompt || !!props.response.prompt);
 
-const toolCallsCount = computed(() => props.response.toolCalls?.length || 0);
-
 // 是否有 Agent 推理过程
 const agentTrace = computed(() => props.response.agentTrace);
 const hasAgentTrace = computed(() => {
@@ -83,7 +77,8 @@ const hasAgentTrace = computed(() => {
   if (!trace || !trace.mode) return false;
   switch (trace.mode) {
     case 'react': return Array.isArray(trace.react) && trace.react.length > 0;
-    case 'plan_and_execute': return !!trace.plan_and_execute;
+    case 'plan':
+    case 'plan_and_execute': return !!(trace.plan || trace.plan_and_execute);
     case 'reflection': return !!trace.reflection && trace.reflection.rounds?.length > 0;
     default: return false;
   }
@@ -93,6 +88,7 @@ const agentTraceLabel = computed(() => {
   const mode = agentTrace.value?.mode;
   switch (mode) {
     case 'react': return '推理过程';
+    case 'plan':
     case 'plan_and_execute': return '执行计划';
     case 'reflection': return '反思过程';
     default: return '推理过程';
@@ -104,6 +100,7 @@ const agentTraceBadge = computed(() => {
   if (!trace) return 0;
   switch (trace.mode) {
     case 'react': return trace.react?.length || 0;
+    case 'plan': return trace.plan?.steps?.length || 0;
     case 'plan_and_execute': return trace.plan_and_execute?.steps?.length || 0;
     case 'reflection': return trace.reflection?.rounds?.length || 0;
     default: return 0;
@@ -114,6 +111,97 @@ function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
   return `${(ms / 1000).toFixed(2)}s`;
 }
+
+// 从 AIResponseData 转换为 ContentBlock[]（完成后的最终数据）
+const convertedBlocks = computed<ContentBlock[]>(() => {
+  const r = props.response;
+  const blocks: ContentBlock[] = [];
+
+  // Agent trace → blocks
+  const trace = r.agentTrace;
+  if (trace) {
+    // ReAct mode thinking + tool calls
+    if (trace.mode === 'react' && trace.react?.length) {
+      for (const round of trace.react) {
+        if (round.thinking) {
+          blocks.push({ type: 'thinking', content: round.thinking, isComplete: true } as ThinkingBlock);
+        }
+        if (round.tool_calls?.length) {
+          for (const tc of round.tool_calls) {
+            blocks.push({
+              type: 'tool_call',
+              name: tc.tool_name,
+              arguments: tc.arguments,
+              result: tc.result,
+              isError: tc.is_error,
+              durationMs: tc.duration_ms,
+              status: tc.is_error ? 'error' : 'completed',
+            } as ToolCallBlock);
+          }
+        }
+      }
+    }
+
+    // Plan mode
+    const planTrace = trace.plan || trace.plan_and_execute;
+    if ((trace.mode === 'plan' || trace.mode === 'plan_and_execute') && planTrace) {
+      const planSteps: PlanStepBlock[] = (planTrace.steps || []).map((s: any) => ({
+        index: s.index,
+        task: s.task,
+        status: s.status === 'completed' ? 'completed' : s.status === 'failed' ? 'failed' : 'pending',
+        result: s.result,
+        toolCalls: s.tool_calls?.map((tc: any) => ({
+          type: 'tool_call' as const,
+          name: tc.tool_name,
+          arguments: tc.arguments,
+          result: tc.result,
+          isError: tc.is_error,
+          durationMs: tc.duration_ms,
+          status: tc.is_error ? 'error' as const : 'completed' as const,
+        })),
+      }));
+      blocks.push({
+        type: 'plan',
+        reason: planTrace.reason || '',
+        planText: planTrace.plan_text || planTrace.plan,
+        steps: planSteps,
+        synthesis: planTrace.synthesis,
+        status: 'completed',
+      } as PlanBlock);
+    }
+  }
+
+  // Top-level tool calls (not from agent trace)
+  if (!trace && r.toolCalls?.length) {
+    for (const tc of r.toolCalls) {
+      blocks.push({
+        type: 'tool_call',
+        name: tc.tool_name,
+        arguments: tc.arguments,
+        result: tc.result,
+        isError: tc.is_error,
+        durationMs: tc.duration_ms,
+        status: tc.is_error ? 'error' : 'completed',
+      } as ToolCallBlock);
+    }
+  }
+
+  // Text content
+  const content = props.streamingContent || r.content;
+  if (content) {
+    blocks.push({ type: 'text', content });
+  }
+
+  return blocks;
+});
+
+// 优先使用外部传入的实时 blocks，否则用从 response 转换的 blocks
+const responseBlocks = computed<ContentBlock[]>(() => {
+  if (props.blocks && props.blocks.length > 0) return props.blocks;
+  return convertedBlocks.value;
+});
+
+const hasBlocks = computed(() => responseBlocks.value.length > 0);
 
 const responseTabRef = ref<HTMLDivElement>();
 const isAtBottom = ref(true);
@@ -131,18 +219,8 @@ function scrollToBottom() {
   }
 }
 
-watch(displayContent, () => {
-  if (!props.isStreaming || activeTab.value !== 'response') return;
-  if (!isAtBottom.value) return;
-  nextTick(() => {
-    const el = responseTabRef.value;
-    if (el) {
-      el.scrollTop = el.scrollHeight;
-    }
-  });
-});
-
-watch(() => props.response.toolCalls?.length, () => {
+watch([responseBlocks, () => props.blocks?.length], () => {
+  if (activeTab.value !== 'response') return;
   if (!isAtBottom.value) return;
   nextTick(() => {
     const el = responseTabRef.value;
@@ -186,7 +264,7 @@ watch(() => props.response.toolCalls?.length, () => {
 
     <!-- 内容区域 -->
     <div class="response-content">
-      <!-- AI 回复（含工具调用） -->
+      <!-- AI 回复（使用 ContentBlockRenderer 统一渲染） -->
       <div v-if="activeTab === 'response'" ref="responseTabRef" class="tab-content" @scroll="handleResponseScroll">
         <!-- 错误信息 -->
         <div v-if="response.error" class="response-error">
@@ -194,13 +272,10 @@ watch(() => props.response.toolCalls?.length, () => {
           <span>{{ response.error }}</span>
         </div>
 
-        <!-- 使用统一的 AiBubbleContent 渲染回复 -->
-        <div v-if="displayContent || toolCallsCount > 0" class="content-body">
-          <AiBubbleContent
-            :content="displayContent"
-            :tool-calls="response.toolCalls"
+        <div v-if="hasBlocks" class="content-body">
+          <ContentBlockRenderer
+            :blocks="responseBlocks"
             :streaming="isStreaming"
-            show-actions
           />
         </div>
         <div v-else-if="!response.error" class="content-empty">
@@ -213,6 +288,12 @@ watch(() => props.response.toolCalls?.length, () => {
         <ReActTracePanel
           v-if="agentTrace?.mode === 'react' && agentTrace.react"
           :trace="agentTrace.react"
+          :final-content="response.content"
+          :is-streaming="isStreaming"
+        />
+        <PlanExecTracePanel
+          v-else-if="agentTrace?.mode === 'plan' && agentTrace.plan"
+          :trace="agentTrace.plan"
           :final-content="response.content"
           :is-streaming="isStreaming"
         />

@@ -4,24 +4,19 @@ import { computed, ref, toRef, watch } from 'vue';
 import { createIconifyIcon } from '@vben/icons';
 import { Button, Form, InputNumber, Switch, Tabs, Tooltip, message } from 'ant-design-vue';
 
-import type {
-  StepExecutionResult,
-  AIToolCallStartData,
-  AIToolCallCompleteData,
-} from '#/api/debug';
+import type { StepExecutionResult } from '#/api/debug';
 import { useStepDebug } from '../../../components/execution/composables/useStepDebug';
 import { useDebugContext } from '../../../components/execution/composables/useDebugContext';
 import {
   AIResponsePanel,
   type AIResponseData,
 } from '../../../components/shared';
-import type { ToolCallRecord } from '../../../components/shared/types';
 import AIInteractionModal from '../../../components/execution/AIInteractionModal.vue';
 
 import type { KeywordConfig } from '../../types';
 import ProcessorPanel from '../http/ProcessorPanel.vue';
 import type { UnifiedAgentConfig } from './shared/types';
-import { createDefaultUnifiedAgentConfig, builtinTools } from './shared/types';
+import { createDefaultUnifiedAgentConfig } from './shared/types';
 import type { AIConfig } from './types';
 import PromptPanel from './PromptPanel.vue';
 import ModelSelector from './shared/ModelSelector.vue';
@@ -55,8 +50,6 @@ const emit = defineEmits<{
 }>();
 
 const localNode = ref<AgentStepNode | null>(null);
-const pendingToolCalls = ref<ToolCallRecord[]>([]);
-const agentThinkingHint = ref<string | null>(null);
 
 function transformResult(step: StepExecutionResult): AIResponseData {
   const r = step.result as any;
@@ -81,7 +74,7 @@ function transformResult(step: StepExecutionResult): AIResponseData {
     totalTokens: r.total_tokens || 0,
     durationMs: step.durationMs || 0,
     error: r.error || step.error,
-    toolCalls: Array.isArray(r.tool_calls) ? r.tool_calls : (pendingToolCalls.value.length ? [...pendingToolCalls.value] : undefined),
+    toolCalls: Array.isArray(r.tool_calls) ? r.tool_calls : undefined,
     agentTrace: r.agent_trace || undefined,
     systemPrompt: r.system_prompt || '',
     prompt: r.prompt || '',
@@ -103,7 +96,7 @@ function transformError(error: string, durationMs: number): AIResponseData {
 }
 
 const {
-  isDebugging, debugResponse, streamingContent, isStreaming, run, stop,
+  isDebugging, debugResponse, streamingBlocks, isStreaming, run, stop,
   interactionOpen, interactionData, interactionValue, interactionCountdown,
   handleInteractionConfirm, handleInteractionSkip,
 } = useStepDebug<AIResponseData>({
@@ -112,43 +105,14 @@ const {
     stream: true,
     transformResult,
     transformError,
-    onToolCallStart(data: AIToolCallStartData) {
-      agentThinkingHint.value = null;
-      pendingToolCalls.value.push({
-        round: pendingToolCalls.value.length + 1,
-        tool_name: data.toolName,
-        arguments: data.arguments,
-        result: '',
-        is_error: false,
-        duration_ms: 0,
-      });
-    },
-    onToolCallComplete(data: AIToolCallCompleteData) {
-      const idx = pendingToolCalls.value.findIndex(
-        (c: ToolCallRecord) => c.tool_name === data.toolName && !c.result,
-      );
-      if (idx >= 0) {
-        pendingToolCalls.value[idx] = {
-          ...pendingToolCalls.value[idx]!,
-          result: data.result,
-          is_error: data.isError,
-          duration_ms: data.durationMs,
-        };
-      }
-      agentThinkingHint.value = 'AI 正在分析工具结果...';
-    },
   });
 
-const streamingFallbackResponse = computed<AIResponseData>(() => ({
-  success: true,
-  content: agentThinkingHint.value || '',
-  model: '',
-  promptTokens: 0,
-  completionTokens: 0,
-  totalTokens: 0,
-  durationMs: 0,
-  toolCalls: pendingToolCalls.value.length ? [...pendingToolCalls.value] : undefined,
-}));
+const emptyResponse: AIResponseData = {
+  success: true, content: '', model: '',
+  promptTokens: 0, completionTokens: 0, totalTokens: 0, durationMs: 0,
+};
+
+const hasStreamingBlocks = computed(() => streamingBlocks.value.length > 0);
 
 const debugContext = useDebugContext();
 const hasDebugCtx = computed(() =>
@@ -210,9 +174,6 @@ function handleRun() {
     message.warning('请输入用户提示词');
     return;
   }
-
-  pendingToolCalls.value = [];
-  agentThinkingHint.value = null;
 
   run({
     id: localNode.value.id,
@@ -279,7 +240,7 @@ function stopDrag() {
       class="config-section"
       :style="{
         height:
-          debugResponse || isDebugging || streamingContent ? `${editorPanelHeight}%` : '100%',
+          debugResponse || isDebugging || hasStreamingBlocks ? `${editorPanelHeight}%` : '100%',
       }"
     >
       <div class="toolbar">
@@ -448,7 +409,7 @@ function stopDrag() {
     </div>
 
     <div
-      v-if="debugResponse || isDebugging || streamingContent"
+      v-if="debugResponse || isDebugging || hasStreamingBlocks"
       class="resize-bar"
       :class="{ dragging: isDragging }"
       @mousedown="startDrag"
@@ -457,14 +418,14 @@ function stopDrag() {
     </div>
 
     <div
-      v-if="debugResponse || isDebugging || streamingContent"
+      v-if="debugResponse || isDebugging || hasStreamingBlocks"
       class="response-section"
       :style="{ height: `calc(${100 - editorPanelHeight}% - 4px)` }"
     >
       <AIResponsePanel
-        v-if="debugResponse || streamingContent || pendingToolCalls.length > 0 || agentThinkingHint"
-        :response="debugResponse || streamingFallbackResponse"
-        :streaming-content="streamingContent"
+        v-if="debugResponse || hasStreamingBlocks"
+        :response="debugResponse || emptyResponse"
+        :blocks="isStreaming ? streamingBlocks : undefined"
         :is-streaming="isStreaming"
       />
       <div v-else-if="isDebugging" class="loading-placeholder">

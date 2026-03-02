@@ -107,9 +107,13 @@ export type SSEEventType =
   | 'ai_complete'
   | 'ai_error'
   | 'ai_thinking'
+  | 'ai_plan_started'
+  | 'ai_plan_step_update'
+  | 'ai_plan_completed'
   | 'ai_interaction_required'
   | 'ai_tool_call_start'
   | 'ai_tool_call_complete'
+  | 'message_complete'
   | 'heartbeat'
   | 'error';
 

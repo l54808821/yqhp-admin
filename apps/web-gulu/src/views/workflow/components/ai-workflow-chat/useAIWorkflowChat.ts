@@ -19,16 +19,9 @@ import {
 import type { AIInteractionData } from '#/api/debug';
 import { submitInteractionApi } from '#/api/debug';
 
-import type {
-  ContentBlock,
-  TextBlock,
-  ThinkingBlock,
-  ToolCallBlock,
-  PlanBlock,
-  PlanStepBlock,
-  StepExecBlock,
-} from '../shared/types';
+import type { ContentBlock } from '../shared/types';
 import { parseMessageContent, serializeBlocks, blocksToPlainText } from '../shared/types';
+import { handleBlockEvent } from '../shared/blockEventHandler';
 
 export type StreamStatus = 'idle' | 'connecting' | 'streaming' | 'done' | 'error' | 'aborted';
 
@@ -247,6 +240,7 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
       blocks: [],
       content: '',
       loading: true,
+      metadata: {},
       timestamp: Date.now(),
     });
     const assistantMsg = messages.value[messages.value.length - 1]!;
@@ -350,259 +344,21 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
     }
   }
 
-  // --- Block helpers ---
-
-  function findLastBlock<T extends ContentBlock>(msg: ChatMessage, type: string): T | undefined {
-    for (let i = msg.blocks.length - 1; i >= 0; i--) {
-      if (msg.blocks[i]!.type === type) return msg.blocks[i] as T;
-    }
-    return undefined;
-  }
-
-  function findPlanBlock(msg: ChatMessage): PlanBlock | undefined {
-    return findLastBlock<PlanBlock>(msg, 'plan');
-  }
-
-  function ensureTextBlock(msg: ChatMessage): TextBlock {
-    const last = msg.blocks[msg.blocks.length - 1];
-    if (last?.type === 'text') return last as TextBlock;
-    const tb: TextBlock = { type: 'text', content: '' };
-    msg.blocks.push(tb);
-    return tb;
-  }
-
-  function syncContent(msg: ChatMessage) {
-    msg.content = blocksToPlainText(msg.blocks);
-  }
-
   function handleSSEEvent(eventType: string, data: any, msg: ChatMessage) {
+    // 共享的 block 构建逻辑
+    handleBlockEvent(msg.blocks, eventType, data);
+
+    // ChatMessage 特有的副作用
     switch (eventType) {
-      case 'ai_chunk': {
+      case 'ai_chunk':
         msg.loading = false;
-        const tb = ensureTextBlock(msg);
-        tb.content += data.chunk || data.content || '';
-        syncContent(msg);
-        break;
-      }
-
-      case 'ai_thinking': {
-        const thinking = data.thinking || '';
-        if (!thinking) break;
-
-        // Plan 相关的 thinking 事件
-        if (thinking.startsWith('切换到 Plan 模式')) {
-          const reason = thinking.replace('切换到 Plan 模式：', '').trim();
-          const planBlock: PlanBlock = {
-            type: 'plan',
-            reason,
-            steps: [],
-            status: 'planning',
-          };
-          msg.blocks.push(planBlock);
-        } else if (thinking.startsWith('正在制定执行计划')) {
-          const pb = findPlanBlock(msg);
-          if (pb) pb.status = 'planning';
-        } else if (thinking.startsWith('计划制定完成')) {
-          const pb = findPlanBlock(msg);
-          if (pb) pb.status = 'executing';
-        } else if (thinking.startsWith('执行步骤')) {
-          const pb = findPlanBlock(msg);
-          if (pb) {
-            const match = thinking.match(/执行步骤\s*(\d+)\/(\d+):\s*(.*)/);
-            if (match) {
-              const stepIdx = parseInt(match[1]!, 10);
-              const task = match[3] || '';
-              // Mark previous steps as completed if they were running
-              for (const s of pb.steps) {
-                if (s.status === 'running') s.status = 'completed';
-              }
-              // Add or update step
-              const existing = pb.steps.find((s) => s.index === stepIdx);
-              if (existing) {
-                existing.status = 'running';
-                existing.task = task || existing.task;
-              } else {
-                pb.steps.push({ index: stepIdx, task, status: 'running' });
-              }
-            }
-          }
-        } else {
-          // Generic thinking
-          const existingThinking = findLastBlock<ThinkingBlock>(msg, 'thinking');
-          if (existingThinking && !existingThinking.isComplete) {
-            existingThinking.content += '\n' + thinking;
-          } else {
-            msg.blocks.push({ type: 'thinking', content: thinking, isComplete: false } as ThinkingBlock);
-          }
-        }
-        break;
-      }
-
-      case 'ai_plan_started': {
-        const planBlock: PlanBlock = {
-          type: 'plan',
-          reason: data.reason || '',
-          planText: data.planText,
-          steps: (data.steps || []).map((s: any) => ({
-            index: s.index,
-            task: s.task,
-            status: 'pending' as const,
-          })),
-          status: 'executing',
-        };
-        msg.blocks.push(planBlock);
-        break;
-      }
-
-      case 'ai_plan_step_update': {
-        const pb = findPlanBlock(msg);
-        if (pb) {
-          const stepIdx = data.stepIndex || data.index;
-          const existing = pb.steps.find((s) => s.index === stepIdx);
-          if (existing) {
-            existing.status = data.status || 'running';
-            if (data.result) existing.result = data.result;
-          }
-        }
-        break;
-      }
-
-      case 'ai_plan_completed': {
-        const pb = findPlanBlock(msg);
-        if (pb) {
-          pb.status = 'completed';
-          if (data.synthesis) pb.synthesis = data.synthesis;
-          for (const s of pb.steps) {
-            if (s.status === 'running') s.status = 'completed';
-          }
-        }
-        break;
-      }
-
-      case 'ai_tool_call_start': {
-        const tcBlock: ToolCallBlock = {
-          type: 'tool_call',
-          name: data.toolName || data.tool_name || '',
-          arguments: data.arguments || data.args || '',
-          status: 'running',
-        };
-
-        // If inside a plan step, attach to the current running step
-        const pb = findPlanBlock(msg);
-        if (pb) {
-          const runningStep = pb.steps.find((s) => s.status === 'running');
-          if (runningStep) {
-            runningStep.toolCalls = runningStep.toolCalls || [];
-            runningStep.toolCalls.push(tcBlock);
-            break;
-          }
-        }
-
-        msg.blocks.push(tcBlock);
-        break;
-      }
-
-      case 'ai_tool_call_complete': {
-        const tcName = data.toolName || data.tool_name || '';
-        const isErr = data.isError || data.is_error || false;
-
-        // Search in plan steps first
-        const pb2 = findPlanBlock(msg);
-        if (pb2) {
-          for (const step of pb2.steps) {
-            const tc = step.toolCalls?.find(
-              (t) => t.name === tcName && t.status === 'running',
-            );
-            if (tc) {
-              tc.result = data.result || '';
-              tc.isError = isErr;
-              tc.durationMs = data.durationMs || data.duration_ms;
-              tc.status = isErr ? 'error' : 'completed';
-              break;
-            }
-          }
-        }
-
-        // Search in top-level blocks
-        for (let i = msg.blocks.length - 1; i >= 0; i--) {
-          const b = msg.blocks[i]!;
-          if (b.type === 'tool_call' && (b as ToolCallBlock).name === tcName && (b as ToolCallBlock).status === 'running') {
-            const tb = b as ToolCallBlock;
-            tb.result = data.result || '';
-            tb.isError = isErr;
-            tb.durationMs = data.durationMs || data.duration_ms;
-            tb.status = isErr ? 'error' : 'completed';
-            break;
-          }
-        }
-        break;
-      }
-
-      case 'step_started':
-        msg.blocks.push({
-          type: 'step_exec',
-          stepId: data.stepId,
-          stepName: data.stepName,
-          stepType: data.stepType,
-          status: 'running',
-        } as StepExecBlock);
-        break;
-
-      case 'step_completed': {
-        const se = msg.blocks.find(
-          (b): b is StepExecBlock => b.type === 'step_exec' && (b as StepExecBlock).stepId === data.stepId,
-        );
-        if (se) {
-          se.status = (data.success || data.status === 'success') ? 'completed' : 'failed';
-          se.durationMs = data.durationMs;
-          se.result = data.result || data.output;
-        }
-
-        // Also complete plan block if present
-        const pb3 = findPlanBlock(msg);
-        if (pb3 && pb3.status === 'executing') {
-          // Mark all running plan steps as completed
-          for (const s of pb3.steps) {
-            if (s.status === 'running') s.status = 'completed';
-          }
-          pb3.status = 'completed';
-        }
-        break;
-      }
-
-      case 'step_failed': {
-        const se2 = msg.blocks.find(
-          (b): b is StepExecBlock => b.type === 'step_exec' && (b as StepExecBlock).stepId === data.stepId,
-        );
-        if (se2) {
-          se2.status = 'failed';
-          se2.durationMs = data.durationMs;
-          se2.result = data.result;
-        }
-        break;
-      }
-
-      case 'step_skipped':
-        // 跳过的步骤不展示在聊天中
+        msg.content = blocksToPlainText(msg.blocks);
         break;
 
       case 'ai_complete':
       case 'message_complete':
         msg.loading = false;
-        if (data.content) {
-          // Replace or set the text block
-          const existingText = findLastBlock<TextBlock>(msg, 'text');
-          if (existingText) {
-            existingText.content = data.content;
-          } else {
-            msg.blocks.push({ type: 'text', content: data.content });
-          }
-          syncContent(msg);
-        }
-        // Mark thinking blocks as complete
-        for (const b of msg.blocks) {
-          if (b.type === 'thinking') (b as ThinkingBlock).isComplete = true;
-        }
+        msg.content = blocksToPlainText(msg.blocks);
         msg.metadata = {
           ...msg.metadata,
           usage: data.usage || {
@@ -634,7 +390,6 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
       case 'error':
         msg.loading = false;
         msg.error = data.message || '执行出错';
-        msg.blocks.push({ type: 'error', message: data.message || '执行出错' });
         break;
     }
   }

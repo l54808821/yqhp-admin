@@ -1,7 +1,7 @@
 /**
  * 单步调试组合式函数
  * 封装阻塞和流式两种执行模式，统一状态管理
- * 各属性面板只需提供 stepConfig 和结果转换器即可
+ * 流式过程中实时构建 ContentBlock[]，与对话调试保持一致的渲染
  */
 import { ref, unref } from 'vue';
 import type { Ref } from 'vue';
@@ -14,8 +14,6 @@ import {
   submitInteractionApi,
   type StepConfig,
   type StepExecutionResult,
-  type AIChunkData,
-  type AICompleteData,
   type SSEEvent,
 } from '#/api/debug';
 import {
@@ -25,6 +23,8 @@ import {
   type AIToolCallCompleteData,
   type AIInteractionData,
 } from '#/utils/sse';
+import type { ContentBlock } from '../../shared/types';
+import { handleBlockEvent } from '../../shared/blockEventHandler';
 import { useDebugContext } from './useDebugContext';
 
 type MaybeRef<T> = T | Ref<T>;
@@ -45,15 +45,9 @@ export interface UseStepDebugOptions<TResponse> {
   /** 把错误映射为面板特定的错误响应 */
   transformError: (error: string, durationMs: number) => TResponse;
 
-  /** 流式事件钩子：AI 块到达 */
-  onAiChunk?: (chunk: AIChunkData) => void;
-  /** 流式事件钩子：AI 完成 */
-  onAiComplete?: (data: AICompleteData) => void;
-  /** 流式事件钩子：工具调用开始 */
+  /** 流式事件钩子 */
   onToolCallStart?: (data: AIToolCallStartData) => void;
-  /** 流式事件钩子：工具调用完成 */
   onToolCallComplete?: (data: AIToolCallCompleteData) => void;
-  /** 流式事件钩子：AI 请求人机交互 */
   onInteractionRequired?: (data: AIInteractionData) => void;
 }
 
@@ -61,8 +55,6 @@ export function useStepDebug<TResponse>(options: UseStepDebugOptions<TResponse>)
   const {
     transformResult,
     transformError,
-    onAiChunk,
-    onAiComplete,
     onToolCallStart,
     onToolCallComplete,
     onInteractionRequired,
@@ -70,8 +62,8 @@ export function useStepDebug<TResponse>(options: UseStepDebugOptions<TResponse>)
 
   const isDebugging = ref(false);
   const debugResponse = ref<TResponse | null>(null) as Ref<TResponse | null>;
-  const streamingContent = ref<string | null>(null);
   const isStreaming = ref(false);
+  const streamingBlocks = ref<ContentBlock[]>([]);
 
   // 交互状态
   const interactionOpen = ref(false);
@@ -113,18 +105,10 @@ export function useStepDebug<TResponse>(options: UseStepDebugOptions<TResponse>)
     if (sessionId) {
       stopExecutionApi(sessionId).catch(() => {});
     }
-    const savedContent = streamingContent.value;
     finish();
     if (!debugResponse.value) {
-      const errResp = transformError('已手动停止', Date.now() - startTime);
-      if (savedContent && errResp) {
-        (errResp as any).content = savedContent;
-      }
-      debugResponse.value = errResp;
-    } else if (savedContent && debugResponse.value) {
-      (debugResponse.value as any).content = savedContent;
+      debugResponse.value = transformError('已手动停止', Date.now() - startTime);
     }
-    streamingContent.value = null;
   }
 
   // ========== 流式 SSE 事件处理 ==========
@@ -138,33 +122,37 @@ export function useStepDebug<TResponse>(options: UseStepDebugOptions<TResponse>)
         break;
 
       case 'ai_chunk': {
-        const chunk = data as AIChunkData;
-        if (chunk.index === 0) {
-          streamingContent.value = chunk.chunk;
-        } else {
-          streamingContent.value = (streamingContent.value || '') + chunk.chunk;
-        }
         if (!isStreaming.value) isStreaming.value = true;
-        onAiChunk?.(chunk);
+        handleBlockEvent(streamingBlocks.value, type, data);
         break;
       }
 
-      case 'ai_complete': {
-        const complete = data as AICompleteData;
-        streamingContent.value = complete.content;
-        onAiComplete?.(complete);
+      case 'ai_thinking':
+      case 'ai_plan_started':
+      case 'ai_plan_step_update':
+      case 'ai_plan_completed':
+      case 'step_started': {
+        if (!isStreaming.value) isStreaming.value = true;
+        handleBlockEvent(streamingBlocks.value, type, data);
         break;
       }
 
       case 'ai_tool_call_start': {
-        const toolStart = data as AIToolCallStartData;
-        onToolCallStart?.(toolStart);
+        if (!isStreaming.value) isStreaming.value = true;
+        handleBlockEvent(streamingBlocks.value, type, data);
+        onToolCallStart?.(data as AIToolCallStartData);
         break;
       }
 
       case 'ai_tool_call_complete': {
-        const toolDone = data as AIToolCallCompleteData;
-        onToolCallComplete?.(toolDone);
+        handleBlockEvent(streamingBlocks.value, type, data);
+        onToolCallComplete?.(data as AIToolCallCompleteData);
+        break;
+      }
+
+      case 'ai_complete':
+      case 'message_complete': {
+        handleBlockEvent(streamingBlocks.value, type, data);
         break;
       }
 
@@ -201,7 +189,6 @@ export function useStepDebug<TResponse>(options: UseStepDebugOptions<TResponse>)
           error: stepData.error,
         };
         debugResponse.value = transformResult(stepResult);
-        streamingContent.value = null;
         finish();
         break;
       }
@@ -216,7 +203,7 @@ export function useStepDebug<TResponse>(options: UseStepDebugOptions<TResponse>)
           errData.message || '执行失败',
           Date.now() - startTime,
         );
-        streamingContent.value = null;
+        handleBlockEvent(streamingBlocks.value, type, data);
         finish();
         break;
       }
@@ -230,7 +217,7 @@ export function useStepDebug<TResponse>(options: UseStepDebugOptions<TResponse>)
 
     isDebugging.value = true;
     debugResponse.value = null;
-    streamingContent.value = null;
+    streamingBlocks.value = [];
     isStreaming.value = false;
     startTime = Date.now();
 
@@ -317,22 +304,14 @@ export function useStepDebug<TResponse>(options: UseStepDebugOptions<TResponse>)
       onStateChange: (state) => {
         if (state === 'error' || (state === 'disconnected' && isDebugging.value)) {
           if (!debugResponse.value) {
-            debugResponse.value = transformError(
-              'SSE 连接断开',
-              Date.now() - startTime,
-            );
-            streamingContent.value = null;
+            debugResponse.value = transformError('SSE 连接断开', Date.now() - startTime);
           }
           finish();
         }
       },
       onError: () => {
         if (!debugResponse.value) {
-          debugResponse.value = transformError(
-            '执行失败',
-            Date.now() - startTime,
-          );
-          streamingContent.value = null;
+          debugResponse.value = transformError('执行失败', Date.now() - startTime);
         }
         finish();
       },
@@ -363,12 +342,10 @@ export function useStepDebug<TResponse>(options: UseStepDebugOptions<TResponse>)
   return {
     isDebugging,
     debugResponse,
-    streamingContent,
+    streamingBlocks,
     isStreaming,
     run,
     stop,
-
-    // 交互状态
     interactionOpen,
     interactionData,
     interactionValue,
