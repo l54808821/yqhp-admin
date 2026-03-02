@@ -112,7 +112,7 @@ function formatDuration(ms?: number) {
 
           <!-- AI 步骤使用专用组件 -->
           <AIStepDetail
-            v-else-if="selectedStep.stepType === 'ai'"
+            v-else-if="selectedStep.stepType === 'ai' || selectedStep.stepType === 'ai_agent'"
             :step-result="selectedStep"
             :ai-content="aiContent"
             :ai-tool-calls="aiToolCalls"
