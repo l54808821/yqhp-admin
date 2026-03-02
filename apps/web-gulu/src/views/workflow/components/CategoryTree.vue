@@ -257,6 +257,7 @@ async function handleSaveEdit() {
                   system_prompt: '你是一个有用的助手。',
                   prompt: '${__user_message__}',
                   streaming: true,
+                  enable_plan_mode: true,
                 },
               },
             ],
