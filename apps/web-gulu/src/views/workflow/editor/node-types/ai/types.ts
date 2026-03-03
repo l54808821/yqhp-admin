@@ -57,10 +57,12 @@ export const builtinTools: BuiltinTool[] = [
   { name: 'var_write', label: '变量写入', description: '向工作流上下文写入变量', category: 'basic' },
   { name: 'json_parse', label: 'JSON 解析', description: '解析 JSON 字符串并提取数据', category: 'basic' },
   // 联网工具
-  { name: 'web_search', label: '联网搜索', description: '在互联网上搜索信息，获取最新数据和事实', category: 'web' },
+  { name: 'bing_search', label: 'Bing 搜索', description: '使用 Bing 搜索引擎搜索互联网信息，适合中文搜索', category: 'web' },
+  { name: 'google_search', label: 'Google 搜索', description: '使用 Google 搜索引擎搜索互联网信息（需要能访问 Google）', category: 'web' },
   { name: 'web_fetch', label: '网页抓取', description: '获取指定 URL 的网页内容（文章、文档等）', category: 'web' },
   // 代码执行
   { name: 'code_execute', label: '代码执行', description: '执行 Python / JavaScript 代码，用于计算和数据处理', category: 'code' },
+  { name: 'shell_exec', label: '命令行执行', description: '在服务器上执行 Shell 命令（bash），适用于系统管理、文件操作、CLI 工具调用', category: 'code' },
   // 交互
   { name: 'human_interaction', label: '人机交互', description: 'AI 主动请求用户确认、输入或选择', category: 'interaction' },
 ];
@@ -85,7 +87,7 @@ export function createDefaultAIConfig(): AIConfig {
     interactive: false,
     interaction_timeout: 300,
     timeout: 300,
-    tools: ['web_search', 'web_fetch', 'code_execute'],
+    tools: ['bing_search', 'web_fetch', 'code_execute'],
     mcp_server_ids: [],
     skill_ids: [],
     max_tool_rounds: 15,
