@@ -20,7 +20,6 @@ import { createDefaultUnifiedAgentConfig } from './shared/types';
 import type { AIConfig } from './types';
 import PromptPanel from './PromptPanel.vue';
 import ModelSelector from './shared/ModelSelector.vue';
-import ModelParamsPanel from './ModelParamsPanel.vue';
 import ToolsPanel from './ToolsPanel.vue';
 import KnowledgePanel from './KnowledgePanel.vue';
 
@@ -294,6 +293,10 @@ function stopDrag() {
               <ModelSelector
                 :model-id="localNode.config.ai_model_id"
                 :model-name="localNode.config.ai_model_name"
+                :temperature="localNode.config.temperature"
+                :max-tokens="localNode.config.max_tokens"
+                :top-p="localNode.config.top_p"
+                :show-params="true"
                 @update="handleConfigUpdate"
               />
               <Form.Item label="流式输出">
@@ -371,13 +374,6 @@ function stopDrag() {
                 <div class="param-hint">单次用户交互等待的最大时间</div>
               </Form.Item>
             </Form>
-          </Tabs.TabPane>
-
-          <Tabs.TabPane key="model" tab="模型参数">
-            <ModelParamsPanel
-              :config="(localNode.config as unknown as AIConfig)"
-              @update="handleConfigUpdate"
-            />
           </Tabs.TabPane>
 
           <Tabs.TabPane key="tools" tab="工具">
@@ -515,6 +511,7 @@ function stopDrag() {
   overflow-y: auto;
   padding: 0 16px 16px;
 }
+
 
 .config-content :deep(.ant-tabs-nav) {
   margin-bottom: 8px;

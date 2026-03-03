@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type {
   AiModel,
+  AiProvider,
   CreateAiModelParams,
   PresetModel,
   UpdateAiModelParams,
@@ -9,7 +10,6 @@ import type {
 import { computed, ref } from 'vue';
 
 import {
-  Button,
   Col,
   Divider,
   Form,
@@ -27,22 +27,20 @@ import {
 import {
   CAPABILITY_TAG_OPTIONS,
   createAiModelApi,
-  PROVIDER_NAMES,
   PROVIDER_PRESETS,
   updateAiModelApi,
 } from '#/api/ai-model';
 
-const emit = defineEmits<{
-  success: [];
-}>();
+const emit = defineEmits<{ success: [] }>();
 
-// 弹框状态
 const visible = ref(false);
 const modalTitle = ref('新增模型');
 const editingId = ref<number | null>(null);
 const submitLoading = ref(false);
+const currentProvider = ref<AiProvider | null>(null);
 
 const formState = ref<CreateAiModelParams & { api_key: string }>({
+  provider_id: undefined,
   name: '',
   provider: '',
   model_id: '',
@@ -60,14 +58,7 @@ const formState = ref<CreateAiModelParams & { api_key: string }>({
 
 const customTagInput = ref('');
 const currentPresetModels = ref<PresetModel[]>([]);
-const currentRequireApiKey = ref(true);
 
-// 厂商选项
-const formProviderOptions = computed(() =>
-  PROVIDER_NAMES.map((p) => ({ label: p, value: p })),
-);
-
-// 预置模型选项
 const presetModelOptions = computed(() =>
   currentPresetModels.value.map((m) => ({
     label: `${m.name} (${m.model_id})`,
@@ -75,27 +66,35 @@ const presetModelOptions = computed(() =>
   })),
 );
 
-// 暴露 open 方法
-function open(record?: AiModel) {
+/**
+ * 打开弹窗
+ * @param provider 关联供应商（新增模型时必传）
+ * @param record 编辑时的模型数据
+ */
+function open(provider?: AiProvider, record?: AiModel) {
+  currentProvider.value = provider || null;
+
+  // 查找预置模型列表
+  if (provider) {
+    const preset = Object.values(PROVIDER_PRESETS).find(
+      (p) => p.provider_type === provider.provider_type || p.name === provider.name,
+    );
+    currentPresetModels.value = preset?.models || [];
+  } else {
+    currentPresetModels.value = [];
+  }
+
   if (record) {
-    // 编辑模式
     modalTitle.value = '编辑模型';
     editingId.value = record.id;
-    const preset = PROVIDER_PRESETS[record.provider];
-    if (preset) {
-      currentPresetModels.value = preset.models;
-      currentRequireApiKey.value = preset.require_api_key;
-    } else {
-      currentPresetModels.value = [];
-      currentRequireApiKey.value = true;
-    }
     formState.value = {
+      provider_id: record.provider_id || provider?.id,
       name: record.name,
       provider: record.provider,
       model_id: record.model_id,
       version: record.version || '',
       description: record.description || '',
-      api_base_url: record.api_base_url,
+      api_base_url: '',
       api_key: '',
       context_length: record.context_length,
       param_size: record.param_size || '',
@@ -105,14 +104,12 @@ function open(record?: AiModel) {
       status: record.status,
     };
   } else {
-    // 新增模式
     modalTitle.value = '新增模型';
     editingId.value = null;
-    currentPresetModels.value = [];
-    currentRequireApiKey.value = true;
     formState.value = {
+      provider_id: provider?.id,
       name: '',
-      provider: '',
+      provider: provider?.name || '',
       model_id: '',
       version: '',
       description: '',
@@ -129,31 +126,9 @@ function open(record?: AiModel) {
   visible.value = true;
 }
 
-// 厂商变更
-function handleProviderChange(providerName: string) {
-  const preset = PROVIDER_PRESETS[providerName];
-  if (!preset) return;
-
-  currentPresetModels.value = preset.models;
-  currentRequireApiKey.value = preset.require_api_key;
-
-  if (!editingId.value) {
-    formState.value.api_base_url = preset.api_base_url;
-    formState.value.api_key = preset.require_api_key ? '' : 'ollama';
-    formState.value.model_id = '';
-    formState.value.name = '';
-    formState.value.context_length = undefined;
-    formState.value.param_size = '';
-    formState.value.capability_tags = [];
-    formState.value.description = '';
-  }
-}
-
-// 预置模型变更
 function handlePresetModelChange(modelId: string) {
   const model = currentPresetModels.value.find((m) => m.model_id === modelId);
   if (!model) return;
-
   formState.value.model_id = model.model_id;
   formState.value.name = model.name;
   if (model.context_length) formState.value.context_length = model.context_length;
@@ -162,21 +137,16 @@ function handlePresetModelChange(modelId: string) {
   if (model.description) formState.value.description = model.description;
 }
 
-// 提交
 async function handleSubmit() {
   if (!formState.value.name) return message.warning('请输入模型名称');
-  if (!formState.value.provider) return message.warning('请选择厂商');
   if (!formState.value.model_id) return message.warning('请输入模型标识符');
-  if (!formState.value.api_base_url) return message.warning('请输入 API Base URL');
-  if (currentRequireApiKey.value && !editingId.value && !formState.value.api_key) {
-    return message.warning('请输入 API Key');
-  }
 
   submitLoading.value = true;
   try {
     if (editingId.value) {
       const params: UpdateAiModelParams = { ...formState.value };
       if (!params.api_key) delete params.api_key;
+      if (!params.api_base_url) delete params.api_base_url;
       await updateAiModelApi(editingId.value, params);
       message.success('更新成功');
     } else {
@@ -192,7 +162,6 @@ async function handleSubmit() {
   }
 }
 
-// 自定义标签
 function addCustomTag() {
   const tag = customTagInput.value.trim();
   if (tag && !formState.value.custom_tags?.includes(tag)) {
@@ -215,34 +184,29 @@ defineExpose({ open });
   <Modal
     v-model:open="visible"
     :title="modalTitle"
-    width="680px"
+    width="640px"
     :confirm-loading="submitLoading"
     @ok="handleSubmit"
   >
     <Form :model="formState" layout="vertical">
-      <Form.Item label="厂商" required>
-        <Select
-          v-model:value="formState.provider"
-          placeholder="请选择厂商"
-          :options="formProviderOptions"
-          show-search
-          style="width: 100%"
-          @change="handleProviderChange"
-        />
-      </Form.Item>
+      <div v-if="currentProvider" class="mb-3 rounded bg-gray-50 px-3 py-2 text-sm text-gray-500">
+        供应商：<strong>{{ currentProvider.name }}</strong>
+        （API Key 和 URL 从供应商配置中获取）
+      </div>
 
       <Form.Item v-if="currentPresetModels.length > 0" label="快速选择模型">
         <Select
           :value="formState.model_id || undefined"
-          placeholder="选择预置模型自动填充信息，或手动填写"
+          placeholder="选择预置模型自动填充，或手动填写"
           :options="presetModelOptions"
           allow-clear
+          show-search
           style="width: 100%"
-          @change="handlePresetModelChange"
+          @change="(val: any) => handlePresetModelChange(val)"
         />
       </Form.Item>
 
-      <Divider style="margin: 12px 0" />
+      <Divider v-if="currentPresetModels.length > 0" style="margin: 12px 0" />
 
       <Row :gutter="16">
         <Col :span="12">
@@ -257,22 +221,10 @@ defineExpose({ open });
         </Col>
       </Row>
 
-      <Form.Item label="API Base URL" required>
-        <Input v-model:value="formState.api_base_url" placeholder="如 https://api.deepseek.com/v1" />
-      </Form.Item>
-
-      <Form.Item
-        v-if="currentRequireApiKey"
-        :label="editingId ? 'API Key（留空则不修改）' : 'API Key'"
-        :required="!editingId"
-      >
-        <Input.Password v-model:value="formState.api_key" placeholder="请输入 API Key" />
-      </Form.Item>
-
       <Row :gutter="16">
         <Col :span="8">
           <Form.Item label="上下文长度">
-            <InputNumber v-model:value="formState.context_length" :min="0" placeholder="如 131072" style="width: 100%" />
+            <InputNumber v-model:value="formState.context_length" :min="0" placeholder="131072" style="width: 100%" />
           </Form.Item>
         </Col>
         <Col :span="8">
@@ -304,12 +256,11 @@ defineExpose({ open });
         </div>
         <Space>
           <Input v-model:value="customTagInput" placeholder="输入标签" style="width: 200px" @press-enter="addCustomTag" />
-          <Button type="dashed" @click="addCustomTag">添加</Button>
         </Space>
       </Form.Item>
 
       <Form.Item label="描述">
-        <Input.TextArea v-model:value="formState.description" placeholder="请输入模型描述" :rows="3" />
+        <Input.TextArea v-model:value="formState.description" placeholder="模型描述" :rows="2" />
       </Form.Item>
 
       <Row :gutter="16">

@@ -21,38 +21,32 @@ export const CAPABILITY_TAG_OPTIONS = [
 
 /** 预置模型信息 */
 export interface PresetModel {
-  /** 模型标识符（调用 API 用） */
   model_id: string;
-  /** 显示名称 */
   name: string;
-  /** 上下文长度 */
   context_length?: number;
-  /** 参数量 */
   param_size?: string;
-  /** 能力标签 */
   capability_tags?: string[];
-  /** 描述 */
   description?: string;
 }
 
 /** 厂商预置配置 */
 export interface ProviderPreset {
-  /** 厂商名称 */
   name: string;
-  /** API Base URL */
+  provider_type: string;
   api_base_url: string;
-  /** 是否需要 API Key（如 Ollama 本地不需要） */
   require_api_key: boolean;
-  /** 预置模型列表 */
   models: PresetModel[];
+  icon?: string;
 }
 
 /** 厂商预置配置表 */
 export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
   Ollama: {
     name: 'Ollama',
+    provider_type: 'ollama',
     api_base_url: 'http://localhost:11434/v1',
     require_api_key: false,
+    icon: 'ollama',
     models: [
       { model_id: 'llama3.1', name: 'Llama 3.1', param_size: '8B', context_length: 131072, capability_tags: ['对话', 'Tools'] },
       { model_id: 'qwen2.5', name: 'Qwen 2.5', param_size: '7B', context_length: 131072, capability_tags: ['对话', 'Coder', 'Math'] },
@@ -64,8 +58,10 @@ export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
   },
   DeepSeek: {
     name: 'DeepSeek',
+    provider_type: 'deepseek',
     api_base_url: 'https://api.deepseek.com/v1',
     require_api_key: true,
+    icon: 'deepseek',
     models: [
       { model_id: 'deepseek-chat', name: 'DeepSeek-V3', context_length: 65536, capability_tags: ['对话', 'Tools', 'FIM', 'Prefix', 'Coder'], description: 'DeepSeek 最新对话模型，支持 64K 上下文' },
       { model_id: 'deepseek-reasoner', name: 'DeepSeek-R1', context_length: 65536, capability_tags: ['对话', '推理', 'Math', 'Coder'], description: 'DeepSeek 推理模型，擅长数学和复杂推理' },
@@ -73,8 +69,10 @@ export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
   },
   '智谱AI': {
     name: '智谱AI',
+    provider_type: 'zhipu',
     api_base_url: 'https://open.bigmodel.cn/api/paas/v4',
     require_api_key: true,
+    icon: 'zhipu',
     models: [
       { model_id: 'glm-4-plus', name: 'GLM-4-Plus', context_length: 131072, capability_tags: ['对话', 'Tools', '推理'], description: 'GLM-4 旗舰版，128K 上下文' },
       { model_id: 'glm-4-flash', name: 'GLM-4-Flash', context_length: 131072, capability_tags: ['对话', 'Tools'], description: 'GLM-4 高速版，免费使用' },
@@ -84,8 +82,10 @@ export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
   },
   Kimi: {
     name: 'Kimi',
+    provider_type: 'kimi',
     api_base_url: 'https://api.moonshot.cn/v1',
     require_api_key: true,
+    icon: 'kimi',
     models: [
       { model_id: 'moonshot-v1-8k', name: 'Kimi 8K', context_length: 8192, capability_tags: ['对话', 'Tools'], description: '月之暗面 Kimi，8K 上下文' },
       { model_id: 'moonshot-v1-32k', name: 'Kimi 32K', context_length: 32768, capability_tags: ['对话', 'Tools'], description: '月之暗面 Kimi，32K 上下文' },
@@ -94,8 +94,10 @@ export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
   },
   '百度千帆': {
     name: '百度千帆',
+    provider_type: 'baidu',
     api_base_url: 'https://qianfan.baidubce.com/v2',
     require_api_key: true,
+    icon: 'baidu',
     models: [
       { model_id: 'ernie-4.0-8k', name: 'ERNIE 4.0', context_length: 8192, capability_tags: ['对话', 'Tools', '推理'], description: '百度文心一言旗舰模型' },
       { model_id: 'ernie-3.5-8k', name: 'ERNIE 3.5', context_length: 8192, capability_tags: ['对话', 'Tools'], description: '百度文心一言主力模型' },
@@ -104,8 +106,10 @@ export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
   },
   '阿里通义': {
     name: '阿里通义',
+    provider_type: 'aliyun',
     api_base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     require_api_key: true,
+    icon: 'aliyun',
     models: [
       { model_id: 'qwen-max', name: 'Qwen Max', context_length: 32768, capability_tags: ['对话', 'Tools', '推理', 'Coder'], description: '通义千问旗舰模型' },
       { model_id: 'qwen-plus', name: 'Qwen Plus', context_length: 131072, capability_tags: ['对话', 'Tools', 'Coder'], description: '通义千问增强版，128K 上下文' },
@@ -115,8 +119,10 @@ export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
   },
   MiniMax: {
     name: 'MiniMax',
+    provider_type: 'minimax',
     api_base_url: 'https://api.minimax.chat/v1',
     require_api_key: true,
+    icon: 'minimax',
     models: [
       { model_id: 'MiniMax-Text-01', name: 'MiniMax-Text-01', context_length: 1048576, param_size: '456B', capability_tags: ['对话', 'Tools', 'MoE', 'Coder'], description: 'MiniMax 旗舰文本模型，1M 上下文' },
       { model_id: 'abab6.5s-chat', name: 'ABAB 6.5s', context_length: 245760, capability_tags: ['对话', 'Tools'], description: 'MiniMax 高速对话模型' },
@@ -124,8 +130,10 @@ export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
   },
   OpenAI: {
     name: 'OpenAI',
+    provider_type: 'openai',
     api_base_url: 'https://api.openai.com/v1',
     require_api_key: true,
+    icon: 'openai',
     models: [
       { model_id: 'gpt-4o', name: 'GPT-4o', context_length: 131072, capability_tags: ['对话', 'Tools', '视觉', 'Coder', '推理'], description: 'OpenAI 旗舰多模态模型' },
       { model_id: 'gpt-4o-mini', name: 'GPT-4o Mini', context_length: 131072, capability_tags: ['对话', 'Tools', '视觉'], description: 'GPT-4o 轻量版' },
@@ -135,8 +143,10 @@ export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
   },
   'Azure OpenAI': {
     name: 'Azure OpenAI',
+    provider_type: 'azure',
     api_base_url: '',
     require_api_key: true,
+    icon: 'azure',
     models: [
       { model_id: 'gpt-4o', name: 'GPT-4o', context_length: 131072, capability_tags: ['对话', 'Tools', '视觉', 'Coder'] },
       { model_id: 'gpt-4o-mini', name: 'GPT-4o Mini', context_length: 131072, capability_tags: ['对话', 'Tools', '视觉'] },
@@ -144,8 +154,10 @@ export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
   },
   '硅基流动': {
     name: '硅基流动',
+    provider_type: 'siliconflow',
     api_base_url: 'https://api.siliconflow.cn/v1',
     require_api_key: true,
+    icon: 'siliconflow',
     models: [
       { model_id: 'deepseek-ai/DeepSeek-V3', name: 'DeepSeek-V3', context_length: 65536, capability_tags: ['对话', 'Tools', 'Coder'], description: 'DeepSeek-V3 on SiliconFlow' },
       { model_id: 'deepseek-ai/DeepSeek-R1', name: 'DeepSeek-R1', context_length: 65536, capability_tags: ['对话', '推理', 'Math', 'Coder'], description: 'DeepSeek-R1 推理模型' },
@@ -155,10 +167,12 @@ export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
       { model_id: 'meta-llama/Meta-Llama-3.1-8B-Instruct', name: 'Llama-3.1-8B', param_size: '8B', context_length: 131072, capability_tags: ['对话', 'Tools'], description: 'Meta Llama 3.1 8B' },
     ],
   },
-  '自定义': {
-    name: '自定义',
+  'OpenAI-API-compatible': {
+    name: 'OpenAI API 兼容',
+    provider_type: 'openai_compatible',
     api_base_url: '',
     require_api_key: true,
+    icon: 'openai',
     models: [],
   },
 };
@@ -166,18 +180,66 @@ export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
 /** 获取所有厂商名称列表 */
 export const PROVIDER_NAMES = Object.keys(PROVIDER_PRESETS);
 
-/** AI 模型信息 */
+// ========== AI 供应商类型 ==========
+
+export interface AiProvider {
+  id: number;
+  created_at?: string;
+  updated_at?: string;
+  name: string;
+  provider_type: string;
+  api_base_url: string;
+  api_key_masked?: string;
+  icon?: string;
+  description?: string;
+  sort?: number;
+  status: number;
+  model_count?: number;
+}
+
+export interface CreateAiProviderParams {
+  name: string;
+  provider_type: string;
+  api_base_url: string;
+  api_key?: string;
+  icon?: string;
+  description?: string;
+  sort?: number;
+  status?: number;
+}
+
+export interface UpdateAiProviderParams {
+  name?: string;
+  provider_type?: string;
+  api_base_url?: string;
+  api_key?: string;
+  icon?: string;
+  description?: string;
+  sort?: number;
+  status?: number;
+}
+
+export interface AiProviderListParams {
+  page?: number;
+  pageSize?: number;
+  name?: string;
+  status?: number;
+}
+
+// ========== AI 模型类型 ==========
+
 export interface AiModel {
   id: number;
   created_at?: string;
   updated_at?: string;
   created_by?: number;
+  provider_id: number;
   name: string;
   provider: string;
   model_id: string;
   version?: string;
   description?: string;
-  api_base_url: string;
+  api_base_url?: string;
   api_key_masked?: string;
   context_length?: number;
   param_size?: string;
@@ -187,15 +249,15 @@ export interface AiModel {
   status: number;
 }
 
-/** 创建 AI 模型参数 */
 export interface CreateAiModelParams {
+  provider_id?: number;
   name: string;
-  provider: string;
+  provider?: string;
   model_id: string;
   version?: string;
   description?: string;
-  api_base_url: string;
-  api_key: string;
+  api_base_url?: string;
+  api_key?: string;
   context_length?: number;
   param_size?: string;
   capability_tags?: string[];
@@ -204,8 +266,8 @@ export interface CreateAiModelParams {
   status?: number;
 }
 
-/** 更新 AI 模型参数 */
 export interface UpdateAiModelParams {
+  provider_id?: number;
   name?: string;
   provider?: string;
   model_id?: string;
@@ -221,95 +283,108 @@ export interface UpdateAiModelParams {
   status?: number;
 }
 
-/** AI 模型列表查询参数 */
+export interface BatchCreateModelEntry {
+  name: string;
+  model_id: string;
+  description?: string;
+  context_length?: number;
+  param_size?: string;
+  capability_tags?: string[];
+  custom_tags?: string[];
+}
+
 export interface AiModelListParams {
   page?: number;
   pageSize?: number;
   name?: string;
   provider?: string | string[];
+  provider_id?: number;
   status?: number;
 }
 
-/** 多模态内容块 */
+// ========== 对话相关类型 ==========
+
 export type ContentPart =
   | { type: 'text'; text: string }
   | { type: 'image_url'; image_url: { url: string } };
 
-/** 对话消息（支持纯文本和多模态） */
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string | ContentPart[];
 }
 
-/** 对话请求参数 */
 export interface ChatRequestParams {
   messages: ChatMessage[];
   temperature?: number;
   max_tokens?: number;
 }
 
-/**
- * 创建 AI 模型
- */
+// ========== 供应商 API ==========
+
+export async function createAiProviderApi(params: CreateAiProviderParams) {
+  return requestClient.post<AiProvider>('/ai-providers', params);
+}
+
+export async function getAiProviderListApi(params?: AiProviderListParams) {
+  return requestClient.get<PageResult<AiProvider>>('/ai-providers', { params });
+}
+
+export async function getAiProviderApi(id: number) {
+  return requestClient.get<AiProvider>(`/ai-providers/${id}`);
+}
+
+export async function updateAiProviderApi(id: number, params: UpdateAiProviderParams) {
+  return requestClient.put(`/ai-providers/${id}`, params);
+}
+
+export async function deleteAiProviderApi(id: number) {
+  return requestClient.delete(`/ai-providers/${id}`);
+}
+
+export async function updateAiProviderStatusApi(id: number, status: number) {
+  return requestClient.put(`/ai-providers/${id}/status`, { status });
+}
+
+export async function batchCreateModelsApi(providerId: number, models: BatchCreateModelEntry[]) {
+  return requestClient.post<AiModel[]>(`/ai-providers/${providerId}/models/batch`, { models });
+}
+
+// ========== 模型 API ==========
+
 export async function createAiModelApi(params: CreateAiModelParams) {
   return requestClient.post<AiModel>('/ai-models', params);
 }
 
-/**
- * 获取 AI 模型列表
- */
 export async function getAiModelListApi(params?: AiModelListParams) {
-  // 将 provider 数组转为逗号分隔字符串
   const query = params ? { ...params } : {};
-  if (Array.isArray(query.provider)) {
-    query.provider = query.provider.length > 0 ? query.provider.join(',') : undefined;
+  if (Array.isArray((query as any).provider)) {
+    (query as any).provider = (query as any).provider.length > 0 ? (query as any).provider.join(',') : undefined;
   }
   return requestClient.get<PageResult<AiModel>>('/ai-models', { params: query });
 }
 
-/**
- * 获取 AI 模型详情
- */
 export async function getAiModelApi(id: number) {
   return requestClient.get<AiModel>(`/ai-models/${id}`);
 }
 
-/**
- * 更新 AI 模型
- */
-export async function updateAiModelApi(
-  id: number,
-  params: UpdateAiModelParams,
-) {
+export async function updateAiModelApi(id: number, params: UpdateAiModelParams) {
   return requestClient.put(`/ai-models/${id}`, params);
 }
 
-/**
- * 删除 AI 模型
- */
 export async function deleteAiModelApi(id: number) {
   return requestClient.delete(`/ai-models/${id}`);
 }
 
-/**
- * 更新 AI 模型状态
- */
 export async function updateAiModelStatusApi(id: number, status: number) {
   return requestClient.put(`/ai-models/${id}/status`, { status });
 }
 
-/**
- * 获取厂商列表
- */
 export async function getAiModelProvidersApi() {
   return requestClient.get<string[]>('/ai-models/providers');
 }
 
+// ========== 对话 API ==========
 
-/**
- * 流式对话（SSE）
- * 返回 ReadableStreamDefaultReader 用于逐块读取
- */
 export async function chatStreamApi(
   modelId: number,
   params: ChatRequestParams,
@@ -339,9 +414,6 @@ export async function chatStreamApi(
   return response.body?.getReader() ?? null;
 }
 
-/**
- * 解析 SSE 数据块
- */
 export function parseSSEChunk(chunk: string): string {
   const lines = chunk.split('\n');
   let content = '';
@@ -358,7 +430,7 @@ export function parseSSEChunk(chunk: string): string {
         content += delta;
       }
     } catch {
-      // 跳过非 JSON 数据
+      // skip
     }
   }
 
