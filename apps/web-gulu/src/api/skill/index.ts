@@ -59,11 +59,6 @@ export interface Skill {
   icon: string;
   category: string;
   tags: string[];
-  system_prompt: string;
-  variables: SkillVariable[];
-  recommended_model_params?: RecommendedModelParams;
-  recommended_tools: string[];
-  recommended_mcp_server_ids: number[];
   type: number;
   is_public: number;
   version: string;
@@ -74,6 +69,9 @@ export interface Skill {
   compatibility: string;
   metadata_json: Record<string, string>;
   allowed_tools: string;
+  author: string;
+  source_url: string;
+  install_count: number;
 }
 
 /** 创建 Skill 参数 */
@@ -83,11 +81,6 @@ export interface CreateSkillParams {
   icon?: string;
   category?: string;
   tags?: string[];
-  system_prompt: string;
-  variables?: SkillVariable[];
-  recommended_model_params?: RecommendedModelParams;
-  recommended_tools?: string[];
-  recommended_mcp_server_ids?: number[];
   sort?: number;
   status?: number;
   slug?: string;
@@ -95,6 +88,9 @@ export interface CreateSkillParams {
   compatibility?: string;
   metadata_json?: Record<string, string>;
   allowed_tools?: string;
+  author?: string;
+  source_url?: string;
+  skill_md?: string;
 }
 
 /** 更新 Skill 参数 */
@@ -104,11 +100,6 @@ export interface UpdateSkillParams {
   icon?: string;
   category?: string;
   tags?: string[];
-  system_prompt?: string;
-  variables?: SkillVariable[];
-  recommended_model_params?: RecommendedModelParams;
-  recommended_tools?: string[];
-  recommended_mcp_server_ids?: number[];
   sort?: number;
   status?: number;
   slug?: string;
@@ -116,23 +107,29 @@ export interface UpdateSkillParams {
   compatibility?: string;
   metadata_json?: Record<string, string>;
   allowed_tools?: string;
+  author?: string;
+  source_url?: string;
 }
 
-/** Skill 资源文件信息 */
+/** Skill 文件信息 */
 export interface SkillResource {
   id: number;
   skill_id: number;
-  category: string;
-  filename: string;
+  path: string;
   content_type: string;
   size: number;
   created_at?: string;
 }
 
-/** 创建资源文件参数 */
+/** 创建/更新文件参数 */
 export interface CreateResourceParams {
-  category: 'scripts' | 'references' | 'assets';
-  filename: string;
+  path: string;
+  content: string;
+  content_type?: string;
+}
+
+/** 更新文件内容参数 */
+export interface UpdateResourceParams {
   content: string;
   content_type?: string;
 }
@@ -251,11 +248,103 @@ export async function createSkillResourceApi(
 }
 
 /**
- * 删除 Skill 资源文件
+ * 获取 Skill 文件内容
+ */
+export async function getSkillResourceContentApi(
+  skillId: number,
+  resourceId: number,
+) {
+  return requestClient.get<{ content: string }>(
+    `/skills/${skillId}/resources/${resourceId}/content`,
+  );
+}
+
+/**
+ * 更新 Skill 文件内容
+ */
+export async function updateSkillResourceApi(
+  skillId: number,
+  resourceId: number,
+  params: UpdateResourceParams,
+) {
+  return requestClient.put(`/skills/${skillId}/resources/${resourceId}`, params);
+}
+
+/**
+ * 删除 Skill 文件
  */
 export async function deleteSkillResourceApi(
   skillId: number,
   resourceId: number,
 ) {
   return requestClient.delete(`/skills/${skillId}/resources/${resourceId}`);
+}
+
+// ============ Skills.sh 市场 API ============
+
+/** skills.sh 搜索结果 */
+export interface SkillshubSearchResult {
+  name: string;
+  slug: string;
+  description: string;
+  repository: string;
+  owner: string;
+  installs: number;
+  weekly_installs: number;
+  stars: number;
+  first_seen: string;
+  skill_path: string;
+}
+
+/** skills.sh 详情 */
+export interface SkillshubDetail {
+  name: string;
+  description: string;
+  repository: string;
+  owner: string;
+  installs: number;
+  weekly_installs: number;
+  stars: number;
+  first_seen: string;
+  skill_md_content: string;
+  skill_md_preview: string;
+  skill_path: string;
+  install_command: string;
+}
+
+/**
+ * 搜索 skills.sh 市场
+ */
+export async function searchSkillshubApi(query: string) {
+  return requestClient.get<SkillshubSearchResult[]>('/skillshub/search', {
+    params: { q: query },
+  });
+}
+
+/**
+ * 获取 skills.sh skill 详情
+ */
+export async function getSkillshubDetailApi(path: string) {
+  return requestClient.get<SkillshubDetail>('/skillshub/detail', {
+    params: { path },
+    timeout: 30_000,
+  });
+}
+
+/**
+ * 从 skills.sh / GitHub 安装 skill（需要从 GitHub 下载多个文件，超时设长）
+ */
+export async function installFromSkillshubApi(path: string) {
+  return requestClient.post<Skill>('/skillshub/install', { path }, {
+    timeout: 120_000,
+  });
+}
+
+/**
+ * 从 URL 导入 skill
+ */
+export async function installFromUrlApi(url: string) {
+  return requestClient.post<Skill>('/skillshub/install-url', { url }, {
+    timeout: 60_000,
+  });
 }

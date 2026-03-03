@@ -96,16 +96,6 @@ function getCategoryColor(category: string): string {
         {{ skill.description || '暂无描述' }}
       </Typography.Paragraph>
 
-      <div class="skill-card__prompt-preview">
-        <Typography.Paragraph
-          type="secondary"
-          :ellipsis="{ rows: 3 }"
-          class="skill-card__prompt-text"
-        >
-          {{ skill.system_prompt }}
-        </Typography.Paragraph>
-      </div>
-
       <div class="skill-card__tags">
         <Tag
           v-for="tag in skill.tags"
@@ -209,32 +199,21 @@ function getCategoryColor(category: string): string {
   gap: 8px;
 }
 
+.skill-card__body {
+  max-height: 160px;
+  overflow: hidden;
+}
+
 .skill-card__desc {
-  min-height: 44px;
   margin-bottom: 0;
   font-size: 13px;
 }
 
-.skill-card__prompt-preview {
-  padding: 8px;
-  background: var(--ant-color-bg-layout, #f5f5f5);
-  border-radius: 6px;
-}
-
-.skill-card__prompt-text {
-  margin-bottom: 0;
-  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
-  font-size: 12px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
 .skill-card__tags {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 4px;
-  min-height: 22px;
+  overflow: hidden;
 }
 
 .skill-card__tags :deep(.ant-tag) {

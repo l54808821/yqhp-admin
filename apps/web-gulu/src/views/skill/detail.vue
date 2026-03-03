@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Skill, SkillResource } from '#/api/skill';
 
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useAppConfig } from '@vben/hooks';
@@ -17,7 +17,6 @@ import {
   Row,
   Space,
   Spin,
-  Table,
   Tag,
   Typography,
 } from 'ant-design-vue';
@@ -25,10 +24,12 @@ import {
 import {
   exportSkillApi,
   getSkillApi,
+  getSkillResourceContentApi,
   getSkillResourcesApi,
 } from '#/api/skill';
 
 import SkillFormModal from './components/SkillFormModal.vue';
+import SkillEditor from './components/SkillEditor.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -37,18 +38,12 @@ const { apiURL } = useAppConfig(import.meta.env, import.meta.env.PROD);
 
 const skillId = Number(route.params.skillId);
 const skill = ref<Skill | null>(null);
-const resources = ref<SkillResource[]>([]);
 const loading = ref(false);
-const resourceLoading = ref(false);
 const formModalRef = ref<InstanceType<typeof SkillFormModal>>();
 
 function getCategoryColor(category: string): string {
   const colorMap: Record<string, string> = {
-    '编程': 'blue',
-    '测试': 'green',
-    '写作': 'purple',
-    '翻译': 'cyan',
-    '分析': 'orange',
+    '编程': 'blue', '测试': 'green', '写作': 'purple', '翻译': 'cyan', '分析': 'orange',
   };
   return colorMap[category] || 'default';
 }
@@ -71,19 +66,6 @@ function getTypeColor(type: number): string {
   }
 }
 
-const resourceColumns = [
-  { title: '类别', dataIndex: 'category', key: 'category', width: 100 },
-  { title: '文件名', dataIndex: 'filename', key: 'filename' },
-  { title: '类型', dataIndex: 'content_type', key: 'content_type', width: 150 },
-  { title: '大小', dataIndex: 'size', key: 'size', width: 100 },
-];
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / 1024 / 1024).toFixed(1) + ' MB';
-}
-
 async function loadSkill() {
   loading.value = true;
   try {
@@ -92,17 +74,6 @@ async function loadSkill() {
     message.error('加载 Skill 详情失败');
   } finally {
     loading.value = false;
-  }
-}
-
-async function loadResources() {
-  resourceLoading.value = true;
-  try {
-    resources.value = await getSkillResourcesApi(skillId) || [];
-  } catch {
-    resources.value = [];
-  } finally {
-    resourceLoading.value = false;
   }
 }
 
@@ -118,7 +89,6 @@ function handleEdit() {
 
 function handleEditSuccess() {
   loadSkill();
-  loadResources();
 }
 
 async function handleExport() {
@@ -142,7 +112,6 @@ async function handleExport() {
 
 onMounted(() => {
   loadSkill();
-  loadResources();
 });
 </script>
 
@@ -150,7 +119,6 @@ onMounted(() => {
   <div class="skill-detail-page">
     <Spin :spinning="loading">
       <template v-if="skill">
-        <!-- 顶部操作栏 -->
         <div class="detail-header">
           <div class="detail-header__left">
             <Button @click="handleBack">← 返回</Button>
@@ -165,105 +133,17 @@ onMounted(() => {
                 <Tag :color="skill.status === 1 ? 'green' : 'default'">
                   {{ skill.status === 1 ? '启用' : '禁用' }}
                 </Tag>
+                <Tag v-if="skill.author">{{ skill.author }}</Tag>
               </Space>
             </div>
           </div>
           <Space>
-            <Button  @click="handleEdit">编辑</Button>
+            <Button @click="handleEdit">编辑元数据</Button>
             <Button @click="handleExport">导出</Button>
           </Space>
         </div>
 
-        <Row :gutter="16">
-          <!-- 左列：基本信息 + 系统提示词 -->
-          <Col :span="16">
-            <!-- 系统提示词 -->
-            <Card title="系统提示词" size="small" class="detail-card">
-              <pre class="prompt-content">{{ skill.system_prompt }}</pre>
-            </Card>
-
-            <!-- 描述 -->
-            <Card v-if="skill.description" title="描述" size="small" class="detail-card">
-              <Typography.Paragraph>{{ skill.description }}</Typography.Paragraph>
-            </Card>
-
-            <!-- 资源文件 -->
-            <Card title="资源文件" size="small" class="detail-card">
-              <Spin :spinning="resourceLoading">
-                <Table
-                  v-if="resources.length > 0"
-                  :columns="resourceColumns"
-                  :data-source="resources"
-                  :pagination="false"
-                  row-key="id"
-                  size="small"
-                >
-                  <template #bodyCell="{ column, record }">
-                    <template v-if="column.key === 'category'">
-                      <Tag>{{ record.category }}</Tag>
-                    </template>
-                    <template v-if="column.key === 'size'">
-                      {{ formatSize(record.size || 0) }}
-                    </template>
-                  </template>
-                </Table>
-                <Empty v-else description="暂无资源文件" :image="Empty.PRESENTED_IMAGE_SIMPLE" />
-              </Spin>
-            </Card>
-          </Col>
-
-          <!-- 右列：元信息 -->
-          <Col :span="8">
-            <Card title="基本信息" size="small" class="detail-card">
-              <Descriptions :column="1" size="small" :labelStyle="{ width: '90px' }">
-                <Descriptions.Item label="Slug">
-                  {{ skill.slug || '-' }}
-                </Descriptions.Item>
-                <Descriptions.Item label="版本">
-                  {{ skill.version || '1.0.0' }}
-                </Descriptions.Item>
-                <Descriptions.Item label="分类">
-                  <Tag v-if="skill.category" :color="getCategoryColor(skill.category)">{{ skill.category }}</Tag>
-                  <span v-else>-</span>
-                </Descriptions.Item>
-                <Descriptions.Item label="标签">
-                  <div v-if="skill.tags?.length" class="tag-list">
-                    <Tag v-for="tag in skill.tags" :key="tag" size="small">{{ tag }}</Tag>
-                  </div>
-                  <span v-else>-</span>
-                </Descriptions.Item>
-                <Descriptions.Item label="创建时间">
-                  {{ skill.created_at ? new Date(skill.created_at).toLocaleString() : '-' }}
-                </Descriptions.Item>
-                <Descriptions.Item label="更新时间">
-                  {{ skill.updated_at ? new Date(skill.updated_at).toLocaleString() : '-' }}
-                </Descriptions.Item>
-              </Descriptions>
-            </Card>
-
-            <!-- 推荐工具 -->
-            <Card v-if="skill.recommended_tools?.length" title="推荐工具" size="small" class="detail-card">
-              <div class="tag-list">
-                <Tag v-for="tool in skill.recommended_tools" :key="tool" color="blue">{{ tool }}</Tag>
-              </div>
-            </Card>
-
-            <!-- Agent Skills 规范 -->
-            <Card title="Agent Skills" size="small" class="detail-card">
-              <Descriptions :column="1" size="small" :labelStyle="{ width: '100px' }">
-                <Descriptions.Item label="License">
-                  {{ skill.license || '-' }}
-                </Descriptions.Item>
-                <Descriptions.Item label="Compatibility">
-                  {{ skill.compatibility || '-' }}
-                </Descriptions.Item>
-                <Descriptions.Item label="Allowed Tools">
-                  {{ skill.allowed_tools || '-' }}
-                </Descriptions.Item>
-              </Descriptions>
-            </Card>
-          </Col>
-        </Row>
+        <SkillEditor :skill-id="skillId" />
       </template>
 
       <div v-else-if="!loading" class="flex items-center justify-center" style="min-height: 400px">
@@ -273,7 +153,6 @@ onMounted(() => {
       </div>
     </Spin>
 
-    <!-- 编辑抽屉 -->
     <SkillFormModal ref="formModalRef" @success="handleEditSuccess" />
   </div>
 </template>
@@ -302,33 +181,5 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-
-.detail-card {
-  margin-bottom: 16px;
-}
-
-.prompt-content {
-  margin: 0;
-  padding: 12px 16px;
-  background: var(--ant-color-bg-layout, #f5f5f5);
-  border-radius: 8px;
-  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
-  font-size: 13px;
-  line-height: 1.7;
-  white-space: pre-wrap;
-  word-break: break-word;
-  max-height: 500px;
-  overflow-y: auto;
-}
-
-.tag-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.tag-list :deep(.ant-tag) {
-  margin: 0;
 }
 </style>

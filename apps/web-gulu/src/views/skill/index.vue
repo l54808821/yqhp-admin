@@ -26,15 +26,13 @@ import {
   deleteSkillApi,
   exportSkillApi,
   getSkillListApi,
-  importSkillApi,
   SKILL_CATEGORY_OPTIONS,
   updateSkillStatusApi,
 } from '#/api/skill';
 
-import { Upload } from 'ant-design-vue';
-
 import SkillCard from './components/SkillCard.vue';
 import SkillFormModal from './components/SkillFormModal.vue';
+import SkillImportModal from './components/SkillImportModal.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -55,7 +53,7 @@ const searchParams = ref<SkillListParams>({
 const skillList = ref<Skill[]>([]);
 const total = ref(0);
 const loading = ref(false);
-const importLoading = ref(false);
+const importModalRef = ref<InstanceType<typeof SkillImportModal>>();
 
 // 弹框 ref
 const formModalRef = ref<InstanceType<typeof SkillFormModal>>();
@@ -141,20 +139,12 @@ function handleDelete(id: number) {
   });
 }
 
-// 导入
-async function handleImport(info: any) {
-  const file = info.file;
-  if (!file) return;
-  importLoading.value = true;
-  try {
-    await importSkillApi(file);
-    message.success('导入成功');
-    await loadData();
-  } catch (e: any) {
-    message.error('导入失败: ' + (e.message || '未知错误'));
-  } finally {
-    importLoading.value = false;
-  }
+function handleImport() {
+  importModalRef.value?.open();
+}
+
+async function handleImportSuccess() {
+  await loadData();
 }
 
 // 导出
@@ -252,14 +242,7 @@ onMounted(() => {
         <Col :span="8" style="text-align: right">
           <Space>
             <Button @click="handleReset">重置</Button>
-            <Upload
-              :showUploadList="false"
-              :beforeUpload="() => false"
-              accept=".zip"
-              @change="handleImport"
-            >
-              <Button :loading="importLoading">导入 Skill</Button>
-            </Upload>
+            <Button @click="handleImport">导入 Skill</Button>
             <Button type="primary" @click="handleAdd">新增 Skill</Button>
           </Space>
         </Col>
@@ -316,6 +299,9 @@ onMounted(() => {
 
     <!-- 新增/编辑弹框 -->
     <SkillFormModal ref="formModalRef" @success="handleFormSuccess" />
+
+    <!-- 导入弹框 -->
+    <SkillImportModal ref="importModalRef" @success="handleImportSuccess" />
   </div>
 </template>
 

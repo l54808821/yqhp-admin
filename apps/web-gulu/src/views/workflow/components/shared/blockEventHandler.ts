@@ -84,7 +84,8 @@ export function handleBlockEvent(
           }
         }
       } else if (thinking.startsWith('执行步骤')) {
-        // 步骤状态完全由 ai_plan_step_update 事件驱动，这里只做降级补充（无步骤时添加）
+        // 精确设置当前步骤为 running（不再猜测性地自动完成前一个步骤）
+        // ai_plan_step_update 事件可提供更权威的状态，两个通道互补
         const pb = findPlanBlock(blocks);
         if (pb) {
           const match = thinking.match(/执行步骤\s*(\d+)\/(\d+):\s*(.*)/);
@@ -93,9 +94,10 @@ export function handleBlockEvent(
             const task = match[3] || '';
             const existing = pb.steps.find((s) => s.index === stepIdx);
             if (existing) {
+              existing.status = 'running';
               existing.task = task || existing.task;
             } else {
-              pb.steps.push({ index: stepIdx, task, status: 'pending' });
+              pb.steps.push({ index: stepIdx, task, status: 'running' });
             }
           }
         }
