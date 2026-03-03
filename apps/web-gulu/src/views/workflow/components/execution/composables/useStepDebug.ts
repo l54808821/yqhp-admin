@@ -131,6 +131,7 @@ export function useStepDebug<TResponse>(options: UseStepDebugOptions<TResponse>)
       case 'ai_plan_started':
       case 'ai_plan_step_update':
       case 'ai_plan_completed':
+      case 'ai_plan_modified':
       case 'step_started': {
         if (!isStreaming.value) isStreaming.value = true;
         handleBlockEvent(streamingBlocks.value, type, data);

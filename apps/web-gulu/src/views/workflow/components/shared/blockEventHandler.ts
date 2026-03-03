@@ -84,21 +84,18 @@ export function handleBlockEvent(
           }
         }
       } else if (thinking.startsWith('执行步骤')) {
+        // 步骤状态完全由 ai_plan_step_update 事件驱动，这里只做降级补充（无步骤时添加）
         const pb = findPlanBlock(blocks);
         if (pb) {
           const match = thinking.match(/执行步骤\s*(\d+)\/(\d+):\s*(.*)/);
           if (match) {
             const stepIdx = parseInt(match[1]!, 10);
             const task = match[3] || '';
-            for (const s of pb.steps) {
-              if (s.status === 'running') s.status = 'completed';
-            }
             const existing = pb.steps.find((s) => s.index === stepIdx);
             if (existing) {
-              existing.status = 'running';
               existing.task = task || existing.task;
             } else {
-              pb.steps.push({ index: stepIdx, task, status: 'running' });
+              pb.steps.push({ index: stepIdx, task, status: 'pending' });
             }
           }
         }
@@ -170,6 +167,25 @@ export function handleBlockEvent(
       return false;
     }
 
+    case 'ai_plan_modified': {
+      const pb = findPlanBlock(blocks);
+      if (pb) {
+        const fromIdx: number = data.fromStepIndex || 1;
+        const newSteps = (data.steps || []).map((s: any) => ({
+          index: s.index,
+          task: s.task,
+          status: s.status || 'pending',
+        }));
+        // 保留 fromIdx 之前已完成的步骤，替换后续步骤
+        const kept = pb.steps.filter((s) => s.index < fromIdx);
+        pb.steps = [...kept, ...newSteps.filter((s: any) => s.index >= fromIdx)];
+        pb.status = 'executing';
+        if (data.reason) pb.reason = data.reason;
+        return true;
+      }
+      return false;
+    }
+
     case 'ai_tool_call_start': {
       const tcBlock: ToolCallBlock = {
         type: 'tool_call',
@@ -180,10 +196,14 @@ export function handleBlockEvent(
 
       const pb = findPlanBlock(blocks);
       if (pb) {
-        const runningStep = pb.steps.find((s) => s.status === 'running');
-        if (runningStep) {
-          runningStep.toolCalls = runningStep.toolCalls || [];
-          runningStep.toolCalls.push(tcBlock);
+        const planIdx = data.planStepIndex;
+        // 优先按 planStepIndex 精确匹配
+        const targetStep = planIdx > 0
+          ? pb.steps.find((s) => s.index === planIdx)
+          : pb.steps.find((s) => s.status === 'running');
+        if (targetStep) {
+          targetStep.toolCalls = targetStep.toolCalls || [];
+          targetStep.toolCalls.push(tcBlock);
           return true;
         }
       }
@@ -199,7 +219,12 @@ export function handleBlockEvent(
 
       const pb = findPlanBlock(blocks);
       if (pb) {
-        for (const step of pb.steps) {
+        const planIdx = data.planStepIndex;
+        // 优先按 planStepIndex 精确定位步骤，再在该步骤内查找工具调用
+        const searchSteps = planIdx > 0
+          ? pb.steps.filter((s) => s.index === planIdx)
+          : pb.steps;
+        for (const step of searchSteps) {
           const tc = step.toolCalls?.find(
             (t) => t.name === tcName && t.status === 'running',
           );

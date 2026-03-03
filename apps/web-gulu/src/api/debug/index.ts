@@ -110,6 +110,7 @@ export type SSEEventType =
   | 'ai_plan_started'
   | 'ai_plan_step_update'
   | 'ai_plan_completed'
+  | 'ai_plan_modified'
   | 'ai_interaction_required'
   | 'ai_tool_call_start'
   | 'ai_tool_call_complete'

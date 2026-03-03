@@ -252,6 +252,7 @@ export function useExecution(options: UseExecutionOptions) {
       case 'ai_plan_started':
       case 'ai_plan_step_update':
       case 'ai_plan_completed':
+      case 'ai_plan_modified':
         handleAIBlockEvent(event.type, event.data);
         break;
       case 'ai_complete':
