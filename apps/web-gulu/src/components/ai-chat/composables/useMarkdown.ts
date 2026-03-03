@@ -62,7 +62,9 @@ export function useMarkdown() {
     if (!content) return '';
     try {
       const result = getMarked().parse(content);
-      return typeof result === 'string' ? result : '';
+      const html = typeof result === 'string' ? result : '';
+      // 去掉末尾换行/空白，避免 v-html 后产生尾随文本节点，导致 p:last-child 不匹配、段落底部多出一行空白
+      return html.trimEnd();
     } catch {
       return content
         .replace(/&/g, '&amp;')
