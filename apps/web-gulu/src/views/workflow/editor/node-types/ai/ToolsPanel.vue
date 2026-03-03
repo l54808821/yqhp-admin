@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 工具面板：Skill 能力 + 内置工具选择 + MCP 服务器 + 最大调用轮次
+ * 工具面板：内置工具（分类展示）+ Skill 能力 + MCP 服务器
  */
 import { computed, onMounted, ref } from 'vue';
 
@@ -22,7 +22,7 @@ import type { Skill } from '#/api/skill';
 import { getSkillListApi } from '#/api/skill';
 
 import type { AIConfig } from './types';
-import { builtinTools } from './types';
+import { builtinTools, toolCategoryLabels } from './types';
 
 interface Props {
   config: AIConfig;
@@ -48,6 +48,7 @@ const mcpServerLoading = ref(false);
 // 内置工具选择弹窗
 const toolModalVisible = ref(false);
 const toolSearchKeyword = ref('');
+const toolFilterCategory = ref<string | undefined>(undefined);
 
 // 已选中的 Skill 列表
 const selectedSkills = computed(() => {
@@ -68,23 +69,58 @@ const availableSkills = computed(() => {
   });
 });
 
-// Skill 分类选项（从数据中提取）
+// Skill 分类选项
 const skillCategoryOptions = computed(() => {
   const cats = new Set<string>();
   skillList.value.forEach((s) => { if (s.category) cats.add(s.category); });
   return [...cats].map((c) => ({ label: c, value: c }));
 });
 
+// 工具分类选项
+const toolCategoryOptions = computed(() => {
+  const cats = new Set<string>();
+  builtinTools.forEach((t) => cats.add(t.category));
+  return [...cats].map((c) => ({ label: toolCategoryLabels[c] || c, value: c }));
+});
+
+// 按分类分组已选工具
+const selectedToolsByCategory = computed(() => {
+  const tools = props.config?.tools || [];
+  const groups: Record<string, typeof builtinTools> = {};
+  for (const toolName of tools) {
+    const tool = builtinTools.find((t) => t.name === toolName);
+    if (tool) {
+      const cat = tool.category;
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(tool);
+    }
+  }
+  return groups;
+});
+
 const availableTools = computed(() => {
   const selected = props.config?.tools || [];
   const keyword = toolSearchKeyword.value.toLowerCase();
+  const category = toolFilterCategory.value;
   return builtinTools.filter(
     (t) =>
       !selected.includes(t.name) &&
       (!keyword ||
         t.label.toLowerCase().includes(keyword) ||
-        t.description.toLowerCase().includes(keyword)),
+        t.description.toLowerCase().includes(keyword)) &&
+      (!category || t.category === category),
   );
+});
+
+// 弹窗中按分类分组
+const availableToolsByCategory = computed(() => {
+  const groups: Record<string, typeof builtinTools> = {};
+  for (const tool of availableTools.value) {
+    const cat = tool.category;
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(tool);
+  }
+  return groups;
 });
 
 function addSkill(skillId: number) {
@@ -117,7 +153,17 @@ function handleMcpServerChange(selectedIds: number[]) {
   emit('update', { mcp_server_ids: selectedIds });
 }
 
-function getCategoryColor(category: string): string {
+function getToolCategoryColor(category: string): string {
+  const colorMap: Record<string, string> = {
+    basic: 'default',
+    web: 'blue',
+    code: 'purple',
+    interaction: 'green',
+  };
+  return colorMap[category] || 'default';
+}
+
+function getSkillCategoryColor(category: string): string {
   const colorMap: Record<string, string> = {
     '编程': 'blue',
     '测试': 'green',
@@ -158,6 +204,12 @@ function openSkillModal() {
   skillModalVisible.value = true;
 }
 
+function openToolModal() {
+  toolSearchKeyword.value = '';
+  toolFilterCategory.value = undefined;
+  toolModalVisible.value = true;
+}
+
 onMounted(() => {
   loadSkills();
   loadMcpServers();
@@ -166,8 +218,57 @@ onMounted(() => {
 
 <template>
   <Form layout="vertical" class="config-form">
-    <!-- Skill 能力 -->
+    <!-- 内置工具（分类展示） -->
     <div class="tools-section-title">
+      内置工具
+      <Tag size="small" color="processing">{{ (config.tools || []).length }} / {{ builtinTools.length }}</Tag>
+      <Button
+        type="primary"
+        size="small"
+        style="margin-left: auto"
+        @click="openToolModal"
+      >
+        + 添加工具
+      </Button>
+    </div>
+    <div class="tool-category-hint">
+      选择 Agent 可使用的工具能力。联网搜索、代码执行等工具默认启用。
+    </div>
+
+    <template v-if="(config.tools || []).length > 0">
+      <div
+        v-for="(tools, category) in selectedToolsByCategory"
+        :key="category"
+        class="tool-category-group"
+      >
+        <div class="tool-category-label">
+          <Tag :color="getToolCategoryColor(category as string)" size="small">
+            {{ toolCategoryLabels[category as string] || category }}
+          </Tag>
+        </div>
+        <div class="selected-tools-list">
+          <div
+            v-for="tool in tools"
+            :key="tool.name"
+            class="selected-tool-item"
+          >
+            <div class="selected-tool-info">
+              <span class="selected-tool-name">{{ tool.label }}</span>
+              <span class="selected-tool-desc">{{ tool.description }}</span>
+            </div>
+            <Button type="text" size="small" danger @click="removeTool(tool.name)">
+              移除
+            </Button>
+          </div>
+        </div>
+      </div>
+    </template>
+    <div v-else class="tools-empty-hint">
+      暂未添加工具，点击上方按钮添加
+    </div>
+
+    <!-- Skill 能力 -->
+    <div class="tools-section-title" style="margin-top: 20px">
       Skill 能力
       <Button
         type="primary"
@@ -178,11 +279,10 @@ onMounted(() => {
         + 添加 Skill
       </Button>
     </div>
-    <div class="skill-hint">
+    <div class="tool-category-hint">
       AI 会根据用户问题自动选择调用已挂载的 Skill。
     </div>
 
-    <!-- 已选 Skill 列表 -->
     <div v-if="selectedSkills.length > 0" class="selected-tools-list">
       <div
         v-for="skill in selectedSkills"
@@ -193,7 +293,7 @@ onMounted(() => {
           <div class="selected-tool-header">
             <span class="selected-tool-name">{{ skill.name }}</span>
             <Tag v-if="skill.type === 1" color="gold" size="small">内置</Tag>
-            <Tag v-if="skill.category" :color="getCategoryColor(skill.category)" size="small">
+            <Tag v-if="skill.category" :color="getSkillCategoryColor(skill.category)" size="small">
               {{ skill.category }}
             </Tag>
           </div>
@@ -206,41 +306,6 @@ onMounted(() => {
     </div>
     <div v-else class="tools-empty-hint">
       暂未添加 Skill，点击上方按钮添加
-    </div>
-
-    <!-- 内置工具 -->
-    <div class="tools-section-title" style="margin-top: 20px">
-      内置工具
-      <Button
-        type="primary"
-        size="small"
-        style="margin-left: auto"
-        @click="toolModalVisible = true"
-      >
-        + 添加工具
-      </Button>
-    </div>
-    <div v-if="(config.tools || []).length > 0" class="selected-tools-list">
-      <div
-        v-for="toolName in config.tools"
-        :key="toolName"
-        class="selected-tool-item"
-      >
-        <div class="selected-tool-info">
-          <span class="selected-tool-name">{{
-            builtinTools.find((t) => t.name === toolName)?.label || toolName
-          }}</span>
-          <span class="selected-tool-desc">{{
-            builtinTools.find((t) => t.name === toolName)?.description
-          }}</span>
-        </div>
-        <Button type="text" size="small" danger @click="removeTool(toolName)">
-          移除
-        </Button>
-      </div>
-    </div>
-    <div v-else class="tools-empty-hint">
-      暂未添加工具，点击上方按钮添加
     </div>
 
     <!-- MCP 服务器选择 -->
@@ -296,12 +361,12 @@ onMounted(() => {
         :value="config.max_tool_rounds"
         :min="1"
         :max="50"
-        :placeholder="'默认 10 轮'"
+        :placeholder="'默认 15 轮'"
         style="width: 100%"
         @change="(val: any) => emit('update', { max_tool_rounds: val })"
       />
       <div class="param-hint">
-        AI 模型调用工具（含 Skill）的最大轮次，防止无限循环。为空时默认 10 轮。
+        AI 模型调用工具（含 Skill）的最大轮次，防止无限循环。
       </div>
     </Form.Item>
   </Form>
@@ -341,7 +406,7 @@ onMounted(() => {
           <div class="skill-modal-header">
             <span class="skill-modal-name">{{ skill.name }}</span>
             <Tag v-if="skill.type === 1" color="gold" size="small">内置</Tag>
-            <Tag v-if="skill.category" :color="getCategoryColor(skill.category)" size="small">
+            <Tag v-if="skill.category" :color="getSkillCategoryColor(skill.category)" size="small">
               {{ skill.category }}
             </Tag>
           </div>
@@ -355,36 +420,52 @@ onMounted(() => {
     </div>
   </Modal>
 
-  <!-- 内置工具选择弹窗 -->
+  <!-- 内置工具选择弹窗（分类展示） -->
   <Modal
     v-model:open="toolModalVisible"
     title="添加工具"
     :footer="null"
-    :width="420"
+    :width="480"
     :destroyOnClose="true"
-    @cancel="toolSearchKeyword = ''"
+    @cancel="toolSearchKeyword = ''; toolFilterCategory = undefined"
   >
-    <Input
-      v-model:value="toolSearchKeyword"
-      placeholder="搜索工具..."
-      allowClear
-      style="margin-bottom: 12px"
-    />
+    <div class="tool-modal-filters">
+      <Input
+        v-model:value="toolSearchKeyword"
+        placeholder="搜索工具..."
+        allowClear
+        style="flex: 1"
+      />
+      <Select
+        v-model:value="toolFilterCategory"
+        placeholder="分类"
+        allowClear
+        :options="toolCategoryOptions"
+        style="width: 120px"
+      />
+    </div>
     <div class="tool-modal-list">
-      <div
-        v-for="tool in availableTools"
-        :key="tool.name"
-        class="tool-modal-item"
-        @click="addTool(tool.name)"
-      >
-        <div class="tool-modal-info">
-          <span class="tool-modal-name">{{ tool.label }}</span>
-          <span class="tool-modal-desc">{{ tool.description }}</span>
+      <template v-for="(tools, category) in availableToolsByCategory" :key="category">
+        <div class="tool-modal-category-header">
+          <Tag :color="getToolCategoryColor(category as string)" size="small">
+            {{ toolCategoryLabels[category as string] || category }}
+          </Tag>
         </div>
-        <Button type="link" size="small">添加</Button>
-      </div>
+        <div
+          v-for="tool in tools"
+          :key="tool.name"
+          class="tool-modal-item"
+          @click="addTool(tool.name)"
+        >
+          <div class="tool-modal-info">
+            <span class="tool-modal-name">{{ tool.label }}</span>
+            <span class="tool-modal-desc">{{ tool.description }}</span>
+          </div>
+          <Button type="link" size="small">添加</Button>
+        </div>
+      </template>
       <div v-if="availableTools.length === 0" class="tool-modal-empty">
-        {{ toolSearchKeyword ? '没有匹配的工具' : '所有工具已添加' }}
+        {{ toolSearchKeyword || toolFilterCategory ? '没有匹配的工具' : '所有工具已添加' }}
       </div>
     </div>
   </Modal>
@@ -401,7 +482,7 @@ onMounted(() => {
   margin-top: 4px;
 }
 
-.skill-hint {
+.tool-category-hint {
   font-size: 12px;
   color: hsl(var(--muted-foreground));
   margin-bottom: 10px;
@@ -414,6 +495,24 @@ onMounted(() => {
   margin-bottom: 8px;
   display: flex;
   align-items: center;
+  gap: 6px;
+}
+
+.tools-section-title :deep(.ant-tag) {
+  margin: 0;
+}
+
+.tool-category-group {
+  margin-bottom: 12px;
+}
+
+.tool-category-label {
+  margin-bottom: 6px;
+}
+
+.tool-category-label :deep(.ant-tag) {
+  margin: 0;
+  font-size: 11px;
 }
 
 .selected-tools-list {
@@ -555,12 +654,27 @@ onMounted(() => {
 }
 
 /* 内置工具选择弹窗 */
+.tool-modal-filters {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
 .tool-modal-list {
-  max-height: 360px;
+  max-height: 420px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.tool-modal-category-header {
+  padding: 6px 0 2px;
+}
+
+.tool-modal-category-header :deep(.ant-tag) {
+  margin: 0;
+  font-size: 11px;
 }
 
 .tool-modal-item {

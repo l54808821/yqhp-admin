@@ -201,6 +201,7 @@ function handleRun() {
       interaction_timeout: localNode.value.config.interaction_timeout || 300,
       enable_plan_mode: localNode.value.config.enable_plan_mode ?? true,
       max_plan_steps: localNode.value.config.max_plan_steps || 10,
+      fallback_models: localNode.value.config.fallback_models || [],
     },
     postProcessors: localNode.value.postProcessors?.map((p: KeywordConfig) => ({
       id: p.id,
