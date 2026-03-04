@@ -319,6 +319,7 @@ export function handleBlockEvent(
         se.status = 'failed';
         se.durationMs = data.durationMs;
         se.result = data.result;
+        se.reason = data.error || data.reason;
       }
       return true;
     }

@@ -33,27 +33,35 @@ const durationText = computed(() => {
 
 <template>
   <div class="step-exec-block" :style="{ background: statusConfig.bg }">
-    <component
-      :is="statusConfig.icon"
-      class="step-icon"
-      :class="{ spinning: block.status === 'running' }"
-      :style="{ color: statusConfig.color }"
-    />
-    <span class="step-name">{{ block.stepName }}</span>
-    <span class="step-label" :style="{ color: statusConfig.color }">{{ statusConfig.label }}</span>
-    <span v-if="block.reason" class="step-reason">{{ block.reason }}</span>
-    <span v-if="durationText" class="step-duration">{{ durationText }}</span>
+    <div class="step-header">
+      <component
+        :is="statusConfig.icon"
+        class="step-icon"
+        :class="{ spinning: block.status === 'running' }"
+        :style="{ color: statusConfig.color }"
+      />
+      <span class="step-name">{{ block.stepName }}</span>
+      <span class="step-label" :style="{ color: statusConfig.color }">{{ statusConfig.label }}</span>
+      <span v-if="durationText" class="step-duration">{{ durationText }}</span>
+    </div>
+    <div v-if="block.reason && block.status === 'failed'" class="step-reason">{{ block.reason }}</div>
   </div>
 </template>
 
 <style scoped>
 .step-exec-block {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 4px;
   padding: 6px 10px;
   border-radius: 6px;
   font-size: 12px;
+}
+
+.step-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .step-icon {
@@ -82,7 +90,10 @@ const durationText = computed(() => {
 
 .step-reason {
   font-size: 11px;
-  color: hsl(var(--muted-foreground));
+  color: #ff4d4f;
+  line-height: 1.5;
+  word-break: break-word;
+  padding-left: 22px;
 }
 
 .step-duration {
