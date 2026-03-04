@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 
 import { createIconifyIcon } from '@vben/icons';
 
@@ -10,11 +10,7 @@ import {
 } from './useHighlight';
 
 const FileIcon = createIconifyIcon('lucide:file');
-const FileEditIcon = createIconifyIcon('lucide:file-edit');
-const FilePlusIcon = createIconifyIcon('lucide:file-plus');
 const FolderIcon = createIconifyIcon('lucide:folder');
-const ChevronDown = createIconifyIcon('lucide:chevron-down');
-const ChevronRight = createIconifyIcon('lucide:chevron-right');
 
 const props = defineProps<{
   name: string;
@@ -24,38 +20,8 @@ const props = defineProps<{
   status: 'running' | 'completed' | 'error';
 }>();
 
-const showRawArgs = ref(false);
-
 const parsed = computed(() => tryParseJSON(props.arguments));
 const filePath = computed(() => parsed.value?.path || '');
-
-const toolIcon = computed(() => {
-  switch (props.name) {
-    case 'edit_file': return FileEditIcon;
-    case 'write_file':
-    case 'append_file': return FilePlusIcon;
-    case 'list_dir': return FolderIcon;
-    default: return FileIcon;
-  }
-});
-
-const toolLabel = computed(() => {
-  const labels: Record<string, string> = {
-    read_file: '读取文件',
-    write_file: '写入文件',
-    edit_file: '编辑文件',
-    append_file: '追加内容',
-    list_dir: '列出目录',
-  };
-  return labels[props.name] || props.name;
-});
-
-const fileName = computed(() => {
-  if (!filePath.value) return '';
-  const parts = filePath.value.split('/');
-  return parts[parts.length - 1] || filePath.value;
-});
-
 const lang = computed(() => guessLanguageFromPath(filePath.value));
 
 const oldText = computed(() => parsed.value?.old_text || parsed.value?.oldText || '');
@@ -77,10 +43,6 @@ const isEditTool = computed(() => props.name === 'edit_file');
 const isListDir = computed(() => props.name === 'list_dir');
 const isWriteTool = computed(() => props.name === 'write_file' || props.name === 'append_file');
 
-const startLine = computed(() => parsed.value?.start_line || parsed.value?.startLine);
-const numLines = computed(() => parsed.value?.num_lines || parsed.value?.numLines);
-const recursive = computed(() => parsed.value?.recursive);
-
 const dirEntries = computed(() => {
   if (!isListDir.value || !props.result) return [];
   return props.result.split('\n').filter((l) => l.trim());
@@ -89,20 +51,6 @@ const dirEntries = computed(() => {
 
 <template>
   <div class="file-op-renderer">
-    <div class="file-header">
-      <component :is="toolIcon" class="file-icon" />
-      <span class="tool-label">{{ toolLabel }}</span>
-      <span v-if="filePath" class="file-path" :title="filePath">{{ fileName }}</span>
-      <span v-if="startLine" class="meta-badge">L{{ startLine }}<span v-if="numLines">-{{ startLine + numLines - 1 }}</span></span>
-      <span v-if="recursive" class="meta-badge">递归</span>
-      <button class="raw-toggle" @click.stop="showRawArgs = !showRawArgs">
-        <component :is="showRawArgs ? ChevronDown : ChevronRight" class="raw-toggle-icon" />
-        <span>原始参数</span>
-      </button>
-    </div>
-
-    <pre v-if="showRawArgs" class="raw-args">{{ $props.arguments }}</pre>
-
     <!-- edit_file: diff 风格 -->
     <div v-if="isEditTool && (oldText || newText)" class="diff-section">
       <div class="diff-block diff-old">
@@ -137,6 +85,10 @@ const dirEntries = computed(() => {
 
       <pre v-else class="plain-result" :class="{ error: isError, empty: !result }">{{ result || '(无输出)' }}</pre>
     </div>
+
+    <div v-else-if="!isEditTool && !isWriteTool" class="waiting">
+      <span class="waiting-text">执行中...</span>
+    </div>
   </div>
 </template>
 
@@ -145,84 +97,6 @@ const dirEntries = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-
-.file-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  flex-wrap: wrap;
-}
-
-.file-icon {
-  width: 13px;
-  height: 13px;
-  color: hsl(var(--primary));
-  flex-shrink: 0;
-}
-
-.tool-label {
-  font-weight: 600;
-  color: hsl(var(--foreground));
-  font-size: 11px;
-  flex-shrink: 0;
-}
-
-.file-path {
-  font-family: 'SF Mono', 'Menlo', monospace;
-  color: hsl(var(--foreground) / 80%);
-  font-size: 11px;
-  word-break: break-all;
-}
-
-.meta-badge {
-  font-size: 9px;
-  color: hsl(var(--muted-foreground));
-  background: hsl(var(--muted) / 40%);
-  padding: 0 4px;
-  border-radius: 3px;
-  flex-shrink: 0;
-}
-
-.raw-toggle {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  background: none;
-  border: none;
-  color: hsl(var(--muted-foreground));
-  cursor: pointer;
-  font-size: 10px;
-  padding: 1px 4px;
-  border-radius: 3px;
-}
-
-.raw-toggle:hover {
-  background: hsl(var(--muted) / 50%);
-  color: hsl(var(--foreground));
-}
-
-.raw-toggle-icon {
-  width: 10px;
-  height: 10px;
-}
-
-.raw-args {
-  margin: 0;
-  padding: 6px 10px;
-  font-size: 10px;
-  line-height: 1.4;
-  font-family: 'SF Mono', 'Menlo', monospace;
-  background: hsl(var(--muted) / 20%);
-  color: hsl(var(--muted-foreground));
-  border: 1px solid hsl(var(--border));
-  border-radius: 4px;
-  white-space: pre-wrap;
-  word-break: break-all;
-  max-height: 120px;
-  overflow-y: auto;
 }
 
 .diff-section {
@@ -362,6 +236,16 @@ const dirEntries = computed(() => {
 }
 
 .plain-result.empty {
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+}
+
+.waiting {
+  padding: 4px 0;
+}
+
+.waiting-text {
+  font-size: 11px;
   color: hsl(var(--muted-foreground));
   font-style: italic;
 }

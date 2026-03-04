@@ -4,7 +4,7 @@ import { computed, ref } from 'vue';
 import { createIconifyIcon } from '@vben/icons';
 
 import type { ToolCallBlock } from '../types';
-import { getToolRenderer } from '../tool-renderers';
+import { getToolParamsRenderer, getToolRenderer } from '../tool-renderers';
 
 const WrenchIcon = createIconifyIcon('lucide:wrench');
 const CheckIcon = createIconifyIcon('lucide:check');
@@ -13,7 +13,7 @@ const LoaderIcon = createIconifyIcon('lucide:loader-2');
 const ChevronDown = createIconifyIcon('lucide:chevron-down');
 const ChevronRight = createIconifyIcon('lucide:chevron-right');
 
-const CodeIcon = createIconifyIcon('lucide:code-2');
+const CodeIcon = createIconifyIcon('lucide:code-xml');
 const GlobeIcon = createIconifyIcon('lucide:globe');
 const TerminalIcon = createIconifyIcon('lucide:terminal');
 const SearchIcon = createIconifyIcon('lucide:search');
@@ -28,8 +28,10 @@ const props = defineProps<{
 }>();
 
 const expanded = ref(false);
+const paramsVisible = ref(false);
 
 const rendererComponent = computed(() => getToolRenderer(props.block.name));
+const paramsComponent = computed(() => getToolParamsRenderer(props.block.name));
 
 const toolIconMap: Record<string, any> = {
   code_execute: CodeIcon,
@@ -111,6 +113,19 @@ const durationText = computed(() => {
         :is-error="block.isError"
         :status="block.status"
       />
+      <div v-if="block.arguments" class="params-section">
+        <button class="params-toggle" @click="paramsVisible = !paramsVisible">
+          <span class="params-arrow">{{ paramsVisible ? '▾' : '▸' }}</span>
+          <span>参数</span>
+        </button>
+        <div v-if="paramsVisible" class="params-content">
+          <component
+            :is="paramsComponent"
+            :name="block.name"
+            :arguments="block.arguments"
+          />
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -180,5 +195,40 @@ const durationText = computed(() => {
 .tool-detail {
   border-top: 1px solid hsl(var(--border));
   padding: 8px 10px;
+}
+
+.params-section {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed hsl(var(--border));
+}
+
+.params-toggle {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  font-size: 10px;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.params-toggle:hover {
+  background: hsl(var(--muted) / 40%);
+  color: hsl(var(--foreground));
+}
+
+.params-arrow {
+  font-size: 10px;
+  line-height: 1;
+  width: 10px;
+  text-align: center;
+}
+
+.params-content {
+  margin-top: 6px;
 }
 </style>

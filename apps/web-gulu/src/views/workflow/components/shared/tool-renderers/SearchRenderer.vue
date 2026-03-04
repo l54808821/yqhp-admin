@@ -5,7 +5,6 @@ import { createIconifyIcon } from '@vben/icons';
 
 import { tryParseJSON } from './useHighlight';
 
-const SearchIcon = createIconifyIcon('lucide:search');
 const LinkIcon = createIconifyIcon('lucide:external-link');
 
 const props = defineProps<{
@@ -15,16 +14,6 @@ const props = defineProps<{
   isError?: boolean;
   status: 'running' | 'completed' | 'error';
 }>();
-
-const parsed = computed(() => tryParseJSON(props.arguments));
-const query = computed(() => parsed.value?.query || '');
-const maxResults = computed(() => parsed.value?.max_results || parsed.value?.maxResults);
-
-const engineLabel = computed(() => {
-  if (props.name === 'bing_search') return 'Bing';
-  if (props.name === 'google_search') return 'Google';
-  return '搜索';
-});
 
 interface SearchResult {
   title: string;
@@ -48,13 +37,6 @@ const isPlainText = computed(() => {
 
 <template>
   <div class="search-renderer">
-    <div class="query-section">
-      <SearchIcon class="search-icon" />
-      <span class="engine-label">{{ engineLabel }}</span>
-      <span class="query-text">{{ query }}</span>
-      <span v-if="maxResults" class="max-results">({{ maxResults }} 条)</span>
-    </div>
-
     <div v-if="searchResults.length > 0" class="results-section">
       <div v-for="(item, i) in searchResults" :key="i" class="result-card">
         <div class="result-title">
@@ -69,12 +51,15 @@ const isPlainText = computed(() => {
     </div>
 
     <div v-else-if="isPlainText" class="plain-result">
-      <div class="section-label">{{ isError ? '错误' : '结果' }}</div>
       <pre class="plain-content" :class="{ error: isError }">{{ result }}</pre>
     </div>
 
     <div v-else-if="status === 'completed' || status === 'error'" class="plain-result">
       <pre class="plain-content empty">(无结果)</pre>
+    </div>
+
+    <div v-else class="waiting">
+      <span class="waiting-text">搜索中...</span>
     </div>
   </div>
 </template>
@@ -83,38 +68,6 @@ const isPlainText = computed(() => {
 .search-renderer {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-}
-
-.query-section {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-}
-
-.search-icon {
-  width: 13px;
-  height: 13px;
-  color: hsl(var(--primary));
-  flex-shrink: 0;
-}
-
-.engine-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: hsl(var(--muted-foreground));
-  flex-shrink: 0;
-}
-
-.query-text {
-  font-weight: 500;
-  color: hsl(var(--foreground));
-}
-
-.max-results {
-  font-size: 10px;
-  color: hsl(var(--muted-foreground));
 }
 
 .results-section {
@@ -166,13 +119,6 @@ const isPlainText = computed(() => {
   overflow: hidden;
 }
 
-.section-label {
-  font-size: 11px;
-  color: hsl(var(--muted-foreground));
-  font-weight: 500;
-  margin-bottom: 4px;
-}
-
 .plain-content {
   margin: 0;
   font-size: 11px;
@@ -193,6 +139,16 @@ const isPlainText = computed(() => {
 }
 
 .plain-content.empty {
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+}
+
+.waiting {
+  padding: 4px 0;
+}
+
+.waiting-text {
+  font-size: 11px;
   color: hsl(var(--muted-foreground));
   font-style: italic;
 }

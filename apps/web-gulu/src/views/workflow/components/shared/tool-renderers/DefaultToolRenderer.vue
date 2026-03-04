@@ -10,31 +10,16 @@ defineProps<{
 
 <template>
   <div class="default-tool-renderer">
-    <div v-if="$props.arguments" class="detail-section">
-      <div class="detail-label">参数</div>
-      <pre class="detail-content">{{ $props.arguments }}</pre>
-    </div>
     <div v-if="result || status === 'completed' || status === 'error'" class="detail-section">
-      <div class="detail-label">{{ isError ? '错误' : '结果' }}</div>
       <pre class="detail-content" :class="{ error: isError, empty: !result }">{{ result || '(无输出)' }}</pre>
+    </div>
+    <div v-else class="waiting">
+      <span class="waiting-text">执行中...</span>
     </div>
   </div>
 </template>
 
 <style scoped>
-.detail-section + .detail-section {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px dashed hsl(var(--border));
-}
-
-.detail-label {
-  font-size: 11px;
-  color: hsl(var(--muted-foreground));
-  margin-bottom: 4px;
-  font-weight: 500;
-}
-
 .detail-content {
   margin: 0;
   font-size: 11px;
@@ -55,6 +40,16 @@ defineProps<{
 }
 
 .detail-content.empty {
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+}
+
+.waiting {
+  padding: 4px 0;
+}
+
+.waiting-text {
+  font-size: 11px;
   color: hsl(var(--muted-foreground));
   font-style: italic;
 }
