@@ -134,6 +134,7 @@ export interface ChatAttachment {
   id: string;
   file?: File;
   url?: string;
+  dataUrl?: string;
   name: string;
   size: number;
   mimeType: string;

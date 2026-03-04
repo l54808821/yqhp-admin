@@ -232,19 +232,18 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
     }
     for (const att of attachments) {
       if (!att.url) continue;
-      const url = resolveAttachmentUrl(att.url);
       switch (att.type) {
         case 'image':
-          parts.push({ type: 'image_url', image_url: { url } });
+          parts.push({ type: 'image_url', image_url: { url: att.dataUrl || resolveAttachmentUrl(att.url) } });
           break;
         case 'audio':
-          parts.push({ type: 'input_audio', input_audio: { url } });
+          parts.push({ type: 'input_audio', input_audio: { url: resolveAttachmentUrl(att.url) } });
           break;
         case 'video':
-          parts.push({ type: 'video_url', video_url: { url } });
+          parts.push({ type: 'video_url', video_url: { url: resolveAttachmentUrl(att.url) } });
           break;
         case 'file':
-          parts.push({ type: 'file_url', file_url: { url, name: att.name } });
+          parts.push({ type: 'file_url', file_url: { url: resolveAttachmentUrl(att.url), name: att.name } });
           break;
       }
     }
@@ -539,6 +538,15 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
     clearInteraction();
   }
 
+  function fileToDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
   async function uploadFiles(files: File[]): Promise<ChatAttachment[]> {
     const attachments: ChatAttachment[] = files.map((file) => ({
       id: `att_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -553,10 +561,14 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
     await Promise.allSettled(
       attachments.map(async (att) => {
         try {
-          const result = await uploadAttachmentApi(att.file!, 'chat');
+          const [result, dataUrl] = await Promise.all([
+            uploadAttachmentApi(att.file!, 'chat'),
+            att.type === 'image' ? fileToDataUrl(att.file!) : Promise.resolve(undefined),
+          ]);
           att.url = result.url;
           att.type = result.type;
           att.status = 'done';
+          if (dataUrl) att.dataUrl = dataUrl;
         } catch (err: any) {
           att.status = 'error';
           att.error = err.message || '上传失败';
