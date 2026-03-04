@@ -231,7 +231,7 @@ export function handleBlockEvent(
             (t) => t.name === tcName && t.status === 'running',
           );
           if (tc) {
-            tc.result = data.result || '';
+            tc.result = data.result ?? '';
             tc.isError = isErr;
             tc.durationMs = data.durationMs || data.duration_ms;
             tc.status = isErr ? 'error' : 'completed';
@@ -250,7 +250,7 @@ export function handleBlockEvent(
             (b as ToolCallBlock).status === 'running'
           ) {
             const tb = b as ToolCallBlock;
-            tb.result = data.result || '';
+            tb.result = data.result ?? '';
             tb.isError = isErr;
             tb.durationMs = data.durationMs || data.duration_ms;
             tb.status = isErr ? 'error' : 'completed';

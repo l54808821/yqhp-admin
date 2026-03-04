@@ -57,9 +57,9 @@ const durationText = computed(() => {
         <div class="detail-label">参数</div>
         <pre class="detail-content">{{ block.arguments }}</pre>
       </div>
-      <div v-if="block.result" class="detail-section">
+      <div v-if="block.result || block.status === 'completed' || block.status === 'error'" class="detail-section">
         <div class="detail-label">{{ block.isError ? '错误' : '结果' }}</div>
-        <pre class="detail-content" :class="{ error: block.isError }">{{ block.result }}</pre>
+        <pre class="detail-content" :class="{ error: block.isError, empty: !block.result }">{{ block.result || '(无输出)' }}</pre>
       </div>
     </div>
   </div>
@@ -163,5 +163,10 @@ const durationText = computed(() => {
 
 .detail-content.error {
   color: #ff4d4f;
+}
+
+.detail-content.empty {
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
 }
 </style>
