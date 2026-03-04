@@ -52,32 +52,30 @@ const modelList = ref<AiModel[]>([]);
 const loading = ref(false);
 const dropdownVisible = ref(false);
 const searchKeyword = ref('');
+const selectedProvider = ref('');
 
-// 按供应商分组的模型
-const groupedModels = computed(() => {
+const providerOptions = computed(() => {
+  return [
+    { name: '全部', id: '' },
+    ...providers.value,
+  ];
+});
+
+const filteredModels = computed(() => {
   const keyword = searchKeyword.value.toLowerCase();
-  const groups: Record<string, { provider: AiProvider | null; models: AiModel[] }> = {};
+  const providerFilter = selectedProvider.value;
 
-  for (const model of modelList.value) {
+  return modelList.value.filter((model) => {
+    if (providerFilter && model.provider !== providerFilter) return false;
     if (keyword) {
-      const match =
+      return (
         model.name.toLowerCase().includes(keyword) ||
         model.model_id.toLowerCase().includes(keyword) ||
-        model.provider.toLowerCase().includes(keyword);
-      if (!match) continue;
-    }
-
-    const key = model.provider || '未分类';
-    if (!groups[key]) {
-      const p = providers.value.find(
-        (pv) => pv.name === model.provider || pv.id === model.provider_id,
+        model.provider.toLowerCase().includes(keyword)
       );
-      groups[key] = { provider: p || null, models: [] };
     }
-    groups[key].models.push(model);
-  }
-
-  return groups;
+    return true;
+  });
 });
 
 // 当前选中的模型
@@ -234,45 +232,44 @@ onMounted(loadData);
               size="small"
             />
           </div>
+          <div class="provider-filter">
+            <span
+              v-for="opt in providerOptions"
+              :key="opt.id"
+              class="provider-pill"
+              :class="{ active: selectedProvider === (opt.id === '' ? '' : opt.name) }"
+              @click="selectedProvider = opt.id === '' ? '' : opt.name"
+            >
+              {{ opt.name }}
+            </span>
+          </div>
           <div class="dropdown-list">
             <template v-if="loading">
               <div class="dropdown-loading">加载中...</div>
             </template>
-            <template v-else-if="Object.keys(groupedModels).length === 0">
+            <template v-else-if="filteredModels.length === 0">
               <Empty :image="Empty.PRESENTED_IMAGE_SIMPLE" description="无匹配模型" />
             </template>
             <template v-else>
               <div
-                v-for="(group, providerName) in groupedModels"
-                :key="providerName"
-                class="model-group"
+                v-for="model in filteredModels"
+                :key="model.id"
+                class="model-item"
+                :class="{ selected: model.id === modelId }"
+                @click="handleSelectModel(model)"
               >
-                <div class="group-header">
-                  <div class="group-icon">
-                    {{ getProviderInitial(String(providerName)) }}
-                  </div>
-                  <span class="group-name">{{ providerName }}</span>
-                  <span class="group-count">{{ group.models.length }}</span>
+                <div class="item-main">
+                  <span class="item-name">{{ model.name }}</span>
+                  <Tag v-if="model.capability_tags?.includes('对话')" color="blue" size="small" class="item-tag">CHAT</Tag>
+                  <Tag v-if="model.capability_tags?.includes('推理')" color="orange" size="small" class="item-tag">推理</Tag>
+                  <Tag v-if="model.capability_tags?.includes('视觉')" color="cyan" size="small" class="item-tag">视觉</Tag>
                 </div>
-                <div
-                  v-for="model in group.models"
-                  :key="model.id"
-                  class="model-item"
-                  :class="{ selected: model.id === modelId }"
-                  @click="handleSelectModel(model)"
-                >
-                  <div class="item-main">
-                    <span class="item-name">{{ model.name }}</span>
-                    <Tag v-if="model.capability_tags?.includes('对话')" color="blue" size="small" class="item-tag">CHAT</Tag>
-                    <Tag v-if="model.capability_tags?.includes('推理')" color="orange" size="small" class="item-tag">推理</Tag>
-                    <Tag v-if="model.capability_tags?.includes('视觉')" color="cyan" size="small" class="item-tag">视觉</Tag>
-                  </div>
-                  <div class="item-meta">
-                    <span class="item-id">{{ model.model_id }}</span>
-                    <span v-if="model.context_length" class="item-ctx">
-                      {{ model.context_length >= 1024 ? `${Math.round(model.context_length / 1024)}K` : model.context_length }}
-                    </span>
-                  </div>
+                <div class="item-meta">
+                  <span class="item-provider">{{ model.provider }}</span>
+                  <span class="item-id">{{ model.model_id }}</span>
+                  <span v-if="model.context_length" class="item-ctx">
+                    {{ model.context_length >= 1024 ? `${Math.round(model.context_length / 1024)}K` : model.context_length }}
+                  </span>
                 </div>
               </div>
             </template>
@@ -437,48 +434,44 @@ onMounted(loadData);
   color: #999;
 }
 
-.model-group {
-  margin-bottom: 4px;
-}
-
-.group-header {
+.provider-filter {
   display: flex;
   gap: 6px;
-  align-items: center;
-  padding: 6px 4px;
+  padding: 4px 0 8px;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  scrollbar-width: none;
+}
+
+.provider-filter::-webkit-scrollbar {
+  display: none;
+}
+
+.provider-pill {
+  flex-shrink: 0;
+  padding: 2px 10px;
+  border-radius: 12px;
   font-size: 12px;
-  color: #999;
-  position: sticky;
-  top: 0;
-  background: #fff;
-  z-index: 1;
-}
-
-.group-icon {
-  width: 18px;
-  height: 18px;
-  border-radius: 3px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  font-size: 10px;
-}
-
-.group-name {
-  font-weight: 500;
   color: #666;
+  background: #f5f5f5;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  line-height: 20px;
 }
 
-.group-count {
-  font-size: 11px;
-  color: #bbb;
+.provider-pill:hover {
+  color: #4096ff;
+  background: #e6f4ff;
+}
+
+.provider-pill.active {
+  color: #fff;
+  background: #4096ff;
 }
 
 .model-item {
-  padding: 8px 8px 8px 28px;
+  padding: 8px;
   border-radius: 4px;
   cursor: pointer;
   transition: background 0.15s;
