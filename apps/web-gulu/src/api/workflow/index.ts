@@ -240,6 +240,25 @@ export async function saveConversationMessageApi(conversationId: number, params:
   return requestClient.post<AIConversationMessage>(`/conversations/${conversationId}/messages`, params);
 }
 
+// ============ 通用附件上传 ============
+
+export interface AttachmentResult {
+  url: string;
+  name: string;
+  size: number;
+  mimeType: string;
+  type: 'image' | 'audio' | 'video' | 'file';
+}
+
+export async function uploadAttachmentApi(file: File, category = 'chat'): Promise<AttachmentResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('category', category);
+  return requestClient.post<AttachmentResult>('/attachments/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+}
+
 // AI 工作流配置（存储在 workflow definition 中）
 export interface AIWorkflowConfig {
   opening_statement?: string;

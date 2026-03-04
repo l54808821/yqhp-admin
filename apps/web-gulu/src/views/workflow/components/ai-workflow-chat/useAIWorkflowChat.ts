@@ -19,9 +19,10 @@ import {
 import type { AIInteractionData } from '#/api/debug';
 import { submitInteractionApi } from '#/api/debug';
 
-import type { ContentBlock } from '../shared/types';
+import type { ContentBlock, ChatAttachment, MultimodalContentPart } from '../shared/types';
 import { parseMessageContent, serializeBlocks, blocksToPlainText } from '../shared/types';
 import { handleBlockEvent } from '../shared/blockEventHandler';
+import { uploadAttachmentApi } from '#/api/workflow';
 
 export type StreamStatus = 'idle' | 'connecting' | 'streaming' | 'done' | 'error' | 'aborted';
 
@@ -30,6 +31,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   blocks: ContentBlock[];
   content: string;
+  attachments?: ChatAttachment[];
   loading?: boolean;
   error?: string;
   metadata?: Record<string, any>;
@@ -199,10 +201,54 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
     }
   }
 
-  function buildChatHistory(): Array<{ role: string; content: string }> {
+  function buildChatHistory(): Array<{ role: string; content: string | MultimodalContentPart[] }> {
     return messages.value
-      .filter((m) => !m.loading && m.content)
-      .map((m) => ({ role: m.role, content: blocksToPlainText(m.blocks) || m.content }));
+      .filter((m) => !m.loading && (m.content || m.attachments?.some((a) => a.status === 'done')))
+      .map((m) => {
+        const doneAttachments = m.attachments?.filter((a) => a.status === 'done' && a.url) || [];
+        if (doneAttachments.length > 0) {
+          return { role: m.role, content: buildMultimodalContent(m.content, doneAttachments) };
+        }
+        return { role: m.role, content: blocksToPlainText(m.blocks) || m.content };
+      });
+  }
+
+  function resolveAttachmentUrl(relativeUrl: string): string {
+    if (relativeUrl.startsWith('http://') || relativeUrl.startsWith('https://')) {
+      return relativeUrl;
+    }
+    const apiUrl = import.meta.env.VITE_GLOB_API_URL || '';
+    const baseUrl = apiUrl.startsWith('http')
+      ? apiUrl
+      : `${window.location.origin}${apiUrl}`;
+    const base = baseUrl.replace(/\/api\/?$/, '');
+    return `${base}${relativeUrl.startsWith('/') ? '' : '/'}${relativeUrl}`;
+  }
+
+  function buildMultimodalContent(text: string, attachments: ChatAttachment[]): MultimodalContentPart[] {
+    const parts: MultimodalContentPart[] = [];
+    if (text.trim()) {
+      parts.push({ type: 'text', text });
+    }
+    for (const att of attachments) {
+      if (!att.url) continue;
+      const url = resolveAttachmentUrl(att.url);
+      switch (att.type) {
+        case 'image':
+          parts.push({ type: 'image_url', image_url: { url } });
+          break;
+        case 'audio':
+          parts.push({ type: 'input_audio', input_audio: { url } });
+          break;
+        case 'video':
+          parts.push({ type: 'video_url', video_url: { url } });
+          break;
+        case 'file':
+          parts.push({ type: 'file_url', file_url: { url, name: att.name } });
+          break;
+      }
+    }
+    return parts;
   }
 
   function parseWorkflowDefinition() {
@@ -215,8 +261,8 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
     }
   }
 
-  async function sendMessage(text: string) {
-    if (!text.trim() || isStreaming.value) return;
+  async function sendMessage(text: string, attachments?: ChatAttachment[]) {
+    if ((!text.trim() && !attachments?.length) || isStreaming.value) return;
 
     // 自动创建会话
     if (!currentConversation.value) {
@@ -229,11 +275,26 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
 
     const chatHistory = buildChatHistory();
 
+    const doneAttachments = attachments?.filter((a) => a.status === 'done' && a.url) || [];
+
+    const userBlocks: ContentBlock[] = [];
+    if (text.trim()) {
+      userBlocks.push({ type: 'text', content: text });
+    }
+    for (const att of doneAttachments) {
+      if (att.type === 'image' && att.url) {
+        userBlocks.push({ type: 'image', url: att.url, name: att.name });
+      } else if (att.url) {
+        userBlocks.push({ type: 'file', url: att.url, name: att.name, size: att.size, mimeType: att.mimeType });
+      }
+    }
+
     const userMsg: ChatMessage = {
       id: generateId(),
       role: 'user',
-      blocks: [{ type: 'text', content: text }],
+      blocks: userBlocks,
       content: text,
+      attachments: doneAttachments.length > 0 ? doneAttachments : undefined,
       timestamp: Date.now(),
     };
     messages.value.push(userMsg);
@@ -252,6 +313,10 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
     streamStatus.value = 'connecting';
     sessionId.value = null;
     abortController.value = new AbortController();
+
+    const userMessage: string | MultimodalContentPart[] = doneAttachments.length > 0
+      ? buildMultimodalContent(text, doneAttachments)
+      : text;
 
     try {
       const wfDef = parseWorkflowDefinition();
@@ -279,7 +344,7 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
           conversationId: currentConversation.value?.id
             ? String(currentConversation.value.id)
             : undefined,
-          userMessage: text,
+          userMessage,
           chatHistory,
         }),
         signal: abortController.value.signal,
@@ -474,6 +539,41 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
     clearInteraction();
   }
 
+  async function uploadFiles(files: File[]): Promise<ChatAttachment[]> {
+    const attachments: ChatAttachment[] = files.map((file) => ({
+      id: `att_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      file,
+      name: file.name,
+      size: file.size,
+      mimeType: file.type || 'application/octet-stream',
+      type: inferAttachmentType(file.type),
+      status: 'uploading' as const,
+    }));
+
+    await Promise.allSettled(
+      attachments.map(async (att) => {
+        try {
+          const result = await uploadAttachmentApi(att.file!, 'chat');
+          att.url = result.url;
+          att.type = result.type;
+          att.status = 'done';
+        } catch (err: any) {
+          att.status = 'error';
+          att.error = err.message || '上传失败';
+        }
+      }),
+    );
+
+    return attachments;
+  }
+
+  function inferAttachmentType(mimeType: string): ChatAttachment['type'] {
+    if (mimeType.startsWith('image/')) return 'image';
+    if (mimeType.startsWith('audio/')) return 'audio';
+    if (mimeType.startsWith('video/')) return 'video';
+    return 'file';
+  }
+
   return {
     messages,
     conversations,
@@ -494,5 +594,6 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
     startNewConversation,
     confirmInteraction,
     skipInteraction,
+    uploadFiles,
   };
 }

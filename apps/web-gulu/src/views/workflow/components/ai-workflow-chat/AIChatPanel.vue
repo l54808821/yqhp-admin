@@ -2,11 +2,12 @@
 import { ref, computed, onMounted, watch, nextTick, onUnmounted } from 'vue';
 
 import { Button, Dropdown, Typography, Tooltip, Popconfirm, Tag } from 'ant-design-vue';
-import { Sender } from 'ant-design-x-vue';
 import { createIconifyIcon } from '@vben/icons';
 
 import type { Workflow } from '#/api/workflow';
 import AiBubbleContent from '#/components/ai-chat/AiBubbleContent.vue';
+import ChatSender from '#/components/ai-chat/ChatSender.vue';
+import type { ChatSenderAttachment } from '#/components/ai-chat/ChatSender.vue';
 import { ContentBlockRenderer } from '../shared/blocks';
 import AIInteractionCard from './AIInteractionCard.vue';
 import { useAIWorkflowChat } from './useAIWorkflowChat';
@@ -42,7 +43,6 @@ const chat = useAIWorkflowChat({
   persistConversation: props.persistConversation,
 });
 
-const inputText = ref('');
 const chatBodyRef = ref<HTMLElement | null>(null);
 const isAtBottom = ref(true);
 const sidebarCollapsed = ref(false);
@@ -96,10 +96,13 @@ function scrollToBottom() {
   }
 }
 
-function handleSend(text: string) {
-  if (!text.trim()) return;
-  inputText.value = '';
-  chat.sendMessage(text);
+function handleSend(text: string, attachments: ChatSenderAttachment[]) {
+  const doneAttachments = attachments.filter((a) => a.status === 'done' && a.url);
+  chat.sendMessage(text, doneAttachments.length > 0 ? doneAttachments : undefined);
+}
+
+function handleUploadFiles(files: File[], callback: (results: ChatSenderAttachment[]) => void) {
+  chat.uploadFiles(files).then(callback);
 }
 
 function handleSuggestedQuestion(q: string) {
@@ -343,30 +346,25 @@ onUnmounted(() => {
             </button>
           </div>
 
-          <!-- 输入卡片 -->
-          <div class="sender-card">
-            <Sender
-              v-model:value="inputText"
-              :loading="chat.isStreaming.value"
-              :placeholder="`问问 ${workflow.name || 'AI'}...`"
-              @submit="handleSend"
-            />
-            <div class="sender-toolbar">
-              <div class="toolbar-left" />
-              <div class="toolbar-right">
-                <Button
-                  type="text"
-                  size="small"
-                  class="clear-btn"
-                  :disabled="chat.isStreaming.value || !hasMessages"
-                  @click="chat.startNewConversation()"
-                >
-                  <template #icon><PlusIcon class="size-3" /></template>
-                  新对话
-                </Button>
-              </div>
-            </div>
-          </div>
+          <ChatSender
+            :loading="chat.isStreaming.value"
+            :placeholder="`问问 ${workflow.name || 'AI'}...`"
+            @send="handleSend"
+            @upload-files="handleUploadFiles"
+          >
+            <template #toolbar-right>
+              <Button
+                type="text"
+                size="small"
+                class="clear-btn"
+                :disabled="chat.isStreaming.value || !hasMessages"
+                @click="chat.startNewConversation()"
+              >
+                <template #icon><PlusIcon class="size-3" /></template>
+                新对话
+              </Button>
+            </template>
+          </ChatSender>
         </div>
       </div>
     </div>
@@ -776,62 +774,6 @@ onUnmounted(() => {
 .stop-btn:hover {
   background: hsl(var(--accent));
   border-color: #ff4d4f;
-}
-
-.sender-card {
-  padding: 8px 12px;
-  background: hsl(var(--background));
-  border: 1px solid hsl(var(--border));
-  border-radius: 24px;
-  transition: box-shadow 0.3s, border-color 0.3s;
-}
-
-.sender-card:focus-within {
-  border-color: hsl(var(--foreground) / 30%);
-}
-
-.sender-card :deep(.ant-sender) {
-  border: none !important;
-  box-shadow: none !important;
-  background: transparent !important;
-}
-
-.sender-card :deep(.ant-sender-content) {
-  border: none !important;
-}
-
-.sender-card :deep(.ant-input),
-.sender-card :deep(textarea) {
-  border: none !important;
-  box-shadow: none !important;
-  background: transparent !important;
-  padding: 4px 0 !important;
-  resize: none;
-  font-size: 15px;
-}
-
-.sender-card :deep(.ant-input:focus),
-.sender-card :deep(textarea:focus) {
-  box-shadow: none !important;
-}
-
-.sender-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: 4px;
-}
-
-.toolbar-left {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-
-.toolbar-right {
-  display: flex;
-  gap: 4px;
-  align-items: center;
 }
 
 .clear-btn {

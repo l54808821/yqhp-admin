@@ -119,6 +119,29 @@ export interface ToolCallRecord {
   duration_ms: number;
 }
 
+// ============ 多模态消息 ContentPart（OpenAI 兼容格式，用于发送给 LLM） ============
+
+export type MultimodalContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string; detail?: string } }
+  | { type: 'input_audio'; input_audio: { url: string; format?: string } }
+  | { type: 'video_url'; video_url: { url: string } }
+  | { type: 'file_url'; file_url: { url: string; name?: string } };
+
+export type AttachmentType = 'image' | 'audio' | 'video' | 'file';
+
+export interface ChatAttachment {
+  id: string;
+  file?: File;
+  url?: string;
+  name: string;
+  size: number;
+  mimeType: string;
+  type: AttachmentType;
+  status: 'uploading' | 'done' | 'error';
+  error?: string;
+}
+
 // ============ ContentBlock 多模态消息系统 ============
 
 export type ContentBlockType =

@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { h, ref, computed, onUnmounted } from 'vue';
-import { BubbleList, Sender } from 'ant-design-x-vue';
+import { BubbleList } from 'ant-design-x-vue';
 import type { BubbleListProps } from 'ant-design-x-vue';
-import { Button, Tag, Typography, Tooltip, Image as AImage, message } from 'ant-design-vue';
+import { Button, Tag, Typography, Image as AImage, message } from 'ant-design-vue';
 import { createIconifyIcon } from '@vben/icons';
 import { useAiChat } from './composables/useAiChat';
 import AiBubbleContent from './AiBubbleContent.vue';
-import AiImagePreview from './AiImagePreview.vue';
+import ChatSender from './ChatSender.vue';
+import type { ChatSenderAttachment } from './ChatSender.vue';
 import type { AiChatConfig, AiChatMessage, ImageAttachment } from './types';
 
 const StopIcon = createIconifyIcon('lucide:square');
 const TrashIcon = createIconifyIcon('lucide:trash-2');
-const ImagePlusIcon = createIconifyIcon('lucide:image-plus');
 const ArrowDownIcon = createIconifyIcon('lucide:arrow-down');
 const BotIcon = createIconifyIcon('lucide:bot');
 
@@ -62,9 +62,6 @@ const {
   regenerate,
 } = useAiChat(props.config);
 
-const inputText = ref('');
-const pendingImages = ref<ImageAttachment[]>([]);
-const fileInputRef = ref<HTMLInputElement | null>(null);
 const listRef = ref<InstanceType<typeof BubbleList> | null>(null);
 const isAtBottom = ref(true);
 
@@ -132,75 +129,53 @@ const bubbleItems = computed(() =>
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 
-function generateImageId(): string {
-  return `img_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+function handleSend(text: string, attachments: ChatSenderAttachment[]) {
+  if (!text.trim() && !attachments.length) return;
+  const images: ImageAttachment[] = attachments
+    .filter((a) => a.type === 'image' && a.url)
+    .map((a) => ({
+      id: a.id,
+      file: a.file,
+      url: a.url!,
+      name: a.name,
+      size: a.size,
+      status: 'done' as const,
+    }));
+  sendMessage(text, images.length ? images : undefined);
 }
 
-function addImageFromFile(file: File) {
-  if (!ACCEPTED_TYPES.includes(file.type)) {
-    message.warning('仅支持 PNG、JPG、GIF、WebP 格式');
-    return;
-  }
-  if (file.size > MAX_IMAGE_SIZE) {
-    message.warning('图片大小不能超过 5MB');
-    return;
-  }
-  const url = URL.createObjectURL(file);
-  pendingImages.value.push({
-    id: generateImageId(),
-    file,
-    url,
-    name: file.name,
-    size: file.size,
-    status: 'done',
-  });
-}
-
-function handlePasteFile(file: File) {
-  addImageFromFile(file);
-}
-
-function handleFileSelect() {
-  fileInputRef.value?.click();
-}
-
-function handleFileInputChange(e: Event) {
-  const input = e.target as HTMLInputElement;
-  if (input.files) {
-    for (const file of Array.from(input.files)) {
-      addImageFromFile(file);
+function handleUploadFiles(files: File[], callback: (results: ChatSenderAttachment[]) => void) {
+  const results: ChatSenderAttachment[] = [];
+  for (const file of files) {
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      message.warning('仅支持 PNG、JPG、GIF、WebP 格式');
+      continue;
     }
+    if (file.size > MAX_IMAGE_SIZE) {
+      message.warning('图片大小不能超过 5MB');
+      continue;
+    }
+    const url = URL.createObjectURL(file);
+    results.push({
+      id: `img_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      file,
+      url,
+      name: file.name,
+      size: file.size,
+      mimeType: file.type,
+      type: 'image',
+      status: 'done',
+    });
   }
-  input.value = '';
-}
-
-function removeImage(id: string) {
-  const idx = pendingImages.value.findIndex((img) => img.id === id);
-  if (idx >= 0) {
-    const img = pendingImages.value[idx]!;
-    URL.revokeObjectURL(img.url);
-    pendingImages.value.splice(idx, 1);
-  }
-}
-
-function handleSend(text: string) {
-  if (!text.trim() && !pendingImages.value.length) return;
-  const images = pendingImages.value.length ? [...pendingImages.value] : undefined;
-  pendingImages.value = [];
-  inputText.value = '';
-  sendMessage(text, images);
+  callback(results);
 }
 
 function handleRegenerate(messageId: string) {
   regenerate(messageId);
 }
 
-// BubbleList 自带 autoScroll（默认开启），会在内容更新时自动滚到底部，
-// 但用户手动往上滚时会暂停，滚回底部后恢复。不需要手动控制。
-
 onUnmounted(() => {
   stopGeneration();
-  pendingImages.value.forEach((img) => URL.revokeObjectURL(img.url));
 });
 </script>
 
@@ -289,60 +264,27 @@ onUnmounted(() => {
           </button>
         </div>
 
-        <!-- Gemini 风格输入框 -->
-        <div class="sender-card">
-          <!-- 图片预览 -->
-          <AiImagePreview
-            :images="pendingImages"
-            @remove="removeImage"
-          />
-
-          <!-- 输入区域 -->
-          <Sender
-            v-model:value="inputText"
-            :loading="isStreaming"
-            :placeholder="`问问 ${modelName || 'AI'}...`"
-            @submit="handleSend"
-            @paste-file="handlePasteFile"
-          />
-
-          <!-- 底部工具栏 -->
-          <div class="sender-toolbar">
-            <div class="toolbar-left">
-              <Tooltip title="添加图片">
-                <button
-                  class="toolbar-btn"
-                  :disabled="isStreaming"
-                  @click="handleFileSelect"
-                >
-                  <ImagePlusIcon class="toolbar-btn-icon" />
-                </button>
-              </Tooltip>
-            </div>
-            <div class="toolbar-right">
-              <Button
-                type="text"
-                size="small"
-                class="clear-btn"
-                :disabled="isStreaming || messages.length === 0"
-                @click="clearMessages"
-              >
-                <template #icon><TrashIcon class="clear-icon" /></template>
-                清空
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        <!-- 隐藏的文件选择器 -->
-        <input
-          ref="fileInputRef"
-          type="file"
+        <ChatSender
+          :loading="isStreaming"
+          :placeholder="`问问 ${modelName || 'AI'}...`"
           accept="image/png,image/jpeg,image/gif,image/webp"
-          multiple
-          style="display: none"
-          @change="handleFileInputChange"
-        />
+          attach-button-tooltip="添加图片"
+          @send="handleSend"
+          @upload-files="handleUploadFiles"
+        >
+          <template #toolbar-right>
+            <Button
+              type="text"
+              size="small"
+              class="clear-btn"
+              :disabled="isStreaming || messages.length === 0"
+              @click="clearMessages"
+            >
+              <template #icon><TrashIcon class="clear-icon" /></template>
+              清空
+            </Button>
+          </template>
+        </ChatSender>
       </div>
     </div>
   </div>
@@ -494,96 +436,6 @@ onUnmounted(() => {
 .stop-btn:hover {
   background: #fff1f0;
   border-color: #ff4d4f;
-}
-
-/* Gemini 风格输入卡片 */
-.sender-card {
-  padding: 8px 12px;
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  transition: box-shadow 0.3s, border-color 0.3s;
-}
-
-.sender-card:focus-within {
-  border-color: #c0c0c0;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-}
-
-.sender-card :deep(.ant-sender) {
-  border: none !important;
-  box-shadow: none !important;
-  background: transparent !important;
-}
-
-.sender-card :deep(.ant-sender-content) {
-  border: none !important;
-}
-
-.sender-card :deep(.ant-input),
-.sender-card :deep(textarea) {
-  border: none !important;
-  box-shadow: none !important;
-  background: transparent !important;
-  padding: 4px 0 !important;
-  resize: none;
-  font-size: 15px;
-}
-
-.sender-card :deep(.ant-input:focus),
-.sender-card :deep(textarea:focus) {
-  box-shadow: none !important;
-}
-
-/* 底部工具栏 */
-.sender-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: 4px;
-}
-
-.toolbar-left {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-
-.toolbar-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  color: #666;
-  cursor: pointer;
-  background: transparent;
-  border: none;
-  border-radius: 50%;
-  transition: all 0.2s;
-}
-
-.toolbar-btn:hover:not(:disabled) {
-  color: #333;
-  background: #f0f0f0;
-}
-
-.toolbar-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.toolbar-btn-icon {
-  width: 18px;
-  height: 18px;
-}
-
-.toolbar-right {
-  display: flex;
-  gap: 4px;
-  align-items: center;
 }
 
 .clear-btn {
