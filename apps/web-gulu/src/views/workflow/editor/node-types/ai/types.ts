@@ -35,9 +35,11 @@ export interface FallbackModel {
   base_url: string;
 }
 
+export type AINodeType = 'ai_agent' | 'ai_react' | 'ai_plan' | 'ai_direct';
+
 export interface AIStepNode {
   id: string;
-  type: 'ai_agent';
+  type: AINodeType;
   name: string;
   config: AIConfig;
   postProcessors?: import('../../types').KeywordConfig[];
@@ -47,7 +49,7 @@ export interface BuiltinTool {
   name: string;
   label: string;
   description: string;
-  category: 'basic' | 'web' | 'code' | 'interaction';
+  category: 'basic' | 'web' | 'code' | 'file' | 'interaction';
 }
 
 export const builtinTools: BuiltinTool[] = [
@@ -63,6 +65,12 @@ export const builtinTools: BuiltinTool[] = [
   // 代码执行
   { name: 'code_execute', label: '代码执行', description: '执行 Python / JavaScript 代码，用于计算和数据处理', category: 'code' },
   { name: 'shell_exec', label: '命令行执行', description: '在服务器上执行 Shell 命令（bash），适用于系统管理、文件操作、CLI 工具调用', category: 'code' },
+  // 文件操作
+  { name: 'read_file', label: '读取文件', description: '读取指定路径的文件内容，支持按行读取', category: 'file' },
+  { name: 'write_file', label: '写入文件', description: '将内容写入指定路径的文件，自动创建目录', category: 'file' },
+  { name: 'edit_file', label: '编辑文件', description: '查找并替换文件中的指定文本', category: 'file' },
+  { name: 'append_file', label: '追加文件', description: '在文件末尾追加内容', category: 'file' },
+  { name: 'list_dir', label: '列出目录', description: '列出指定目录下的文件和子目录', category: 'file' },
   // 交互
   { name: 'human_interaction', label: '人机交互', description: 'AI 主动请求用户确认、输入或选择', category: 'interaction' },
 ];
@@ -71,6 +79,7 @@ export const toolCategoryLabels: Record<string, string> = {
   basic: '基础工具',
   web: '联网工具',
   code: '代码执行',
+  file: '文件操作',
   interaction: '交互工具',
 };
 

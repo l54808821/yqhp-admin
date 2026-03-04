@@ -122,6 +122,32 @@ const containerRef = ref<HTMLElement | null>(null);
 const editorPanelHeight = ref(60);
 const isDragging = ref(false);
 
+const nodeType = computed(() => localNode.value?.type || 'ai_agent');
+const isDirect = computed(() => nodeType.value === 'ai_direct');
+const isPlan = computed(() => nodeType.value === 'ai_plan');
+const isRouter = computed(() => nodeType.value === 'ai_agent');
+const showToolsTab = computed(() => !isDirect.value);
+const showPlanSwitch = computed(() => isRouter.value);
+const showToolRounds = computed(() => !isDirect.value);
+
+const agentLabel = computed(() => {
+  switch (nodeType.value) {
+    case 'ai_react': return 'ReAct Agent';
+    case 'ai_plan': return 'Plan Agent';
+    case 'ai_direct': return 'Direct Agent';
+    default: return '智能 Agent';
+  }
+});
+
+const agentModeTip = computed(() => {
+  switch (nodeType.value) {
+    case 'ai_react': return '思考 → 行动 → 观察循环，适合需要工具的任务';
+    case 'ai_plan': return '规划 → 逐步执行 → 汇总，适合复杂多步任务';
+    case 'ai_direct': return '单次 LLM 调用，适合简单问答和文本生成';
+    default: return '自动路由：直接回答 / 工具调用 / Plan 模式';
+  }
+});
+
 watch(
   () => props.node,
   (newNode) => {
@@ -176,8 +202,8 @@ function handleRun() {
 
   run({
     id: localNode.value.id,
-    type: 'ai_agent',
-    name: localNode.value.name || '智能 Agent',
+    type: localNode.value.type || 'ai_agent',
+    name: localNode.value.name || agentLabel.value,
     config: {
       ai_model_id: localNode.value.config.ai_model_id,
       ai_model_name: localNode.value.config.ai_model_name || '',
@@ -247,10 +273,10 @@ function stopDrag() {
         <div class="toolbar-header">
           <div class="toolbar-title">
             <BrainIcon class="size-4" />
-            <span>智能 Agent</span>
+            <span>{{ agentLabel }}</span>
           </div>
           <div class="agent-mode-tip">
-            自动路由：直接回答 / 工具调用 / Plan 模式
+            {{ agentModeTip }}
           </div>
         </div>
         <div class="toolbar-spacer" />
@@ -313,14 +339,14 @@ function stopDrag() {
                 />
                 <div class="param-hint">启用后，AI 可在执行过程中请求用户交互</div>
               </Form.Item>
-              <Form.Item label="Plan 模式">
+              <Form.Item v-if="showPlanSwitch" label="Plan 模式">
                 <Switch
                   :checked="localNode.config.enable_plan_mode ?? true"
                   @change="(val: any) => handleConfigUpdate({ enable_plan_mode: val })"
                 />
                 <div class="param-hint">启用后，Agent 遇到复杂任务会自动切换到分步规划执行模式</div>
               </Form.Item>
-              <Form.Item v-if="localNode.config.enable_plan_mode" label="最大计划步骤">
+              <Form.Item v-if="isPlan || (showPlanSwitch && localNode.config.enable_plan_mode)" label="最大计划步骤">
                 <InputNumber
                   :value="localNode.config.max_plan_steps"
                   :min="2"
@@ -330,7 +356,7 @@ function stopDrag() {
                 />
                 <div class="param-hint">Plan 模式下最大步骤数</div>
               </Form.Item>
-              <Form.Item label="最大工具调用轮次">
+              <Form.Item v-if="showToolRounds" label="最大工具调用轮次">
                 <InputNumber
                   :value="localNode.config.max_tool_rounds"
                   :min="1"
@@ -340,7 +366,7 @@ function stopDrag() {
                 />
                 <div class="param-hint">ReAct 循环中工具调用的最大轮次</div>
               </Form.Item>
-              <Form.Item label="单工具超时（秒）">
+              <Form.Item v-if="showToolRounds" label="单工具超时（秒）">
                 <InputNumber
                   :value="localNode.config.tool_timeout"
                   :min="10"
@@ -376,7 +402,7 @@ function stopDrag() {
             </Form>
           </Tabs.TabPane>
 
-          <Tabs.TabPane key="tools" tab="工具">
+          <Tabs.TabPane v-if="showToolsTab" key="tools" tab="工具">
             <ToolsPanel
               :config="(localNode.config as unknown as AIConfig)"
               @update="handleConfigUpdate"

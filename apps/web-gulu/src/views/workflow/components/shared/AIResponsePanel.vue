@@ -46,6 +46,31 @@ const statusText = computed(() => {
   return props.response.success ? '成功' : '失败';
 });
 
+// Agent 模式标签
+const agentModeLabel = computed(() => {
+  const mode = agentTrace.value?.mode;
+  switch (mode) {
+    case 'react': return 'ReAct';
+    case 'plan': return 'Plan';
+    case 'plan_and_execute': return 'Plan';
+    case 'direct': return 'Direct';
+    case 'reflection': return 'Reflection';
+    default: return '';
+  }
+});
+
+const agentModeColor = computed(() => {
+  const mode = agentTrace.value?.mode;
+  switch (mode) {
+    case 'react': return '#1677ff';
+    case 'plan':
+    case 'plan_and_execute': return '#fa8c16';
+    case 'direct': return '#52c41a';
+    case 'reflection': return '#722ed1';
+    default: return '';
+  }
+});
+
 // 结束原因
 const finishReasonLabel = computed(() => {
   const reason = props.response.finishReason;
@@ -261,8 +286,11 @@ watch(responseBlocks, () => {
         <Tabs.TabPane key="detail" tab="详情" />
       </Tabs>
 
-      <!-- 右侧：只保留精简状态 -->
+      <!-- 右侧：模式标签 + 精简状态 -->
       <div class="response-meta">
+        <Tag v-if="agentModeLabel" :color="agentModeColor" class="status-tag">
+          {{ agentModeLabel }}
+        </Tag>
         <Tag :color="statusColor" class="status-tag">
           {{ statusText }}
         </Tag>
@@ -336,6 +364,12 @@ watch(responseBlocks, () => {
       <!-- 详情（模型、Token、结束原因等） -->
       <div v-else-if="activeTab === 'detail'" class="tab-content">
         <div class="detail-content">
+          <div class="detail-row" v-if="agentModeLabel">
+            <span class="detail-label">Agent 模式</span>
+            <span class="detail-value">
+              <Tag :color="agentModeColor" size="small">{{ agentModeLabel }}</Tag>
+            </span>
+          </div>
           <div class="detail-row" v-if="response.model">
             <span class="detail-label">模型</span>
             <span class="detail-value">{{ response.model }}</span>

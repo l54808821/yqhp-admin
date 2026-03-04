@@ -65,10 +65,21 @@ const isHttpNode = computed(() => localNode.value?.type === 'http');
 // 是否是脚本节点（使用特殊布局）
 const isScriptNode = computed(() => localNode.value?.type === 'script');
 
-// 是否是 AI 节点（使用特殊布局）
+// 是否是 AI 节点（使用特殊布局，且需正确接收子组件 emit 的节点数据）
 const isAiNode = computed(() => {
   const t = localNode.value?.type;
-  return t === 'ai_agent' || t === 'ai' || t === 'ai_chat' || t === 'ai_plan_execute' || t === 'ai_reflection' || t === 'ai_supervisor' || t === 'ai_deep_agent';
+  return (
+    t === 'ai_agent' ||
+    t === 'ai_react' ||
+    t === 'ai_plan' ||
+    t === 'ai_direct' ||
+    t === 'ai' ||
+    t === 'ai_chat' ||
+    t === 'ai_plan_execute' ||
+    t === 'ai_reflection' ||
+    t === 'ai_supervisor' ||
+    t === 'ai_deep_agent'
+  );
 });
 
 // 是否是数据库节点（使用特殊布局）
@@ -268,7 +279,7 @@ function handleDelete(node: any) {
             :node="localNode"
             :workflow-id="workflowId"
             :project-id="projectId"
-            @update="handleUpdate()"
+            @update="handleUpdate"
             @delete="handleDelete"
           />
         </Form>
