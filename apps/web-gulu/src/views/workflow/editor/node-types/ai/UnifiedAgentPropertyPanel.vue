@@ -2,7 +2,7 @@
 import { computed, ref, toRef, watch } from 'vue';
 
 import { createIconifyIcon } from '@vben/icons';
-import { Button, Form, InputNumber, Switch, Tabs, Tooltip, message } from 'ant-design-vue';
+import { Button, InputNumber, Switch, Tabs, Tooltip, message } from 'ant-design-vue';
 
 import type { StepExecutionResult } from '#/api/debug';
 import { useStepDebug } from '../../../components/execution/composables/useStepDebug';
@@ -27,6 +27,7 @@ const PlayIcon = createIconifyIcon('lucide:play');
 const StopIcon = createIconifyIcon('lucide:square');
 const GripHorizontalIcon = createIconifyIcon('lucide:grip-horizontal');
 const BrainIcon = createIconifyIcon('lucide:brain-circuit');
+const HelpCircleIcon = createIconifyIcon('lucide:help-circle');
 
 interface AgentStepNode {
   id: string;
@@ -311,7 +312,7 @@ function stopDrag() {
           </Tabs.TabPane>
 
           <Tabs.TabPane key="basic" tab="基本配置">
-            <Form layout="vertical" class="config-form">
+            <div class="basic-config">
               <ModelSelector
                 :model-id="localNode.config.ai_model_id"
                 :model-name="localNode.config.ai_model_name"
@@ -321,81 +322,132 @@ function stopDrag() {
                 :show-params="true"
                 @update="handleConfigUpdate"
               />
-              <Form.Item label="流式输出">
-                <Switch
-                  :checked="localNode.config.streaming ?? true"
-                  @change="(val: any) => handleConfigUpdate({ streaming: val })"
-                />
-                <div class="param-hint">启用后，AI 输出将实时流式显示</div>
-              </Form.Item>
-              <Form.Item label="交互模式">
-                <Switch
-                  :checked="localNode.config.interactive ?? false"
-                  @change="(val: any) => handleConfigUpdate({ interactive: val })"
-                />
-                <div class="param-hint">启用后，AI 可在执行过程中请求用户交互</div>
-              </Form.Item>
-              <Form.Item v-if="showPlanSwitch" label="Plan 模式">
-                <Switch
-                  :checked="localNode.config.enable_plan_mode ?? true"
-                  @change="(val: any) => handleConfigUpdate({ enable_plan_mode: val })"
-                />
-                <div class="param-hint">启用后，Agent 遇到复杂任务会自动切换到分步规划执行模式</div>
-              </Form.Item>
-              <Form.Item v-if="isPlan || (showPlanSwitch && localNode.config.enable_plan_mode)" label="最大计划步骤">
-                <InputNumber
-                  :value="localNode.config.max_plan_steps"
-                  :min="2"
-                  :max="20"
-                  style="width: 100%"
-                  @change="(val: any) => handleConfigUpdate({ max_plan_steps: val })"
-                />
-                <div class="param-hint">Plan 模式下最大步骤数</div>
-              </Form.Item>
-              <Form.Item v-if="showToolRounds" label="最大工具调用轮次">
-                <InputNumber
-                  :value="localNode.config.max_tool_rounds"
-                  :min="1"
-                  :max="50"
-                  style="width: 100%"
-                  @change="(val: any) => handleConfigUpdate({ max_tool_rounds: val })"
-                />
-                <div class="param-hint">ReAct 循环中工具调用的最大轮次</div>
-              </Form.Item>
-              <Form.Item v-if="showToolRounds" label="单工具超时（秒）">
-                <InputNumber
-                  :value="localNode.config.tool_timeout"
-                  :min="10"
-                  :max="600"
-                  style="width: 100%"
-                  @change="(val: any) => handleConfigUpdate({ tool_timeout: val })"
-                />
-                <div class="param-hint">单个工具（含 Skill）执行的最大超时时间，默认 180 秒</div>
-              </Form.Item>
-              <Form.Item label="超时时间（秒）">
-                <InputNumber
-                  :value="localNode.config.timeout"
-                  :min="0"
-                  :max="3600"
-                  style="width: 100%"
-                  @change="(val: any) => handleConfigUpdate({ timeout: val })"
-                />
-                <div class="param-hint">节点执行的最大超时时间，0 表示不限制</div>
-              </Form.Item>
-              <Form.Item
-                v-if="localNode.config.interactive"
-                label="交互超时（秒）"
-              >
-                <InputNumber
-                  :value="localNode.config.interaction_timeout"
-                  :min="10"
-                  :max="3600"
-                  style="width: 100%"
-                  @change="(val: any) => handleConfigUpdate({ interaction_timeout: val })"
-                />
-                <div class="param-hint">单次用户交互等待的最大时间</div>
-              </Form.Item>
-            </Form>
+
+              <div class="switch-group">
+                <div class="switch-row">
+                  <span class="switch-label">
+                    流式输出
+                    <Tooltip title="启用后，AI 输出将实时流式显示">
+                      <HelpCircleIcon class="hint-icon" />
+                    </Tooltip>
+                  </span>
+                  <Switch
+                    size="small"
+                    :checked="localNode.config.streaming ?? true"
+                    @change="(val: any) => handleConfigUpdate({ streaming: val })"
+                  />
+                </div>
+                <div class="switch-row">
+                  <span class="switch-label">
+                    交互模式
+                    <Tooltip title="启用后，AI 可在执行过程中请求用户交互">
+                      <HelpCircleIcon class="hint-icon" />
+                    </Tooltip>
+                  </span>
+                  <Switch
+                    size="small"
+                    :checked="localNode.config.interactive ?? false"
+                    @change="(val: any) => handleConfigUpdate({ interactive: val })"
+                  />
+                </div>
+                <div v-if="showPlanSwitch" class="switch-row">
+                  <span class="switch-label">
+                    Plan 模式
+                    <Tooltip title="Agent 遇到复杂任务会自动切换到分步规划执行模式">
+                      <HelpCircleIcon class="hint-icon" />
+                    </Tooltip>
+                  </span>
+                  <Switch
+                    size="small"
+                    :checked="localNode.config.enable_plan_mode ?? true"
+                    @change="(val: any) => handleConfigUpdate({ enable_plan_mode: val })"
+                  />
+                </div>
+              </div>
+
+              <div class="number-grid">
+                <div v-if="isPlan || (showPlanSwitch && localNode.config.enable_plan_mode)" class="number-cell">
+                  <span class="number-label">
+                    最大计划步骤
+                    <Tooltip title="Plan 模式下最大步骤数">
+                      <HelpCircleIcon class="hint-icon" />
+                    </Tooltip>
+                  </span>
+                  <InputNumber
+                    size="small"
+                    :value="localNode.config.max_plan_steps"
+                    :min="2"
+                    :max="20"
+                    class="number-input"
+                    @change="(val: any) => handleConfigUpdate({ max_plan_steps: val })"
+                  />
+                </div>
+                <div v-if="showToolRounds" class="number-cell">
+                  <span class="number-label">
+                    最大工具轮次
+                    <Tooltip title="ReAct 循环中工具调用的最大轮次">
+                      <HelpCircleIcon class="hint-icon" />
+                    </Tooltip>
+                  </span>
+                  <InputNumber
+                    size="small"
+                    :value="localNode.config.max_tool_rounds"
+                    :min="1"
+                    :max="50"
+                    class="number-input"
+                    @change="(val: any) => handleConfigUpdate({ max_tool_rounds: val })"
+                  />
+                </div>
+                <div v-if="showToolRounds" class="number-cell">
+                  <span class="number-label">
+                    工具超时(s)
+                    <Tooltip title="单个工具（含 Skill）执行的最大超时，默认 180 秒">
+                      <HelpCircleIcon class="hint-icon" />
+                    </Tooltip>
+                  </span>
+                  <InputNumber
+                    size="small"
+                    :value="localNode.config.tool_timeout"
+                    :min="10"
+                    :max="600"
+                    class="number-input"
+                    @change="(val: any) => handleConfigUpdate({ tool_timeout: val })"
+                  />
+                </div>
+                <div class="number-cell">
+                  <span class="number-label">
+                    节点超时(s)
+                    <Tooltip title="节点执行的最大超时时间，0 表示不限制">
+                      <HelpCircleIcon class="hint-icon" />
+                    </Tooltip>
+                  </span>
+                  <InputNumber
+                    size="small"
+                    :value="localNode.config.timeout"
+                    :min="0"
+                    :max="3600"
+                    class="number-input"
+                    @change="(val: any) => handleConfigUpdate({ timeout: val })"
+                  />
+                </div>
+                <div v-if="localNode.config.interactive" class="number-cell">
+                  <span class="number-label">
+                    交互超时(s)
+                    <Tooltip title="单次用户交互等待的最大时间">
+                      <HelpCircleIcon class="hint-icon" />
+                    </Tooltip>
+                  </span>
+                  <InputNumber
+                    size="small"
+                    :value="localNode.config.interaction_timeout"
+                    :min="10"
+                    :max="3600"
+                    class="number-input"
+                    @change="(val: any) => handleConfigUpdate({ interaction_timeout: val })"
+                  />
+                </div>
+              </div>
+            </div>
           </Tabs.TabPane>
 
           <Tabs.TabPane v-if="showToolsTab" key="tools" tab="工具">
@@ -540,14 +592,90 @@ function stopDrag() {
   padding-top: 0;
 }
 
-.config-form {
-  padding-top: 0;
+.basic-config {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.param-hint {
+.switch-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  transition: background 0.15s;
+}
+
+.switch-row:hover {
+  background: hsl(var(--accent) / 50%);
+}
+
+.switch-group .switch-row + .switch-row {
+  border-top: 1px solid hsl(var(--border) / 60%);
+}
+
+.switch-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: hsl(var(--foreground));
+}
+
+.hint-icon {
+  width: 14px;
+  height: 14px;
+  color: hsl(var(--muted-foreground) / 60%);
+  cursor: help;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+
+.hint-icon:hover {
+  color: hsl(var(--primary));
+}
+
+.number-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.number-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+  transition: border-color 0.15s;
+}
+
+.number-cell:hover {
+  border-color: hsl(var(--primary) / 40%);
+}
+
+.number-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   font-size: 12px;
   color: hsl(var(--muted-foreground));
-  margin-top: 4px;
+  white-space: nowrap;
+}
+
+.number-input {
+  width: 100% !important;
 }
 
 .resize-bar {
