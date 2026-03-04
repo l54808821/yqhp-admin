@@ -270,14 +270,10 @@ function stopDrag() {
       }"
     >
       <div class="toolbar">
-        <div class="toolbar-header">
-          <div class="toolbar-title">
-            <BrainIcon class="size-4" />
-            <span>{{ agentLabel }}</span>
-          </div>
-          <div class="agent-mode-tip">
-            {{ agentModeTip }}
-          </div>
+        <div class="toolbar-title">
+          <BrainIcon class="size-4" />
+          <span>{{ agentLabel }}</span>
+          <span class="agent-mode-tip">{{ agentModeTip }}</span>
         </div>
         <div class="toolbar-spacer" />
         <Tooltip v-if="hasDebugCtx" title="使用调试上下文变量">
@@ -491,16 +487,10 @@ function stopDrag() {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 8px 16px;
   background: hsl(var(--card));
   border-bottom: 1px solid hsl(var(--border));
   flex-shrink: 0;
-}
-
-.toolbar-header {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
 
 .toolbar-title {
@@ -510,11 +500,14 @@ function stopDrag() {
   font-size: 14px;
   font-weight: 500;
   color: hsl(var(--foreground));
+  white-space: nowrap;
 }
 
 .agent-mode-tip {
   font-size: 11px;
   color: hsl(var(--muted-foreground));
+  margin-left: 4px;
+  font-weight: normal;
 }
 
 .toolbar-spacer {
