@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { computed, ref } from 'vue';
 
 import { createIconifyIcon } from '@vben/icons';
+
 import type { ToolCallBlock } from '../types';
+import { getToolRenderer } from '../tool-renderers';
 
 const WrenchIcon = createIconifyIcon('lucide:wrench');
 const CheckIcon = createIconifyIcon('lucide:check');
@@ -11,12 +13,60 @@ const LoaderIcon = createIconifyIcon('lucide:loader-2');
 const ChevronDown = createIconifyIcon('lucide:chevron-down');
 const ChevronRight = createIconifyIcon('lucide:chevron-right');
 
+const CodeIcon = createIconifyIcon('lucide:code-2');
+const GlobeIcon = createIconifyIcon('lucide:globe');
+const TerminalIcon = createIconifyIcon('lucide:terminal');
+const SearchIcon = createIconifyIcon('lucide:search');
+const LinkIcon = createIconifyIcon('lucide:link');
+const FileIcon = createIconifyIcon('lucide:file');
+const VariableIcon = createIconifyIcon('lucide:variable');
+const BracesIcon = createIconifyIcon('lucide:braces');
+
 const props = defineProps<{
   block: ToolCallBlock;
   compact?: boolean;
 }>();
 
 const expanded = ref(false);
+
+const rendererComponent = computed(() => getToolRenderer(props.block.name));
+
+const toolIconMap: Record<string, any> = {
+  code_execute: CodeIcon,
+  http_request: GlobeIcon,
+  shell_exec: TerminalIcon,
+  bing_search: SearchIcon,
+  google_search: SearchIcon,
+  web_fetch: LinkIcon,
+  read_file: FileIcon,
+  write_file: FileIcon,
+  edit_file: FileIcon,
+  append_file: FileIcon,
+  list_dir: FileIcon,
+  var_read: VariableIcon,
+  var_write: VariableIcon,
+  json_parse: BracesIcon,
+};
+
+const toolDisplayNames: Record<string, string> = {
+  code_execute: '执行代码',
+  http_request: 'HTTP 请求',
+  shell_exec: 'Shell 命令',
+  bing_search: 'Bing 搜索',
+  google_search: 'Google 搜索',
+  web_fetch: '网页抓取',
+  read_file: '读取文件',
+  write_file: '写入文件',
+  edit_file: '编辑文件',
+  append_file: '追加文件',
+  list_dir: '列出目录',
+  var_read: '读取变量',
+  var_write: '写入变量',
+  json_parse: 'JSON 解析',
+};
+
+const toolIcon = computed(() => toolIconMap[props.block.name] || WrenchIcon);
+const toolDisplayName = computed(() => toolDisplayNames[props.block.name] || props.block.name);
 
 const statusIcon = computed(() => {
   switch (props.block.status) {
@@ -46,21 +96,21 @@ const durationText = computed(() => {
 <template>
   <div class="tool-call-block" :class="{ compact, expanded }">
     <div class="tool-header" @click="expanded = !expanded">
-      <WrenchIcon class="tool-icon" />
-      <span class="tool-name">{{ block.name }}</span>
+      <component :is="toolIcon" class="tool-icon" />
+      <span class="tool-name">{{ toolDisplayName }}</span>
       <component :is="statusIcon" class="status-icon" :style="{ color: statusColor }" :class="{ spinning: block.status === 'running' }" />
       <span v-if="durationText" class="duration">{{ durationText }}</span>
       <component :is="expanded ? ChevronDown : ChevronRight" class="chevron" />
     </div>
     <div v-if="expanded" class="tool-detail">
-      <div v-if="block.arguments" class="detail-section">
-        <div class="detail-label">参数</div>
-        <pre class="detail-content">{{ block.arguments }}</pre>
-      </div>
-      <div v-if="block.result || block.status === 'completed' || block.status === 'error'" class="detail-section">
-        <div class="detail-label">{{ block.isError ? '错误' : '结果' }}</div>
-        <pre class="detail-content" :class="{ error: block.isError, empty: !block.result }">{{ block.result || '(无输出)' }}</pre>
-      </div>
+      <component
+        :is="rendererComponent"
+        :name="block.name"
+        :arguments="block.arguments"
+        :result="block.result"
+        :is-error="block.isError"
+        :status="block.status"
+      />
     </div>
   </div>
 </template>
@@ -98,7 +148,6 @@ const durationText = computed(() => {
   flex: 1;
   font-weight: 500;
   color: hsl(var(--foreground));
-  font-family: 'SF Mono', 'Menlo', monospace;
   font-size: 12px;
 }
 
@@ -131,42 +180,5 @@ const durationText = computed(() => {
 .tool-detail {
   border-top: 1px solid hsl(var(--border));
   padding: 8px 10px;
-}
-
-.detail-section + .detail-section {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px dashed hsl(var(--border));
-}
-
-.detail-label {
-  font-size: 11px;
-  color: hsl(var(--muted-foreground));
-  margin-bottom: 4px;
-  font-weight: 500;
-}
-
-.detail-content {
-  margin: 0;
-  font-size: 11px;
-  line-height: 1.5;
-  font-family: 'SF Mono', 'Menlo', monospace;
-  white-space: pre-wrap;
-  word-break: break-all;
-  color: hsl(var(--foreground));
-  background: hsl(var(--muted) / 30%);
-  padding: 6px 8px;
-  border-radius: 4px;
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.detail-content.error {
-  color: #ff4d4f;
-}
-
-.detail-content.empty {
-  color: hsl(var(--muted-foreground));
-  font-style: italic;
 }
 </style>
