@@ -22,12 +22,14 @@ const PanelLeftOpen = createIconifyIcon('lucide:panel-left-open');
 
 interface Props {
   workflow: Workflow;
+  definition?: Record<string, any>;
   envId?: number;
   compact?: boolean;
   persistConversation?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  definition: undefined,
   envId: 0,
   compact: false,
   persistConversation: true,
@@ -35,6 +37,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const chat = useAIWorkflowChat({
   workflow: props.workflow,
+  getDefinition: () => props.definition,
   envId: props.envId,
   persistConversation: props.persistConversation,
 });

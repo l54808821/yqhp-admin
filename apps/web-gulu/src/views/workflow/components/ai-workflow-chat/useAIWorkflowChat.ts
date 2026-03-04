@@ -69,12 +69,13 @@ function getExecuteUrl(): string {
 
 export interface UseAIWorkflowChatOptions {
   workflow: Workflow;
+  getDefinition?: () => Record<string, any> | undefined;
   envId?: number;
   persistConversation?: boolean;
 }
 
 export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
-  const { workflow, envId, persistConversation = true } = options;
+  const { workflow, getDefinition, envId, persistConversation = true } = options;
 
   const messages = ref<ChatMessage[]>([]);
   const conversations = ref<AIConversation[]>([]);
@@ -94,7 +95,8 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
 
   const aiConfig = computed<AIWorkflowConfig>(() => {
     try {
-      const def = JSON.parse(workflow.definition || '{}');
+      const liveDef = getDefinition?.();
+      const def = liveDef || JSON.parse(workflow.definition || '{}');
       return def.ai_config || {};
     } catch {
       return {};
@@ -204,6 +206,8 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
   }
 
   function parseWorkflowDefinition() {
+    const liveDef = getDefinition?.();
+    if (liveDef) return liveDef;
     try {
       return JSON.parse(workflow.definition || '{}');
     } catch {

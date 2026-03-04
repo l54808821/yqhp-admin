@@ -878,6 +878,7 @@ async function handleRename(newName: string) {
                   v-if="isAIWorkflow && workflow"
                   v-show="effectiveTab === 'chat'"
                   :workflow="workflow"
+                  :definition="workflowDefinition"
                   :env-id="projectStore.currentEnvId"
                   compact
                   :persist-conversation="false"
