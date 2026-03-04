@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Image as AImage } from 'ant-design-vue';
 import type { ImageBlock } from '../types';
 
 defineProps<{
@@ -8,7 +9,12 @@ defineProps<{
 
 <template>
   <div class="image-block">
-    <img :src="block.url" :alt="block.name || '图片'" class="image-preview" />
+    <AImage
+      :src="block.url"
+      :alt="block.name || '图片'"
+      :preview="true"
+      class="image-preview"
+    />
     <span v-if="block.name" class="image-name">{{ block.name }}</span>
   </div>
 </template>
@@ -18,14 +24,22 @@ defineProps<{
   display: flex;
   flex-direction: column;
   gap: 4px;
+  max-width: 100px;
 }
 
-.image-preview {
-  max-width: 100%;
-  max-height: 300px;
+.image-block :deep(.ant-image) {
+  display: block;
   border-radius: 8px;
-  object-fit: contain;
+  overflow: hidden;
   border: 1px solid hsl(var(--border));
+  cursor: pointer;
+}
+
+.image-block :deep(.ant-image img) {
+  max-width: 100%;
+  max-height: 70px;
+  object-fit: contain;
+  display: block;
 }
 
 .image-name {
