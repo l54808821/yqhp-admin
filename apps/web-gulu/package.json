@@ -46,6 +46,7 @@
     "ant-design-x-vue": "^1.6.0",
     "dayjs": "catalog:",
     "highlight.js": "^11.11.1",
+    "lucide-vue-next": "catalog:",
     "marked": "^15.0.7",
     "monaco-editor": "^0.50.0",
     "pinia": "catalog:",
