@@ -875,8 +875,7 @@ async function handleRename(newName: string) {
                   @delete="handleNodeDelete"
                 />
                 <AIChatPanel
-                  v-if="isAIWorkflow && workflow"
-                  v-show="effectiveTab === 'chat'"
+                  v-if="isAIWorkflow && workflow && effectiveTab === 'chat'"
                   :workflow="workflow"
                   :definition="workflowDefinition"
                   :env-id="projectStore.currentEnvId"
