@@ -377,7 +377,6 @@ onMounted(() => {
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
-  border: 2px solid transparent;
 }
 
 .provider-item:hover {
@@ -386,11 +385,10 @@ onMounted(() => {
 
 .provider-item--active {
   background: var(--ant-color-primary-bg, #e6f4ff);
-  border-color: var(--ant-color-primary, #1677ff);
 }
 
 .provider-item--active:hover {
-  background: var(--ant-color-primary-bg, #e6f4ff);
+  background: var(--ant-color-primary-bg-hover, #d6e8fc);
 }
 
 .provider-item__icon {
