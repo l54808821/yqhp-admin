@@ -21,6 +21,7 @@ const defaultPreferences: Preferences = {
     dynamicTitle: true,
     enableCheckUpdates: true,
     enablePreferences: true,
+    enableCopyPreferences: true,
     enableRefreshToken: false,
     enableStickyPreferencesNavigationBar: true,
     isMobile: false,
@@ -85,6 +86,7 @@ const defaultPreferences: Preferences = {
     collapsedButton: true,
     collapsedShowTitle: false,
     collapseWidth: 60,
+    draggable: true,
     enable: true,
     expandOnHover: true,
     extraCollapse: false,
@@ -105,7 +107,9 @@ const defaultPreferences: Preferences = {
     showIcon: true,
     showMaximize: true,
     showMore: true,
+    showRefresh: true,
     styleType: 'chrome',
+    visitHistory: true,
     wheelable: true,
   },
   theme: {
@@ -119,6 +123,7 @@ const defaultPreferences: Preferences = {
     fontSize: 16,
     semiDarkHeader: false,
     semiDarkSidebar: false,
+    semiDarkSidebarSub: false,
   },
   transition: {
     enable: true,
