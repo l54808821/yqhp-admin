@@ -214,11 +214,10 @@ onMounted(() => {
     <aside class="provider-sidebar">
       <div class="sidebar-header">
         <h2 class="sidebar-title">供应商</h2>
-        <Tooltip title="添加供应商">
-          <Button type="primary" size="small" shape="circle" @click="handleAddProvider">
-            <template #icon><PlusOutlined /></template>
-          </Button>
-        </Tooltip>
+        <Button type="primary" size="small" @click="handleAddProvider">
+          <template #icon><PlusOutlined /></template>
+          添加
+        </Button>
       </div>
 
       <Spin :spinning="loadingProviders">
@@ -360,6 +359,7 @@ onMounted(() => {
   display: flex;
   height: calc(100vh - 50px);
   overflow: hidden;
+  background: hsl(var(--header));
 }
 
 /* ---- 左侧供应商列表 ---- */
@@ -369,7 +369,7 @@ onMounted(() => {
   width: 280px;
   flex-shrink: 0;
   border-right: 1px solid var(--ant-color-border-secondary, #f0f0f0);
-  background: var(--ant-color-bg-layout, #fafafa);
+  background: hsl(var(--header));
 }
 
 .sidebar-header {
