@@ -7,10 +7,6 @@ import {
   type SSEState,
   type SSEEvent,
   type AIInteractionData,
-  type AIChunkData,
-  type AICompleteData,
-  type AIToolCallStartData,
-  type AIToolCallCompleteData,
   type WorkflowCompletedData,
 } from '#/utils/sse';
 import {
@@ -19,7 +15,6 @@ import {
 } from '#/api/debug';
 import type {
   DebugSummary,
-  ProgressData,
   StepResult,
   StepStartedData,
 } from '#/api/debug';
@@ -37,7 +32,6 @@ export interface UseExecutionOptions {
   persist?: Ref<boolean>; // 是否持久化执行记录，默认 true
   onStepStarted?: (result: StepResult) => void;
   onStepResult?: (result: StepResult) => void;
-  onStepSkipped?: (result: StepResult) => void;
   onComplete?: (summary: DebugSummary) => void;
   onDisconnect?: () => void;
 }
@@ -74,7 +68,6 @@ export function useExecution(options: UseExecutionOptions) {
     persist,
     onStepStarted,
     onStepResult,
-    onStepSkipped,
     onComplete,
     onDisconnect,
   } = options;
@@ -85,15 +78,12 @@ export function useExecution(options: UseExecutionOptions) {
   const sessionId = ref<string | null>(null);
   const sseState = ref<SSEState>('disconnected');
   const stepResults = ref<StepResult[]>([]);
-  const currentProgress = ref<ProgressData | null>(null);
   const executionSummary = ref<DebugSummary | null>(null);
   const logs = ref<string[]>([]);
   const errorMessage = ref<string | null>(null);
 
-  // AI 相关状态
-  const aiContent = ref<Map<string, string>>(new Map());
+  // AI 状态（blocks 是唯一数据源）
   const currentAIStepId = ref<string | null>(null);
-  const aiToolCalls = ref<Map<string, Array<{ toolName: string; arguments: string; result?: string; isError?: boolean; durationMs?: number; status: 'running' | 'done' }>>>(new Map());
   const aiStreamingBlocks = ref<Map<string, ContentBlock[]>>(new Map());
 
   // AI 交互状态
@@ -130,11 +120,9 @@ export function useExecution(options: UseExecutionOptions) {
   const isRunning = computed(() => sseState.value === 'connected' && !executionSummary.value);
   const isCompleted = computed(() => !!executionSummary.value);
   const progressPercent = computed(() => {
-    const percent = currentProgress.value?.percentage || 0;
-    if (isRunning.value && percent >= 100) {
-      return 99;
-    }
-    return percent;
+    if (isRunning.value) return 50;
+    if (isCompleted.value) return 100;
+    return 0;
   });
 
   const statusText = computed(() => {
@@ -195,7 +183,6 @@ export function useExecution(options: UseExecutionOptions) {
 
     switch (event.type) {
       case 'connected':
-        // 收到后端业务 connected 事件，才算真正连接成功，重置重连状态
         reconnecting.value = false;
         reconnectAttempts.value = 0;
         break;
@@ -203,66 +190,24 @@ export function useExecution(options: UseExecutionOptions) {
         handleStepStarted(event.data as StepStartedData);
         break;
       case 'step_completed': {
-        // 后端 SSE 事件中 output 数据可能在 result 字段中，统一映射到 output
         const completedData = event.data as any;
         handleStepResult({
           ...completedData,
           output: completedData.output || completedData.result,
         } as StepResult);
-        // 同步更新该步骤的 block 状态（如计划步骤标记为完成）
-        const sid = completedData.stepId;
-        if (sid && aiStreamingBlocks.value.has(sid)) {
-          const blocks = aiStreamingBlocks.value.get(sid)!;
-          handleBlockEvent(blocks, 'step_completed', completedData);
-          aiStreamingBlocks.value.set(sid, [...blocks]);
-          triggerBlocksReactivity();
-        }
         break;
       }
-      case 'step_failed': {
-        // step_failed 事件：确保 status 为 'failed'，并将 result 映射到 output
-        const failedData = event.data as any;
-        handleStepResult({
-          ...failedData,
-          status: 'failed',
-          output: failedData.output || failedData.result,
-        } as StepResult);
-        break;
-      }
-      case 'step_skipped':
-        handleStepSkipped(event.data as {
-          stepId: string;
-          stepName: string;
-          stepType?: string;
-          parentId?: string;
-          iteration?: number;
-          reason: string;
-        });
-        break;
-      case 'progress':
-        handleProgress(event.data as ProgressData);
-        break;
       case 'workflow_completed':
         handleWorkflowComplete(event.data as WorkflowCompletedData);
         break;
       case 'ai_chunk':
-        handleAIChunk(event.data as AIChunkData);
-        break;
       case 'ai_thinking':
-      case 'ai_plan_started':
-      case 'ai_plan_step_update':
-      case 'ai_plan_completed':
-      case 'ai_plan_modified':
-        handleAIBlockEvent(event.type, event.data);
-        break;
-      case 'ai_complete':
-        handleAIComplete(event.data as AICompleteData);
-        break;
       case 'ai_tool_call_start':
-        handleAIToolCallStart(event.data as AIToolCallStartData);
-        break;
       case 'ai_tool_call_complete':
-        handleAIToolCallComplete(event.data as AIToolCallCompleteData);
+      case 'ai_plan_update':
+      case 'ai_verify':
+      case 'message_complete':
+        handleAIBlockEvent(event.type, event.data);
         break;
       case 'ai_interaction_required':
         handleAIInteraction(event.data as AIInteractionData);
@@ -287,28 +232,6 @@ export function useExecution(options: UseExecutionOptions) {
     onStepStarted?.(result);
   }
 
-  function handleStepSkipped(data: {
-    stepId: string;
-    stepName: string;
-    stepType?: string;
-    parentId?: string;
-    iteration?: number;
-    reason: string;
-  }) {
-    const result: StepResult = {
-      stepId: data.stepId,
-      stepName: data.stepName,
-      stepType: data.stepType,
-      parentId: data.parentId,
-      iteration: data.iteration,
-      status: 'skipped',
-      durationMs: 0,
-      error: data.reason,
-    };
-    stepResults.value = [...stepResults.value, result];
-    onStepSkipped?.(result);
-  }
-
   function handleStepResult(result: StepResult) {
     const index = stepResults.value.findIndex(
       (r) =>
@@ -331,10 +254,6 @@ export function useExecution(options: UseExecutionOptions) {
     }
 
     onStepResult?.(result);
-  }
-
-  function handleProgress(progress: ProgressData) {
-    currentProgress.value = progress;
   }
 
   function handleWorkflowComplete(data: WorkflowCompletedData) {
@@ -385,75 +304,7 @@ export function useExecution(options: UseExecutionOptions) {
     currentAIStepId.value = stepId;
     const blocks = getOrCreateBlocks(stepId);
     handleBlockEvent(blocks, eventType, data);
-    // 替换数组引用，确保 Vue 检测到 blocks 内部对象的属性变更并触发组件重渲染
     aiStreamingBlocks.value.set(stepId, [...blocks]);
-    triggerBlocksReactivity();
-  }
-
-  function handleAIChunk(data: AIChunkData) {
-    currentAIStepId.value = data.stepId;
-    const current = data.index === 0 ? '' : (aiContent.value.get(data.stepId) || '');
-    aiContent.value.set(data.stepId, current + data.chunk);
-    aiContent.value = new Map(aiContent.value);
-
-    const blocks = getOrCreateBlocks(data.stepId);
-    handleBlockEvent(blocks, 'ai_chunk', data);
-    triggerBlocksReactivity();
-  }
-
-  function handleAIComplete(data: AICompleteData) {
-    aiContent.value.set(data.stepId, data.content);
-    aiContent.value = new Map(aiContent.value);
-
-    const blocks = getOrCreateBlocks(data.stepId);
-    handleBlockEvent(blocks, 'ai_complete', data);
-    triggerBlocksReactivity();
-  }
-
-  function handleAIToolCallStart(data: AIToolCallStartData) {
-    currentAIStepId.value = data.stepId;
-    const calls = aiToolCalls.value.get(data.stepId) || [];
-    calls.push({
-      toolName: data.toolName,
-      arguments: data.arguments,
-      status: 'running',
-    });
-    aiToolCalls.value.set(data.stepId, calls);
-    aiToolCalls.value = new Map(aiToolCalls.value);
-
-    const blocks = getOrCreateBlocks(data.stepId);
-    handleBlockEvent(blocks, 'ai_tool_call_start', data);
-    triggerBlocksReactivity();
-  }
-
-  function handleAIToolCallComplete(data: AIToolCallCompleteData) {
-    const calls = aiToolCalls.value.get(data.stepId) || [];
-    const idx = calls.findIndex(
-      (c) => c.toolName === data.toolName && c.status === 'running'
-    );
-    if (idx >= 0) {
-      calls[idx] = {
-        ...calls[idx],
-        result: data.result,
-        isError: data.isError,
-        durationMs: data.durationMs,
-        status: 'done',
-      };
-    } else {
-      calls.push({
-        toolName: data.toolName,
-        arguments: data.arguments,
-        result: data.result,
-        isError: data.isError,
-        durationMs: data.durationMs,
-        status: 'done',
-      });
-    }
-    aiToolCalls.value.set(data.stepId, calls);
-    aiToolCalls.value = new Map(aiToolCalls.value);
-
-    const blocks = getOrCreateBlocks(data.stepId);
-    handleBlockEvent(blocks, 'ai_tool_call_complete', data);
     triggerBlocksReactivity();
   }
 
@@ -570,11 +421,8 @@ export function useExecution(options: UseExecutionOptions) {
       loading.value = true;
       errorMessage.value = null;
       stepResults.value = [];
-      currentProgress.value = null;
       executionSummary.value = null;
       logs.value = [];
-      aiContent.value = new Map();
-      aiToolCalls.value = new Map();
       aiStreamingBlocks.value = new Map();
       currentAIStepId.value = null;
       reconnectAttempts.value = 0;
@@ -716,14 +564,11 @@ export function useExecution(options: UseExecutionOptions) {
     sessionId,
     sseState,
     stepResults,
-    currentProgress,
     executionSummary,
     logs,
     errorMessage,
 
     // AI 状态
-    aiContent,
-    aiToolCalls,
     aiStreamingBlocks,
     currentAIStepId,
 

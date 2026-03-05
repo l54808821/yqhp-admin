@@ -73,65 +73,6 @@ export function useAiStream() {
     }
   }
 
-  /**
-   * 处理工作流 SSE 事件（ai_chunk、ai_complete、ai_tool_call_start 等）
-   * 由外部 SSEService 的 onMessage 回调调用
-   */
-  function handleWorkflowSSEEvent(eventType: string, data: any) {
-    switch (eventType) {
-      case 'ai_chunk': {
-        const chunk = data?.content || data?.chunk || '';
-        if (chunk) {
-          content.value += chunk;
-        }
-        const thinkChunk = data?.thinking || '';
-        if (thinkChunk) {
-          thinking.value += thinkChunk;
-        }
-        status.value = 'streaming';
-        break;
-      }
-      case 'ai_complete': {
-        if (data?.content) {
-          content.value = data.content;
-        }
-        status.value = 'done';
-        break;
-      }
-      case 'ai_error': {
-        error.value = data?.error || data?.message || '未知错误';
-        status.value = 'error';
-        break;
-      }
-      case 'ai_tool_call_start': {
-        const partial: ToolCallRecord = {
-          round: data?.round || toolCalls.value.length + 1,
-          tool_name: data?.tool_name || '',
-          arguments: data?.arguments || '',
-          result: '',
-          is_error: false,
-          duration_ms: 0,
-        };
-        toolCalls.value.push(partial);
-        break;
-      }
-      case 'ai_tool_call_complete': {
-        const idx = toolCalls.value.findIndex(
-          (tc) => tc.tool_name === data?.tool_name && !tc.result,
-        );
-        if (idx >= 0) {
-          toolCalls.value[idx] = {
-            ...toolCalls.value[idx]!,
-            result: data?.result || '',
-            is_error: data?.is_error || false,
-            duration_ms: data?.duration_ms || 0,
-          };
-        }
-        break;
-      }
-    }
-  }
-
   function abort() {
     abortController.value?.abort();
   }
@@ -144,7 +85,6 @@ export function useAiStream() {
     error,
     reset,
     startOpenAIStream,
-    handleWorkflowSSEEvent,
     abort,
   };
 }

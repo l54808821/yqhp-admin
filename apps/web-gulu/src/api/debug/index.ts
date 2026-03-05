@@ -99,21 +99,15 @@ export type SSEEventType =
   | 'connected'
   | 'step_started'
   | 'step_completed'
-  | 'step_failed'
-  | 'step_skipped'
-  | 'progress'
   | 'workflow_completed'
   | 'ai_chunk'
-  | 'ai_complete'
-  | 'ai_error'
   | 'ai_thinking'
-  | 'ai_plan_started'
-  | 'ai_plan_step_update'
-  | 'ai_plan_completed'
-  | 'ai_plan_modified'
-  | 'ai_interaction_required'
   | 'ai_tool_call_start'
   | 'ai_tool_call_complete'
+  | 'ai_plan_update'
+  | 'ai_verify'
+  | 'ai_error'
+  | 'ai_interaction_required'
   | 'message_complete'
   | 'heartbeat'
   | 'error';
@@ -146,16 +140,6 @@ export interface StepStartedData {
   iteration?: number;
 }
 
-// 步骤跳过数据
-export interface StepSkippedData {
-  stepId: string;
-  stepName: string;
-  stepType?: string;
-  parentId?: string;
-  iteration?: number;
-  reason: string;
-}
-
 // 工作流完成数据
 export interface WorkflowCompletedData {
   sessionId: string;
@@ -170,25 +154,16 @@ export interface WorkflowCompletedData {
 
 // AI 块数据
 export interface AIChunkData {
+  blockId: string;
   stepId: string;
   chunk: string;
-  index: number;
 }
 
-// AI 完成数据
-export interface AICompleteData {
-  stepId: string;
-  content: string;
-  promptTokens: number;
-  completionTokens: number;
-  totalTokens: number;
-}
-
-// AI 推理思考数据（ReAct 模式）
+// AI 思考数据
 export interface AIThinkingData {
+  blockId: string;
   stepId: string;
-  round: number;
-  thinking: string;
+  chunk: string;
 }
 
 // AI 错误数据
@@ -200,19 +175,58 @@ export interface AIErrorData {
 
 // AI 工具调用开始数据
 export interface AIToolCallStartData {
+  blockId: string;
   stepId: string;
   toolName: string;
   arguments: string;
+  planStepIndex?: number;
 }
 
 // AI 工具调用完成数据
 export interface AIToolCallCompleteData {
+  blockId: string;
   stepId: string;
   toolName: string;
-  arguments: string;
   result: string;
   isError: boolean;
   durationMs: number;
+}
+
+// AI Plan 更新数据
+export interface AIPlanUpdateData {
+  blockId: string;
+  stepId: string;
+  action: 'started' | 'step_update' | 'modified' | 'completed';
+  reason?: string;
+  steps?: Array<{ index: number; task: string }>;
+  stepIndex?: number;
+  status?: string;
+  result?: string;
+  error?: string;
+  fromStepIndex?: number;
+  newSteps?: Array<{ index: number; task: string }>;
+  synthesis?: string;
+}
+
+// AI 验证数据
+export interface AIVerifyData {
+  blockId: string;
+  stepId: string;
+  status: 'verifying' | 'completed';
+  verified?: boolean;
+}
+
+// 消息完成数据
+export interface MessageCompleteData {
+  stepId: string;
+  content: string;
+  usage: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+  model?: string;
+  verified?: boolean;
 }
 
 // 交互类型

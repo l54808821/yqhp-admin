@@ -7,3 +7,4 @@ export { default as StepExecBlock } from './StepExecBlock.vue';
 export { default as ErrorBlock } from './ErrorBlock.vue';
 export { default as ImageBlock } from './ImageBlock.vue';
 export { default as FileBlock } from './FileBlock.vue';
+export { default as VerificationBlock } from './VerificationBlock.vue';

@@ -413,29 +413,24 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
   }
 
   function handleSSEEvent(eventType: string, data: any, msg: ChatMessage) {
-    // 共享的 block 构建逻辑
-    handleBlockEvent(msg.blocks, eventType, data);
+    const changed = handleBlockEvent(msg.blocks, eventType, data);
+    if (changed) {
+      msg.blocks = [...msg.blocks];
+    }
 
-    // ChatMessage 特有的副作用
     switch (eventType) {
       case 'ai_chunk':
         msg.loading = false;
         msg.content = blocksToPlainText(msg.blocks);
         break;
 
-      case 'ai_complete':
       case 'message_complete':
         msg.loading = false;
         msg.content = blocksToPlainText(msg.blocks);
         msg.metadata = {
           ...msg.metadata,
-          usage: data.usage || {
-            prompt_tokens: data.promptTokens,
-            completion_tokens: data.completionTokens,
-            total_tokens: data.totalTokens,
-          },
+          usage: data.usage,
           model: data.model || msg.metadata?.model,
-          finishReason: data.finishReason || msg.metadata?.finishReason,
           verified: data.verified || msg.metadata?.verified,
         };
         break;

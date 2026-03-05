@@ -44,6 +44,7 @@ export type {
   PlanBlock,
   PlanStepBlock,
   StepExecBlock,
+  VerificationBlock,
   ErrorBlock,
 } from './types';
 
@@ -55,7 +56,7 @@ export {
 
 export {
   handleBlockEvent,
-  findLastBlock,
+  findBlockById,
   findPlanBlock,
   ensureTextBlock,
 } from './blockEventHandler';

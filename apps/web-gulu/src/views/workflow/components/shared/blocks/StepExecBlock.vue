@@ -17,7 +17,7 @@ const props = defineProps<{
 const statusConfig = computed(() => {
   switch (props.block.status) {
     case 'running': return { icon: LoaderIcon, color: 'hsl(var(--primary))', label: '执行中', bg: 'hsl(var(--primary) / 8%)' };
-    case 'completed': return { icon: CheckIcon, color: '#52c41a', label: '执行成功', bg: '#52c41a10' };
+    case 'success': return { icon: CheckIcon, color: '#52c41a', label: '执行成功', bg: '#52c41a10' };
     case 'failed': return { icon: XIcon, color: '#ff4d4f', label: '执行失败', bg: '#ff4d4f10' };
     case 'skipped': return { icon: SkipIcon, color: '#8c8c8c', label: '已跳过', bg: '#8c8c8c10' };
     default: return { icon: PlayIcon, color: 'hsl(var(--muted-foreground))', label: '', bg: 'transparent' };

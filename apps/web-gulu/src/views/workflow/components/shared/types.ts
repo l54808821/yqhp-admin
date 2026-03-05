@@ -153,27 +153,32 @@ export type ContentBlockType =
   | 'tool_call'
   | 'plan'
   | 'step_exec'
+  | 'verification'
   | 'error';
 
 export interface TextBlock {
   type: 'text';
+  id: string;
   content: string;
 }
 
 export interface ThinkingBlock {
   type: 'thinking';
+  id: string;
   content: string;
   isComplete: boolean;
 }
 
 export interface ImageBlock {
   type: 'image';
+  id: string;
   url: string;
   name?: string;
 }
 
 export interface FileBlock {
   type: 'file';
+  id: string;
   url: string;
   name: string;
   size?: number;
@@ -182,7 +187,7 @@ export interface FileBlock {
 
 export interface ToolCallBlock {
   type: 'tool_call';
-  id?: string;
+  id: string;
   name: string;
   arguments: string;
   result?: string;
@@ -196,11 +201,13 @@ export interface PlanStepBlock {
   task: string;
   status: 'pending' | 'running' | 'completed' | 'failed';
   result?: string;
+  error?: string;
   toolCalls?: ToolCallBlock[];
 }
 
 export interface PlanBlock {
   type: 'plan';
+  id: string;
   reason: string;
   planText?: string;
   steps: PlanStepBlock[];
@@ -210,17 +217,26 @@ export interface PlanBlock {
 
 export interface StepExecBlock {
   type: 'step_exec';
+  id: string;
   stepId: string;
   stepName: string;
   stepType: string;
-  status: 'running' | 'completed' | 'failed' | 'skipped';
+  status: 'running' | 'success' | 'failed' | 'skipped';
   durationMs?: number;
   result?: any;
   reason?: string;
 }
 
+export interface VerificationBlock {
+  type: 'verification';
+  id: string;
+  status: 'verifying' | 'completed';
+  verified?: boolean;
+}
+
 export interface ErrorBlock {
   type: 'error';
+  id: string;
   message: string;
 }
 
@@ -232,6 +248,7 @@ export type ContentBlock =
   | ToolCallBlock
   | PlanBlock
   | StepExecBlock
+  | VerificationBlock
   | ErrorBlock;
 
 /**

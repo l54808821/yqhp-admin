@@ -121,17 +121,10 @@ export function useStepDebug<TResponse>(options: UseStepDebugOptions<TResponse>)
         sessionId = event.sessionId;
         break;
 
-      case 'ai_chunk': {
-        if (!isStreaming.value) isStreaming.value = true;
-        handleBlockEvent(streamingBlocks.value, type, data);
-        break;
-      }
-
+      case 'ai_chunk':
       case 'ai_thinking':
-      case 'ai_plan_started':
-      case 'ai_plan_step_update':
-      case 'ai_plan_completed':
-      case 'ai_plan_modified':
+      case 'ai_plan_update':
+      case 'ai_verify':
       case 'step_started': {
         if (!isStreaming.value) isStreaming.value = true;
         handleBlockEvent(streamingBlocks.value, type, data);
@@ -151,7 +144,6 @@ export function useStepDebug<TResponse>(options: UseStepDebugOptions<TResponse>)
         break;
       }
 
-      case 'ai_complete':
       case 'message_complete': {
         handleBlockEvent(streamingBlocks.value, type, data);
         break;
@@ -177,16 +169,14 @@ export function useStepDebug<TResponse>(options: UseStepDebugOptions<TResponse>)
         break;
       }
 
-      case 'step_completed':
-      case 'step_failed': {
-        // 确保计划步骤状态更新
+      case 'step_completed': {
         handleBlockEvent(streamingBlocks.value, type, data);
         const stepData = data as any;
         const stepResult: StepExecutionResult = {
           stepId: stepData.stepId || '',
           stepName: stepData.stepName || '',
           stepType: stepData.stepType || '',
-          success: type === 'step_completed' && !stepData.error,
+          success: stepData.status === 'success',
           durationMs: stepData.durationMs || (Date.now() - startTime),
           result: stepData.result,
           error: stepData.error,
