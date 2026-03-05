@@ -105,7 +105,6 @@ export type SSEEventType =
   | 'ai_tool_call_start'
   | 'ai_tool_call_complete'
   | 'ai_plan_update'
-  | 'ai_verify'
   | 'ai_error'
   | 'ai_interaction_required'
   | 'message_complete'
@@ -208,14 +207,6 @@ export interface AIPlanUpdateData {
   synthesis?: string;
 }
 
-// AI 验证数据
-export interface AIVerifyData {
-  blockId: string;
-  stepId: string;
-  status: 'verifying' | 'completed';
-  verified?: boolean;
-}
-
 // 消息完成数据
 export interface MessageCompleteData {
   stepId: string;
@@ -226,7 +217,6 @@ export interface MessageCompleteData {
     totalTokens: number;
   };
   model?: string;
-  verified?: boolean;
 }
 
 // 交互类型

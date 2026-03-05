@@ -9,7 +9,6 @@ import type {
   ToolCallBlock,
   PlanBlock,
   StepExecBlock,
-  VerificationBlock,
 } from './types';
 
 let localBlockSeq = 0;
@@ -123,24 +122,6 @@ export function handleBlockEvent(
 
     case 'ai_plan_update': {
       return handlePlanUpdate(blocks, data);
-    }
-
-    case 'ai_verify': {
-      const blockId = data.blockId;
-      const existing = findBlockById(blocks, blockId);
-      if (existing?.type === 'verification') {
-        const vb = existing as VerificationBlock;
-        vb.status = data.status;
-        vb.verified = data.verified;
-      } else {
-        blocks.push({
-          type: 'verification',
-          id: blockId,
-          status: data.status,
-          verified: data.verified,
-        } as VerificationBlock);
-      }
-      return true;
     }
 
     case 'message_complete': {

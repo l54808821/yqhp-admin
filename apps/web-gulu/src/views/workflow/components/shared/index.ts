@@ -44,7 +44,6 @@ export type {
   PlanBlock,
   PlanStepBlock,
   StepExecBlock,
-  VerificationBlock,
   ErrorBlock,
 } from './types';
 

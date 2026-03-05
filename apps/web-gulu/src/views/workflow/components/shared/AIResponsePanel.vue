@@ -19,8 +19,6 @@ import ReflectionTracePanel from './ReflectionTracePanel.vue';
 
 const AlertCircleIcon = createIconifyIcon('lucide:alert-circle');
 const BrainIcon = createIconifyIcon('lucide:brain');
-const ShieldCheckIcon = createIconifyIcon('lucide:shield-check');
-
 interface Props {
   response: AIResponseData;
   /** 流式 AI 内容（SSE 实时推送） */
@@ -289,10 +287,6 @@ watch(responseBlocks, () => {
 
       <!-- 右侧：模式标签 + 精简状态 -->
       <div class="response-meta">
-        <Tag v-if="agentTrace?.verified" color="#52c41a" class="status-tag verified-tag">
-          <ShieldCheckIcon class="verified-icon" />
-          已验证
-        </Tag>
         <Tag v-if="agentModeLabel" :color="agentModeColor" class="status-tag">
           {{ agentModeLabel }}
         </Tag>
@@ -373,15 +367,6 @@ watch(responseBlocks, () => {
             <span class="detail-label">Agent 模式</span>
             <span class="detail-value">
               <Tag :color="agentModeColor" size="small">{{ agentModeLabel }}</Tag>
-            </span>
-          </div>
-          <div class="detail-row" v-if="agentTrace?.verified">
-            <span class="detail-label">自我验证</span>
-            <span class="detail-value">
-              <Tag color="#52c41a" size="small">
-                <ShieldCheckIcon style="width: 12px; height: 12px; vertical-align: -2px; margin-right: 2px;" />
-                已通过验证
-              </Tag>
             </span>
           </div>
           <div class="detail-row" v-if="response.model">
@@ -548,17 +533,6 @@ watch(responseBlocks, () => {
   line-height: 20px;
   border-radius: 3px;
   margin: 0;
-}
-
-.verified-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.verified-icon {
-  width: 12px;
-  height: 12px;
 }
 
 .meta-item {

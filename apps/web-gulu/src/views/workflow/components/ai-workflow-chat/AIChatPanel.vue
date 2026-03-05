@@ -319,11 +319,8 @@ onUnmounted(() => {
                   @skip="chat.skipInteraction()"
                 />
 
-                <!-- 元信息：Token 用量 + 模型 + 验证 -->
-                <div v-if="msg.metadata?.usage || msg.metadata?.verified" class="msg-usage">
-                  <Tag v-if="msg.metadata?.verified" color="#52c41a" class="usage-tag verified-tag">
-                    ✓ 已验证
-                  </Tag>
+                <!-- 元信息：Token 用量 + 模型 -->
+                <div v-if="msg.metadata?.usage" class="msg-usage">
                   <Tag v-if="msg.metadata?.model" color="default" class="usage-tag">
                     {{ msg.metadata.model }}
                   </Tag>
@@ -716,11 +713,6 @@ onUnmounted(() => {
 .usage-tag {
   font-size: 11px;
   opacity: 0.6;
-}
-
-.verified-tag {
-  opacity: 1;
-  font-weight: 500;
 }
 
 /* ============ 底部输入区 ============ */

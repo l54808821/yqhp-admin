@@ -227,7 +227,6 @@ function handleRun() {
       interaction_timeout: localNode.value.config.interaction_timeout || 300,
       enable_plan_mode: localNode.value.config.enable_plan_mode ?? true,
       max_plan_steps: localNode.value.config.max_plan_steps || 10,
-      enable_self_verify: localNode.value.config.enable_self_verify ?? false,
       fallback_models: localNode.value.config.fallback_models || [],
     },
     postProcessors: localNode.value.postProcessors?.map((p: KeywordConfig) => ({
@@ -275,7 +274,11 @@ function stopDrag() {
         <div class="toolbar-title">
           <BrainIcon class="size-4" />
           <span>{{ agentLabel }}</span>
-          <span class="agent-mode-tip">{{ agentModeTip }}</span>
+          <Tooltip :title="agentModeTip">
+            <span class="agent-mode-tip">
+              <HelpCircleIcon class="agent-mode-tip-icon" />
+            </span>
+          </Tooltip>
         </div>
         <div class="toolbar-spacer" />
         <Tooltip v-if="hasDebugCtx" title="使用调试上下文变量">
@@ -362,19 +365,6 @@ function stopDrag() {
                     size="small"
                     :checked="localNode.config.enable_plan_mode ?? true"
                     @change="(val: any) => handleConfigUpdate({ enable_plan_mode: val })"
-                  />
-                </div>
-                <div class="switch-row">
-                  <span class="switch-label">
-                    自我验证
-                    <Tooltip title="启用后，AI 会在输出最终回答前从完整性、准确性、逻辑性等维度自动验证回答质量">
-                      <HelpCircleIcon class="hint-icon" />
-                    </Tooltip>
-                  </span>
-                  <Switch
-                    size="small"
-                    :checked="localNode.config.enable_self_verify ?? false"
-                    @change="(val: any) => handleConfigUpdate({ enable_self_verify: val })"
                   />
                 </div>
               </div>
@@ -570,10 +560,26 @@ function stopDrag() {
 }
 
 .agent-mode-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   font-size: 11px;
   color: hsl(var(--muted-foreground));
   margin-left: 4px;
   font-weight: normal;
+  cursor: help;
+}
+
+.agent-mode-tip-icon {
+  width: 12px;
+  height: 12px;
+  color: hsl(var(--muted-foreground) / 60%);
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+
+.agent-mode-tip:hover .agent-mode-tip-icon {
+  color: hsl(var(--primary));
 }
 
 .toolbar-spacer {

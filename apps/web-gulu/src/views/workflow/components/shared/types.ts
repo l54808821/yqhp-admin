@@ -153,7 +153,6 @@ export type ContentBlockType =
   | 'tool_call'
   | 'plan'
   | 'step_exec'
-  | 'verification'
   | 'error';
 
 export interface TextBlock {
@@ -227,13 +226,6 @@ export interface StepExecBlock {
   reason?: string;
 }
 
-export interface VerificationBlock {
-  type: 'verification';
-  id: string;
-  status: 'verifying' | 'completed';
-  verified?: boolean;
-}
-
 export interface ErrorBlock {
   type: 'error';
   id: string;
@@ -248,7 +240,6 @@ export type ContentBlock =
   | ToolCallBlock
   | PlanBlock
   | StepExecBlock
-  | VerificationBlock
   | ErrorBlock;
 
 /**
@@ -334,7 +325,6 @@ export interface AgentTrace {
   plan_and_execute?: PlanExecTrace;
   plan?: PlanExecTrace;
   reflection?: ReflectionTrace;
-  verified?: boolean;
 }
 
 export interface AIResponseData {

@@ -431,7 +431,6 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
           ...msg.metadata,
           usage: data.usage,
           model: data.model || msg.metadata?.model,
-          verified: data.verified || msg.metadata?.verified,
         };
         break;
 

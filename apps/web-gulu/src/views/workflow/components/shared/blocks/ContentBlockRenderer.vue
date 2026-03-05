@@ -9,8 +9,6 @@ import StepExecBlockComp from './StepExecBlock.vue';
 import ErrorBlockComp from './ErrorBlock.vue';
 import ImageBlockComp from './ImageBlock.vue';
 import FileBlockComp from './FileBlock.vue';
-import VerificationBlockComp from './VerificationBlock.vue';
-
 defineProps<{
   blocks: ContentBlock[];
   streaming?: boolean;
@@ -29,7 +27,6 @@ const componentMap: Record<string, any> = {
   error: ErrorBlockComp,
   image: ImageBlockComp,
   file: FileBlockComp,
-  verification: VerificationBlockComp,
 };
 </script>
 

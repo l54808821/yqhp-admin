@@ -205,7 +205,6 @@ export function useExecution(options: UseExecutionOptions) {
       case 'ai_tool_call_start':
       case 'ai_tool_call_complete':
       case 'ai_plan_update':
-      case 'ai_verify':
       case 'message_complete':
         handleAIBlockEvent(event.type, event.data);
         break;
