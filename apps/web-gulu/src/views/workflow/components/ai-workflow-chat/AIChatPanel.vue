@@ -319,13 +319,13 @@ onUnmounted(() => {
                   @skip="chat.skipInteraction()"
                 />
 
-                <!-- 元信息：Token 用量 + 模型 -->
+                <!-- 元信息：Token 用量 -->
                 <div v-if="msg.metadata?.usage" class="msg-usage">
-                  <Tag v-if="msg.metadata?.model" color="default" class="usage-tag">
-                    {{ msg.metadata.model }}
+                  <Tag v-if="msg.metadata?.usage?.prompt_tokens != null" color="default" class="usage-tag">
+                    输入: {{ msg.metadata.usage.prompt_tokens }} tokens
                   </Tag>
-                  <Tag v-if="msg.metadata?.usage" color="default" class="usage-tag">
-                    {{ msg.metadata.usage.total_tokens }} tokens
+                  <Tag v-if="msg.metadata?.usage?.completion_tokens != null" color="default" class="usage-tag">
+                    输出: {{ msg.metadata.usage.completion_tokens }} tokens
                   </Tag>
                 </div>
               </div>
