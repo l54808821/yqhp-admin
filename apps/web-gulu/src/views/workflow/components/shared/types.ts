@@ -280,6 +280,7 @@ export interface ReActRound {
   round: number;
   thinking: string;
   tool_calls: ToolCallRecord[];
+  reflection?: string;
 }
 
 export interface PlanStep {
@@ -316,6 +317,7 @@ export interface AgentTrace {
   plan_and_execute?: PlanExecTrace;
   plan?: PlanExecTrace;
   reflection?: ReflectionTrace;
+  verified?: boolean;
 }
 
 export interface AIResponseData {

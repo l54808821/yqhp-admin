@@ -14,6 +14,7 @@ const BrainIcon = createIconifyIcon('lucide:brain');
 const WrenchIcon = createIconifyIcon('lucide:wrench');
 const CheckCircleIcon = createIconifyIcon('lucide:check-circle-2');
 const SparklesIcon = createIconifyIcon('lucide:sparkles');
+const RefreshCwIcon = createIconifyIcon('lucide:refresh-cw');
 
 interface Props {
   /** ReAct 推理轮次 */
@@ -129,6 +130,23 @@ function truncateText(text: string, maxLen: number = 800): string {
                 </div>
               </Collapse.Panel>
             </Collapse>
+          </div>
+        </div>
+
+        <!-- Reflection 反思 -->
+        <div v-if="round.reflection" class="trace-step reflection-step">
+          <div class="step-indicator">
+            <div class="step-dot reflection-dot">
+              <RefreshCwIcon class="step-icon" />
+            </div>
+            <div v-if="idx < trace.length - 1 || finalContent" class="step-line" />
+          </div>
+          <div class="step-content">
+            <div class="step-label">
+              <Tag color="purple" class="step-tag">Reflection</Tag>
+              <span class="step-label-text">策略反思</span>
+            </div>
+            <pre class="reflection-text">{{ round.reflection }}</pre>
           </div>
         </div>
       </div>
@@ -405,6 +423,25 @@ function truncateText(text: string, maxLen: number = 800): string {
   color: #ff4d4f;
   background: #fff2f0;
   border-color: hsl(0 84% 60% / 20%);
+}
+
+/* Reflection 反思 */
+.reflection-dot {
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+}
+
+.reflection-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13px;
+  line-height: 1.6;
+  color: hsl(var(--foreground) / 85%);
+  margin: 0;
+  padding: 10px 12px;
+  background: hsl(263 70% 50% / 6%);
+  border-radius: 8px;
+  border: 1px solid hsl(263 70% 50% / 15%);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 /* 最终回答 */

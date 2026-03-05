@@ -227,6 +227,7 @@ function handleRun() {
       interaction_timeout: localNode.value.config.interaction_timeout || 300,
       enable_plan_mode: localNode.value.config.enable_plan_mode ?? true,
       max_plan_steps: localNode.value.config.max_plan_steps || 10,
+      enable_self_verify: localNode.value.config.enable_self_verify ?? false,
       fallback_models: localNode.value.config.fallback_models || [],
     },
     postProcessors: localNode.value.postProcessors?.map((p: KeywordConfig) => ({
@@ -361,6 +362,19 @@ function stopDrag() {
                     size="small"
                     :checked="localNode.config.enable_plan_mode ?? true"
                     @change="(val: any) => handleConfigUpdate({ enable_plan_mode: val })"
+                  />
+                </div>
+                <div class="switch-row">
+                  <span class="switch-label">
+                    自我验证
+                    <Tooltip title="启用后，AI 会在输出最终回答前从完整性、准确性、逻辑性等维度自动验证回答质量">
+                      <HelpCircleIcon class="hint-icon" />
+                    </Tooltip>
+                  </span>
+                  <Switch
+                    size="small"
+                    :checked="localNode.config.enable_self_verify ?? false"
+                    @change="(val: any) => handleConfigUpdate({ enable_self_verify: val })"
                   />
                 </div>
               </div>

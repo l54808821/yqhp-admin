@@ -23,6 +23,7 @@ export interface AIConfig {
   kb_score_threshold: number;
   enable_plan_mode: boolean;
   max_plan_steps: number;
+  enable_self_verify: boolean;
   tool_timeout: number;
   // Fallback 配置
   fallback_models: FallbackModel[];
@@ -105,6 +106,7 @@ export function createDefaultAIConfig(): AIConfig {
     kb_score_threshold: 0.7,
     enable_plan_mode: true,
     max_plan_steps: 10,
+    enable_self_verify: false,
     tool_timeout: 180,
     fallback_models: [],
   };
