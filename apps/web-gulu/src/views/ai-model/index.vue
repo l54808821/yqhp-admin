@@ -7,18 +7,20 @@ import { useRoute, useRouter } from 'vue-router';
 import {
   Badge,
   Button,
-  Dropdown,
   Empty,
-  Menu,
-  MenuItem,
   message,
   Modal,
   Spin,
   Switch,
+  Tag,
+  Tooltip,
 } from 'ant-design-vue';
 import { createIconifyIcon } from '@vben/icons';
 
 const PlusOutlined = createIconifyIcon('ant-design:plus-outlined');
+const EditOutlined = createIconifyIcon('ant-design:edit-outlined');
+const DeleteOutlined = createIconifyIcon('ant-design:delete-outlined');
+const LinkOutlined = createIconifyIcon('ant-design:link-outlined');
 import {
   deleteAiModelApi,
   deleteAiProviderApi,
@@ -247,33 +249,32 @@ onMounted(() => {
       <template v-if="selectedProvider">
         <!-- 供应商信息栏 -->
         <div class="content-header">
-          <div class="content-header__info">
-            <div class="content-header__top">
-              <h3 class="content-header__name">{{ selectedProvider.name }}</h3>
-              <Badge
-                :status="selectedProvider.status === 1 ? 'success' : 'default'"
-                :text="selectedProvider.status === 1 ? '已启用' : '已禁用'"
-              />
-              <Switch
-                :checked="selectedProvider.status === 1"
-                size="small"
-                class="content-header__switch"
-                @change="(checked: any) => handleProviderStatusChange(selectedProvider!, !!checked)"
-              />
-            </div>
-            <div class="content-header__url">{{ selectedProvider.api_base_url }}</div>
-          </div>
+          <h3 class="content-header__name">{{ selectedProvider.name }}</h3>
+          <Tag
+            :color="selectedProvider.status === 1 ? 'success' : 'default'"
+            class="content-header__tag"
+          >
+            {{ selectedProvider.status === 1 ? '已启用' : '已禁用' }}
+          </Tag>
+          <Switch
+            :checked="selectedProvider.status === 1"
+            size="small"
+            @change="(checked: any) => handleProviderStatusChange(selectedProvider!, !!checked)"
+          />
+          <span class="content-header__divider" />
+          <LinkOutlined class="content-header__url-icon" />
+          <span class="content-header__url">{{ selectedProvider.api_base_url }}</span>
           <div class="content-header__actions">
-            <Dropdown :trigger="['click']">
-              <Button size="small" type="text">···</Button>
-              <template #overlay>
-                <Menu>
-                  <MenuItem key="edit" @click="handleEditProvider(selectedProvider!)">编辑</MenuItem>
-                  <Menu.Divider />
-                  <MenuItem key="delete" danger @click="handleDeleteProvider(selectedProvider!)">删除</MenuItem>
-                </Menu>
-              </template>
-            </Dropdown>
+            <Tooltip title="编辑供应商">
+              <Button size="small" type="text" class="content-header__action-btn" @click="handleEditProvider(selectedProvider!)">
+                <template #icon><EditOutlined /></template>
+              </Button>
+            </Tooltip>
+            <Tooltip title="删除供应商">
+              <Button size="small" type="text" danger class="content-header__action-btn" @click="handleDeleteProvider(selectedProvider!)">
+                <template #icon><DeleteOutlined /></template>
+              </Button>
+            </Tooltip>
           </div>
         </div>
 
@@ -446,49 +447,73 @@ onMounted(() => {
 
 .content-header {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: 16px 24px;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 24px;
   border-bottom: 1px solid var(--ant-color-border-secondary, #f0f0f0);
   flex-shrink: 0;
 }
 
-.content-header__info {
-  flex: 1;
-  min-width: 0;
-}
-
-.content-header__top {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
 .content-header__name {
   margin: 0;
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
-.content-header__switch {
-  margin-left: 4px;
+.content-header__tag {
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 20px;
+  padding-inline: 6px;
+  margin: 0;
+}
+
+.content-header__divider {
+  width: 1px;
+  height: 16px;
+  background: var(--ant-color-border-secondary, #e8e8e8);
+  flex-shrink: 0;
+}
+
+.content-header__url-icon {
+  font-size: 12px;
+  color: var(--ant-color-text-quaternary, #bbb);
+  flex-shrink: 0;
 }
 
 .content-header__url {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--ant-color-text-tertiary, #999);
-  margin-top: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
 .content-header__actions {
   display: flex;
-  gap: 4px;
+  gap: 2px;
   align-items: center;
   flex-shrink: 0;
-  margin-left: 16px;
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+
+.content-header:hover .content-header__actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.content-header__action-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .model-toolbar {
