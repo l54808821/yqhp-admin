@@ -9,7 +9,6 @@ import {
   Checkbox,
   Form,
   Input,
-  InputNumber,
   Modal,
   Select,
   Spin,
@@ -355,20 +354,6 @@ onMounted(() => {
       </Checkbox.Group>
     </Spin>
 
-    <!-- 最大工具调用轮次 -->
-    <Form.Item label="最大工具调用轮次" style="margin-top: 20px">
-      <InputNumber
-        :value="config.max_tool_rounds"
-        :min="1"
-        :max="50"
-        :placeholder="'默认 15 轮'"
-        style="width: 100%"
-        @change="(val: any) => emit('update', { max_tool_rounds: val })"
-      />
-      <div class="param-hint">
-        AI 模型调用工具（含 Skill）的最大轮次，防止无限循环。
-      </div>
-    </Form.Item>
   </Form>
 
   <!-- Skill 选择弹窗 -->
@@ -474,12 +459,6 @@ onMounted(() => {
 <style scoped>
 .config-form {
   padding-top: 0;
-}
-
-.param-hint {
-  font-size: 12px;
-  color: #999;
-  margin-top: 4px;
 }
 
 .tool-category-hint {
