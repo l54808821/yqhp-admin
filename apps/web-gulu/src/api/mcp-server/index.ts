@@ -5,10 +5,11 @@ export interface McpServer {
   id: number;
   name: string;
   description: string;
-  transport: 'stdio' | 'sse';
+  transport: 'stdio' | 'sse' | 'streamable-http';
   command: string;
   args: string[];
   url: string;
+  headers: Record<string, string>;
   env: Record<string, string>;
   timeout: number;
   sort: number;
@@ -28,10 +29,11 @@ export interface McpServerListParams {
 export interface CreateMcpServerParams {
   name: string;
   description?: string;
-  transport: 'stdio' | 'sse';
+  transport: 'stdio' | 'sse' | 'streamable-http';
   command?: string;
   args?: string[];
   url?: string;
+  headers?: Record<string, string>;
   env?: Record<string, string>;
   timeout?: number;
   sort?: number;
@@ -41,14 +43,25 @@ export interface CreateMcpServerParams {
 export interface UpdateMcpServerParams {
   name?: string;
   description?: string;
-  transport?: 'stdio' | 'sse';
+  transport?: 'stdio' | 'sse' | 'streamable-http';
   command?: string;
   args?: string[];
   url?: string;
+  headers?: Record<string, string>;
   env?: Record<string, string>;
   timeout?: number;
   sort?: number;
   status?: number;
+}
+
+export interface McpToolDefinition {
+  name: string;
+  description: string;
+  parameters: Record<string, any>;
+}
+
+export interface McpToolsResponse {
+  tools: McpToolDefinition[];
 }
 
 export async function getMcpServerListApi(params?: McpServerListParams) {
@@ -73,4 +86,10 @@ export async function deleteMcpServerApi(id: number) {
 
 export async function updateMcpServerStatusApi(id: number, status: number) {
   return requestClient.put(`/mcp-servers/${id}/status`, { status });
+}
+
+export async function getMcpServerToolsApi(serverId: number) {
+  return requestClient.post<McpToolsResponse>('/mcp-proxy/tools', {
+    server_id: serverId,
+  });
 }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { CreateMcpServerParams, McpServer } from '#/api/mcp-server';
 
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 import {
   Col,
@@ -30,18 +30,26 @@ const submitLoading = ref(false);
 const formState = ref<CreateMcpServerParams>({
   name: '',
   description: '',
-  transport: 'stdio',
+  transport: 'sse',
   command: '',
   args: [],
   url: '',
+  headers: {},
   env: {},
   timeout: 30,
   sort: 0,
   status: 1,
 });
 
+const isHttpTransport = computed(
+  () =>
+    formState.value.transport === 'sse' ||
+    formState.value.transport === 'streamable-http',
+);
+
 // 用于 TextArea 绑定的中间值
 const argsText = ref('');
+const headersText = ref('');
 const envText = ref('');
 
 // 同步 argsText -> formState.args
@@ -50,6 +58,20 @@ watch(argsText, (val) => {
     .split('\n')
     .map((s) => s.trim())
     .filter(Boolean);
+});
+
+// 同步 headersText -> formState.headers
+watch(headersText, (val) => {
+  const headers: Record<string, string> = {};
+  val.split('\n').forEach((line) => {
+    const idx = line.indexOf(':');
+    if (idx > 0) {
+      const key = line.slice(0, idx).trim();
+      const value = line.slice(idx + 1).trim();
+      if (key) headers[key] = value;
+    }
+  });
+  formState.value.headers = headers;
 });
 
 // 同步 envText -> formState.env
@@ -78,12 +100,16 @@ function open(record?: McpServer) {
       command: record.command || '',
       args: record.args || [],
       url: record.url || '',
+      headers: record.headers || {},
       env: record.env || {},
       timeout: record.timeout || 30,
       sort: record.sort || 0,
       status: record.status,
     };
     argsText.value = (record.args || []).join('\n');
+    headersText.value = Object.entries(record.headers || {})
+      .map(([k, v]) => `${k}: ${v}`)
+      .join('\n');
     envText.value = Object.entries(record.env || {})
       .map(([k, v]) => `${k}=${v}`)
       .join('\n');
@@ -93,16 +119,18 @@ function open(record?: McpServer) {
     formState.value = {
       name: '',
       description: '',
-      transport: 'stdio',
+      transport: 'sse',
       command: '',
       args: [],
       url: '',
+      headers: {},
       env: {},
       timeout: 30,
       sort: 0,
       status: 1,
     };
     argsText.value = '';
+    headersText.value = '';
     envText.value = '';
   }
   visible.value = true;
@@ -115,8 +143,8 @@ async function handleSubmit() {
   if (formState.value.transport === 'stdio' && !formState.value.command) {
     return message.warning('请输入启动命令');
   }
-  if (formState.value.transport === 'sse' && !formState.value.url) {
-    return message.warning('请输入 SSE URL');
+  if (isHttpTransport.value && !formState.value.url) {
+    return message.warning('请输入服务器 URL');
   }
 
   submitLoading.value = true;
@@ -167,6 +195,7 @@ defineExpose({ open });
           :options="[
             { label: 'stdio', value: 'stdio' },
             { label: 'sse', value: 'sse' },
+            { label: 'streamable-http', value: 'streamable-http' },
           ]"
           style="width: 100%"
         />
@@ -186,10 +215,20 @@ defineExpose({ open });
         </Form.Item>
       </template>
 
-      <!-- sse 模式 -->
-      <template v-if="formState.transport === 'sse'">
+      <!-- sse / streamable-http 模式 -->
+      <template v-if="isHttpTransport">
         <Form.Item label="URL" required>
-          <Input v-model:value="formState.url" placeholder="如 http://localhost:3000/sse" />
+          <Input
+            v-model:value="formState.url"
+            placeholder="如 http://localhost:3000/sse 或 http://localhost:6001/mcp"
+          />
+        </Form.Item>
+        <Form.Item label="自定义请求头 (Headers)">
+          <Input.TextArea
+            v-model:value="headersText"
+            placeholder="每行一个，格式：Key: Value&#10;如：&#10;X-Api-Key: sk-xxx&#10;Authorization: Bearer token123"
+            :rows="3"
+          />
         </Form.Item>
       </template>
 

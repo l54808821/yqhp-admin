@@ -3,15 +3,13 @@ import type {
   AiModel,
   AiProvider,
   CreateAiModelParams,
-  PresetModel,
   UpdateAiModelParams,
 } from '#/api/ai-model';
 
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 
 import {
   Col,
-  Divider,
   Form,
   Input,
   InputNumber,
@@ -27,7 +25,6 @@ import {
 import {
   CAPABILITY_TAG_OPTIONS,
   createAiModelApi,
-  PROVIDER_PRESETS,
   updateAiModelApi,
 } from '#/api/ai-model';
 
@@ -57,14 +54,6 @@ const formState = ref<CreateAiModelParams & { api_key: string }>({
 });
 
 const customTagInput = ref('');
-const currentPresetModels = ref<PresetModel[]>([]);
-
-const presetModelOptions = computed(() =>
-  currentPresetModels.value.map((m) => ({
-    label: `${m.name} (${m.model_id})`,
-    value: m.model_id,
-  })),
-);
 
 /**
  * 打开弹窗
@@ -73,16 +62,6 @@ const presetModelOptions = computed(() =>
  */
 function open(provider?: AiProvider, record?: AiModel) {
   currentProvider.value = provider || null;
-
-  // 查找预置模型列表
-  if (provider) {
-    const preset = Object.values(PROVIDER_PRESETS).find(
-      (p) => p.provider_type === provider.provider_type || p.name === provider.name,
-    );
-    currentPresetModels.value = preset?.models || [];
-  } else {
-    currentPresetModels.value = [];
-  }
 
   if (record) {
     modalTitle.value = '编辑模型';
@@ -124,17 +103,6 @@ function open(provider?: AiProvider, record?: AiModel) {
     };
   }
   visible.value = true;
-}
-
-function handlePresetModelChange(modelId: string) {
-  const model = currentPresetModels.value.find((m) => m.model_id === modelId);
-  if (!model) return;
-  formState.value.model_id = model.model_id;
-  formState.value.name = model.name;
-  if (model.context_length) formState.value.context_length = model.context_length;
-  if (model.param_size) formState.value.param_size = model.param_size;
-  if (model.capability_tags) formState.value.capability_tags = [...model.capability_tags];
-  if (model.description) formState.value.description = model.description;
 }
 
 async function handleSubmit() {
@@ -193,20 +161,6 @@ defineExpose({ open });
         供应商：<strong>{{ currentProvider.name }}</strong>
         （API Key 和 URL 从供应商配置中获取）
       </div>
-
-      <Form.Item v-if="currentPresetModels.length > 0" label="快速选择模型">
-        <Select
-          :value="formState.model_id || undefined"
-          placeholder="选择预置模型自动填充，或手动填写"
-          :options="presetModelOptions"
-          allow-clear
-          show-search
-          style="width: 100%"
-          @change="(val: any) => handlePresetModelChange(val)"
-        />
-      </Form.Item>
-
-      <Divider v-if="currentPresetModels.length > 0" style="margin: 12px 0" />
 
       <Row :gutter="16">
         <Col :span="12">

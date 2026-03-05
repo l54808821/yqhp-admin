@@ -177,9 +177,6 @@ export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
   },
 };
 
-/** 获取所有厂商名称列表 */
-export const PROVIDER_NAMES = Object.keys(PROVIDER_PRESETS);
-
 // ========== AI 供应商类型 ==========
 
 export interface AiProvider {
@@ -283,16 +280,6 @@ export interface UpdateAiModelParams {
   status?: number;
 }
 
-export interface BatchCreateModelEntry {
-  name: string;
-  model_id: string;
-  description?: string;
-  context_length?: number;
-  param_size?: string;
-  capability_tags?: string[];
-  custom_tags?: string[];
-}
-
 export interface AiModelListParams {
   page?: number;
   pageSize?: number;
@@ -343,10 +330,6 @@ export async function deleteAiProviderApi(id: number) {
 
 export async function updateAiProviderStatusApi(id: number, status: number) {
   return requestClient.put(`/ai-providers/${id}/status`, { status });
-}
-
-export async function batchCreateModelsApi(providerId: number, models: BatchCreateModelEntry[]) {
-  return requestClient.post<AiModel[]>(`/ai-providers/${providerId}/models/batch`, { models });
 }
 
 // ========== 模型 API ==========

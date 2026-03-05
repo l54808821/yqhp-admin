@@ -13,7 +13,6 @@ import {
   MenuItem,
   message,
   Modal,
-  Space,
   Spin,
   Switch,
   Tooltip,
@@ -32,7 +31,6 @@ import {
   updateAiProviderStatusApi,
 } from '#/api/ai-model';
 
-import BatchModelModal from './components/BatchModelModal.vue';
 import ModelCard from './components/ModelCard.vue';
 import ModelFormModal from './components/ModelFormModal.vue';
 import ProviderFormModal from './components/ProviderFormModal.vue';
@@ -48,8 +46,6 @@ const selectedProviderId = ref<number | null>(null);
 
 const providerFormRef = ref<InstanceType<typeof ProviderFormModal>>();
 const modelFormRef = ref<InstanceType<typeof ModelFormModal>>();
-const batchModelRef = ref<InstanceType<typeof BatchModelModal>>();
-
 const selectedProvider = computed(() =>
   providers.value.find((p) => p.id === selectedProviderId.value),
 );
@@ -146,12 +142,6 @@ async function handleProviderStatusChange(
 function handleAddModel() {
   if (selectedProvider.value) {
     modelFormRef.value?.open(selectedProvider.value);
-  }
-}
-
-function handleBatchAddModels() {
-  if (selectedProvider.value) {
-    batchModelRef.value?.open(selectedProvider.value);
   }
 }
 
@@ -306,15 +296,10 @@ onMounted(() => {
             模型列表
             <span class="model-toolbar__count">{{ currentModels.length }}</span>
           </div>
-          <Space>
-            <Button type="primary" size="small" @click="handleAddModel">
-              <template #icon><PlusOutlined /></template>
-              添加模型
-            </Button>
-            <Button size="small" @click="handleBatchAddModels">
-              批量添加
-            </Button>
-          </Space>
+          <Button type="primary" size="small" @click="handleAddModel">
+            <template #icon><PlusOutlined /></template>
+            添加模型
+          </Button>
         </div>
 
         <!-- 模型卡片网格 -->
@@ -333,10 +318,7 @@ onMounted(() => {
             </div>
             <div v-else-if="!isLoadingCurrentModels" class="model-empty">
               <Empty description="暂无模型">
-                <Space>
-                  <Button type="primary" size="small" @click="handleAddModel">添加模型</Button>
-                  <Button size="small" @click="handleBatchAddModels">批量添加</Button>
-                </Space>
+                <Button type="primary" size="small" @click="handleAddModel">添加模型</Button>
               </Empty>
             </div>
           </Spin>
@@ -350,7 +332,6 @@ onMounted(() => {
 
     <ProviderFormModal ref="providerFormRef" @success="handleFormSuccess" />
     <ModelFormModal ref="modelFormRef" @success="handleFormSuccess" />
-    <BatchModelModal ref="batchModelRef" @success="handleFormSuccess" />
   </div>
 </template>
 

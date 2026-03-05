@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { McpServer, McpServerListParams } from '#/api/mcp-server';
+import type { McpServer, McpServerListParams, McpToolDefinition } from '#/api/mcp-server';
 
 import { onMounted, ref } from 'vue';
 
@@ -7,6 +7,9 @@ import {
   Button,
   Card,
   Col,
+  Collapse,
+  Drawer,
+  Empty,
   Input,
   message,
   Modal,
@@ -18,11 +21,13 @@ import {
   Switch,
   Table,
   Tag,
+  Typography,
 } from 'ant-design-vue';
 
 import {
   deleteMcpServerApi,
   getMcpServerListApi,
+  getMcpServerToolsApi,
   updateMcpServerStatusApi,
 } from '#/api/mcp-server';
 
@@ -45,15 +50,21 @@ const loading = ref(false);
 // 弹框 ref
 const formModalRef = ref<InstanceType<typeof McpServerFormModal>>();
 
+// 工具抽屉
+const toolDrawerVisible = ref(false);
+const toolDrawerTitle = ref('');
+const toolList = ref<McpToolDefinition[]>([]);
+const toolLoading = ref(false);
+
 // 表格列定义
 const columns = [
   { title: '名称', dataIndex: 'name', key: 'name', width: 160 },
   { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
-  { title: '传输方式', dataIndex: 'transport', key: 'transport', width: 100 },
+  { title: '传输方式', dataIndex: 'transport', key: 'transport', width: 120 },
   { title: '连接信息', key: 'connection', width: 260 },
   { title: '超时(秒)', dataIndex: 'timeout', key: 'timeout', width: 90 },
   { title: '状态', key: 'status', width: 90 },
-  { title: '操作', key: 'action', width: 140, fixed: 'right' as const },
+  { title: '操作', key: 'action', width: 220, fixed: 'right' as const },
 ];
 
 // 加载数据
@@ -145,9 +156,49 @@ function getConnectionInfo(record: McpServer): string {
   return record.url || '';
 }
 
+// 查看工具
+async function handleViewTools(record: McpServer) {
+  toolDrawerTitle.value = `${record.name} - 工具列表`;
+  toolDrawerVisible.value = true;
+  toolLoading.value = true;
+  toolList.value = [];
+
+  try {
+    const res = await getMcpServerToolsApi(record.id);
+    toolList.value = res.tools || [];
+  } catch {
+    message.error('获取工具列表失败，请检查 MCP 服务器是否可连接');
+  } finally {
+    toolLoading.value = false;
+  }
+}
+
+// 格式化参数 schema
+function formatParamSchema(parameters: Record<string, any>): { name: string; type: string; description: string; required: boolean }[] {
+  if (!parameters || !parameters.properties) return [];
+  const props = parameters.properties as Record<string, any>;
+  const requiredFields: string[] = parameters.required || [];
+  return Object.entries(props).map(([name, schema]: [string, any]) => ({
+    name,
+    type: schema.type || 'any',
+    description: schema.description || '',
+    required: requiredFields.includes(name),
+  }));
+}
+
 // 表单提交成功回调
 function handleFormSuccess() {
   loadData();
+}
+
+// 获取传输方式颜色
+function getTransportColor(transport: string): string {
+  switch (transport) {
+    case 'stdio': return 'blue';
+    case 'sse': return 'green';
+    case 'streamable-http': return 'purple';
+    default: return 'default';
+  }
 }
 
 // 初始化
@@ -179,6 +230,7 @@ onMounted(() => {
             :options="[
               { label: 'stdio', value: 'stdio' },
               { label: 'sse', value: 'sse' },
+              { label: 'streamable-http', value: 'streamable-http' },
             ]"
             @change="handleSearch"
           />
@@ -214,11 +266,11 @@ onMounted(() => {
           :pagination="false"
           row-key="id"
           size="middle"
-          :scroll="{ x: 900 }"
+          :scroll="{ x: 1000 }"
         >
           <template #bodyCell="{ column, record: rawRecord }">
             <template v-if="column.key === 'transport'">
-              <Tag :color="rawRecord.transport === 'stdio' ? 'blue' : 'green'">
+              <Tag :color="getTransportColor(rawRecord.transport)">
                 {{ rawRecord.transport }}
               </Tag>
             </template>
@@ -238,6 +290,7 @@ onMounted(() => {
             </template>
             <template v-else-if="column.key === 'action'">
               <Space>
+                <Button type="link" size="small" @click="handleViewTools(rawRecord as McpServer)">查看工具</Button>
                 <Button type="link" size="small" @click="handleEdit(rawRecord as McpServer)">编辑</Button>
                 <Button type="link" size="small" danger @click="handleDelete(rawRecord.id)">删除</Button>
               </Space>
@@ -262,6 +315,55 @@ onMounted(() => {
 
     <!-- 新增/编辑弹框 -->
     <McpServerFormModal ref="formModalRef" @success="handleFormSuccess" />
+
+    <!-- 工具列表抽屉 -->
+    <Drawer
+      v-model:open="toolDrawerVisible"
+      :title="toolDrawerTitle"
+      width="560"
+      placement="right"
+    >
+      <Spin :spinning="toolLoading">
+        <Empty v-if="!toolLoading && toolList.length === 0" description="暂无工具" />
+        <Collapse v-else accordion>
+          <Collapse.Panel
+            v-for="tool in toolList"
+            :key="tool.name"
+            :header="tool.name"
+          >
+            <template #extra>
+              <Tag color="blue" style="margin-right: 0">
+                {{ formatParamSchema(tool.parameters).length }} 个参数
+              </Tag>
+            </template>
+            <div class="tool-detail">
+              <Typography.Paragraph v-if="tool.description" class="tool-description">
+                {{ tool.description }}
+              </Typography.Paragraph>
+              <div v-if="formatParamSchema(tool.parameters).length > 0" class="tool-params">
+                <Typography.Text strong class="params-title">参数定义</Typography.Text>
+                <div
+                  v-for="param in formatParamSchema(tool.parameters)"
+                  :key="param.name"
+                  class="param-item"
+                >
+                  <div class="param-header">
+                    <code class="param-name">{{ param.name }}</code>
+                    <Tag :color="param.required ? 'red' : 'default'" size="small">
+                      {{ param.required ? '必填' : '可选' }}
+                    </Tag>
+                    <Tag color="geekblue" size="small">{{ param.type }}</Tag>
+                  </div>
+                  <div v-if="param.description" class="param-desc">
+                    {{ param.description }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Collapse.Panel>
+        </Collapse>
+      </Spin>
+    </Drawer>
   </div>
 </template>
 
@@ -293,5 +395,52 @@ onMounted(() => {
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.tool-detail {
+  padding: 0;
+}
+
+.tool-description {
+  margin-bottom: 12px;
+  color: rgba(0, 0, 0, 65%);
+}
+
+.tool-params {
+  margin-top: 8px;
+}
+
+.params-title {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.param-item {
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  background: #fafafa;
+  border-radius: 6px;
+}
+
+.param-header {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.param-name {
+  padding: 1px 6px;
+  font-size: 13px;
+  font-weight: 500;
+  background: #f0f0f0;
+  border-radius: 3px;
+}
+
+.param-desc {
+  padding-left: 2px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 45%);
 }
 </style>

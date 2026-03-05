@@ -343,7 +343,7 @@ onMounted(() => {
             <span class="mcp-server-name">{{ server.name }}</span>
             <Tag
               size="small"
-              :color="server.transport === 'stdio' ? 'blue' : 'green'"
+              :color="server.transport === 'stdio' ? 'blue' : server.transport === 'streamable-http' ? 'purple' : 'green'"
             >
               {{ server.transport }}
             </Tag>
