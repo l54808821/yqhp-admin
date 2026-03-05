@@ -22,6 +22,7 @@ const PanelLeftClose = createIconifyIcon('lucide:panel-left-close');
 const PanelLeftOpen = createIconifyIcon('lucide:panel-left-open');
 const ArrowBigUpIcon = createIconifyIcon('lucide:arrow-big-up');
 const ArrowBigDownIcon = createIconifyIcon('lucide:arrow-big-down');
+const RefreshCwIcon = createIconifyIcon('lucide:refresh-cw');
 
 interface Props {
   workflow: Workflow;
@@ -321,14 +322,23 @@ onUnmounted(() => {
                   @skip="chat.skipInteraction()"
                 />
 
-                <!-- 元信息：Token 用量 -->
-                <div v-if="msg.metadata?.usage" class="msg-usage">
+                <!-- 元信息：Token 用量 + 操作 -->
+                <div v-if="msg.metadata?.usage || !msg.loading" class="msg-usage">
                   <span v-if="msg.metadata?.usage?.prompt_tokens != null" class="usage-item usage-item--input">
                     <ArrowBigUpIcon class="usage-icon" /> {{ msg.metadata.usage.prompt_tokens }}
                   </span>
                   <span v-if="msg.metadata?.usage?.completion_tokens != null" class="usage-item usage-item--output">
                     <ArrowBigDownIcon class="usage-icon" /> {{ msg.metadata.usage.completion_tokens }}
                   </span>
+                  <Tooltip title="重新生成" v-if="!msg.loading">
+                    <span
+                      class="regenerate-btn"
+                      :class="{ 'regenerate-btn--disabled': chat.isStreaming.value }"
+                      @click="!chat.isStreaming.value && chat.regenerateMessage(msg.id)"
+                    >
+                      <RefreshCwIcon class="regenerate-icon" />
+                    </span>
+                  </Tooltip>
                 </div>
               </div>
             </template>
@@ -731,6 +741,31 @@ onUnmounted(() => {
 
 .usage-item--output .usage-icon {
   color: #52c41a;
+}
+
+.regenerate-btn {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  color: #999;
+  transition: color 0.2s;
+}
+
+.regenerate-btn:hover {
+  color: #1677ff;
+}
+
+.regenerate-btn--disabled {
+  cursor: not-allowed;
+  opacity: 0.3;
+}
+
+.regenerate-btn--disabled:hover {
+  color: #999;
+}
+
+.regenerate-icon {
+  font-size: 12px;
 }
 
 /* ============ 底部输入区 ============ */

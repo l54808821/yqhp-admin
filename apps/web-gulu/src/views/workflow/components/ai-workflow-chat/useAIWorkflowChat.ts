@@ -151,12 +151,16 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
       if (detail.messages?.length) {
         messages.value = detail.messages.map((m: AIConversationMessage) => {
           const blocks = parseMessageContent(m.content);
+          let metadata = m.metadata;
+          if (typeof metadata === 'string') {
+            try { metadata = JSON.parse(metadata); } catch { metadata = undefined; }
+          }
           return {
             id: `db_${m.id}`,
             role: m.role as 'user' | 'assistant',
             blocks,
             content: blocksToPlainText(blocks) || m.content,
-            metadata: m.metadata,
+            metadata,
             timestamp: new Date(m.created_at || '').getTime(),
           };
         });
@@ -257,6 +261,146 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
       return JSON.parse(workflow.definition || '{}');
     } catch {
       return { steps: [] };
+    }
+  }
+
+  async function regenerateMessage(msgId: string) {
+    if (isStreaming.value) return;
+
+    const msgIndex = messages.value.findIndex((m) => m.id === msgId);
+    if (msgIndex < 0) return;
+
+    const targetMsg = messages.value[msgIndex]!;
+    if (targetMsg.role !== 'assistant') return;
+
+    // 找到该 assistant 消息之前的 user 消息
+    let userMsg: ChatMessage | null = null;
+    for (let i = msgIndex - 1; i >= 0; i--) {
+      if (messages.value[i]!.role === 'user') {
+        userMsg = messages.value[i]!;
+        break;
+      }
+    }
+    if (!userMsg) return;
+
+    // 移除该 assistant 消息及之后的所有消息，保留 user 消息
+    messages.value.splice(msgIndex);
+
+    // 构建到该 user 消息为止的历史（不包含被移除的部分）
+    const chatHistory = buildChatHistory();
+
+    // 添加新的空 assistant 消息
+    messages.value.push({
+      id: generateId(),
+      role: 'assistant',
+      blocks: [],
+      content: '',
+      loading: true,
+      metadata: {},
+      timestamp: Date.now(),
+    });
+    const assistantMsg = messages.value[messages.value.length - 1]!;
+
+    streamStatus.value = 'connecting';
+    sessionId.value = null;
+    abortController.value = new AbortController();
+
+    const doneAttachments = userMsg.attachments?.filter((a) => a.status === 'done' && a.url) || [];
+    const userMessage: string | MultimodalContentPart[] = doneAttachments.length > 0
+      ? buildMultimodalContent(userMsg.content, doneAttachments)
+      : userMsg.content;
+
+    try {
+      const wfDef = parseWorkflowDefinition();
+      const accessStore = useAccessStore();
+      const token = accessStore.accessToken || '';
+
+      const response = await fetch(getExecuteUrl(), {
+        method: 'POST',
+        headers: {
+          'Accept': 'text/event-stream',
+          'Content-Type': 'application/json',
+          ...(token ? { satoken: token } : {}),
+        },
+        body: JSON.stringify({
+          workflow: {
+            id: `ai_wf_${workflow.id}`,
+            name: workflow.name,
+            steps: wfDef.steps || [],
+            variables: wfDef.variables || {},
+          },
+          stream: true,
+          mode: 'debug',
+          persist: false,
+          ...(envId ? { envId } : {}),
+          conversationId: currentConversation.value?.id
+            ? String(currentConversation.value.id)
+            : undefined,
+          userMessage,
+          chatHistory,
+        }),
+        signal: abortController.value.signal,
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`执行失败 (${response.status}): ${errText}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('无法获取响应流');
+
+      streamStatus.value = 'streaming';
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let eventType = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            eventType = line.slice(7).trim();
+          } else if (line.startsWith('data: ') && eventType) {
+            try {
+              const raw = JSON.parse(line.slice(6));
+              if (raw.sessionId && !sessionId.value) {
+                sessionId.value = raw.sessionId;
+              }
+              const eventData = raw.data || raw;
+              handleSSEEvent(eventType, eventData, assistantMsg);
+            } catch {
+              // ignore parse errors
+            }
+            eventType = '';
+          }
+        }
+      }
+
+      assistantMsg.loading = false;
+      streamStatus.value = 'done';
+
+      if (currentConversation.value) {
+        await persistMessages(userMsg, assistantMsg);
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        streamStatus.value = 'aborted';
+        assistantMsg.loading = false;
+        assistantMsg.content += '\n\n[已停止]';
+      } else {
+        streamStatus.value = 'error';
+        assistantMsg.loading = false;
+        assistantMsg.error = err.message;
+        assistantMsg.content = assistantMsg.content || `请求失败: ${err.message}`;
+      }
+    } finally {
+      abortController.value = null;
     }
   }
 
@@ -599,6 +743,7 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
     deleteConversation,
     renameConversation,
     sendMessage,
+    regenerateMessage,
     stopGeneration,
     startNewConversation,
     confirmInteraction,
