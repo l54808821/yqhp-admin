@@ -20,6 +20,8 @@ const MessageCircle = createIconifyIcon('lucide:message-circle');
 const SparklesIcon = createIconifyIcon('lucide:sparkles');
 const PanelLeftClose = createIconifyIcon('lucide:panel-left-close');
 const PanelLeftOpen = createIconifyIcon('lucide:panel-left-open');
+const ArrowBigUpIcon = createIconifyIcon('lucide:arrow-big-up');
+const ArrowBigDownIcon = createIconifyIcon('lucide:arrow-big-down');
 
 interface Props {
   workflow: Workflow;
@@ -322,10 +324,10 @@ onUnmounted(() => {
                 <!-- 元信息：Token 用量 -->
                 <div v-if="msg.metadata?.usage" class="msg-usage">
                   <Tag v-if="msg.metadata?.usage?.prompt_tokens != null" color="default" class="usage-tag">
-                    输入: {{ msg.metadata.usage.prompt_tokens }} tokens
+                    <ArrowBigUpIcon class="usage-icon" /> {{ msg.metadata.usage.prompt_tokens }}
                   </Tag>
                   <Tag v-if="msg.metadata?.usage?.completion_tokens != null" color="default" class="usage-tag">
-                    输出: {{ msg.metadata.usage.completion_tokens }} tokens
+                    <ArrowBigDownIcon class="usage-icon" /> {{ msg.metadata.usage.completion_tokens }}
                   </Tag>
                 </div>
               </div>
@@ -711,8 +713,15 @@ onUnmounted(() => {
 }
 
 .usage-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   font-size: 11px;
   opacity: 0.6;
+}
+
+.usage-icon {
+  font-size: 12px;
 }
 
 /* ============ 底部输入区 ============ */
