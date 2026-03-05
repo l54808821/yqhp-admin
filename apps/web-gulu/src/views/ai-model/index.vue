@@ -30,6 +30,7 @@ import {
   updateAiProviderStatusApi,
 } from '#/api/ai-model';
 
+import SplitPane from '#/components/SplitPane.vue';
 import ModelCard from './components/ModelCard.vue';
 import ModelFormModal from './components/ModelFormModal.vue';
 import ProviderFormModal from './components/ProviderFormModal.vue';
@@ -199,124 +200,134 @@ onMounted(() => {
 
 <template>
   <div class="ai-model-page">
-    <!-- 左侧供应商列表 -->
-    <aside class="provider-sidebar">
-      <div class="sidebar-header">
-        <h2 class="sidebar-title">供应商</h2>
-        <Button type="primary" size="small" @click="handleAddProvider">
-          <template #icon><PlusOutlined /></template>
-          添加
-        </Button>
-      </div>
-
-      <Spin :spinning="loadingProviders">
-        <div v-if="providers.length === 0 && !loadingProviders" class="sidebar-empty">
-          <Empty :image="Empty.PRESENTED_IMAGE_SIMPLE" description="暂无供应商">
-            <Button type="primary" size="small" @click="handleAddProvider">添加供应商</Button>
-          </Empty>
-        </div>
-
-        <div v-else class="provider-list">
-          <div
-            v-for="provider in providers"
-            :key="provider.id"
-            class="provider-item"
-            :class="{ 'provider-item--active': selectedProviderId === provider.id }"
-            @click="selectProvider(provider)"
-          >
-            <div class="provider-item__icon">
-              {{ provider.name.charAt(0) }}
-            </div>
-            <div class="provider-item__content">
-              <div class="provider-item__name">{{ provider.name }}</div>
-              <div class="provider-item__meta">
-                <Badge
-                  :status="provider.status === 1 ? 'success' : 'default'"
-                  class="provider-item__status"
-                />
-                <span class="provider-item__count">
-                  {{ provider.model_count || 0 }} 个模型
-                </span>
-              </div>
-            </div>
+    <SplitPane
+      :default-width="300"
+      :min-width="200"
+      :max-width="420"
+    >
+      <template #left>
+        <!-- 左侧供应商列表 -->
+        <aside class="provider-sidebar">
+          <div class="sidebar-header">
+            <h2 class="sidebar-title">供应商</h2>
+            <Button type="primary" size="small" @click="handleAddProvider">
+              <template #icon><PlusOutlined /></template>
+              添加
+            </Button>
           </div>
-        </div>
-      </Spin>
-    </aside>
 
-    <!-- 右侧内容区 -->
-    <main class="content-area">
-      <template v-if="selectedProvider">
-        <!-- 供应商信息栏 -->
-        <div class="content-header">
-          <h3 class="content-header__name">{{ selectedProvider.name }}</h3>
-          <Tag
-            :color="selectedProvider.status === 1 ? 'success' : 'default'"
-            class="content-header__tag"
-          >
-            {{ selectedProvider.status === 1 ? '已启用' : '已禁用' }}
-          </Tag>
-          <Switch
-            :checked="selectedProvider.status === 1"
-            size="small"
-            @change="(checked: any) => handleProviderStatusChange(selectedProvider!, !!checked)"
-          />
-          <span class="content-header__divider" />
-          <LinkOutlined class="content-header__url-icon" />
-          <span class="content-header__url">{{ selectedProvider.api_base_url }}</span>
-          <div class="content-header__actions">
-            <Tooltip title="编辑供应商">
-              <Button size="small" type="text" class="content-header__action-btn" @click="handleEditProvider(selectedProvider!)">
-                <template #icon><EditOutlined /></template>
-              </Button>
-            </Tooltip>
-            <Tooltip title="删除供应商">
-              <Button size="small" type="text" danger class="content-header__action-btn" @click="handleDeleteProvider(selectedProvider!)">
-                <template #icon><DeleteOutlined /></template>
-              </Button>
-            </Tooltip>
-          </div>
-        </div>
-
-        <!-- 模型工具栏 -->
-        <div class="model-toolbar">
-          <div class="model-toolbar__title">
-            模型列表
-            <span class="model-toolbar__count">{{ currentModels.length }}</span>
-          </div>
-          <Button type="primary" size="small" @click="handleAddModel">
-            <template #icon><PlusOutlined /></template>
-            添加模型
-          </Button>
-        </div>
-
-        <!-- 模型卡片网格 -->
-        <div class="model-grid-wrapper">
-          <Spin :spinning="isLoadingCurrentModels">
-            <div v-if="currentModels.length > 0" class="model-grid">
-              <ModelCard
-                v-for="model in currentModels"
-                :key="model.id"
-                :model="model"
-                @chat="handleChat"
-                @edit="handleEditModel"
-                @delete="handleDeleteModel"
-                @status-change="handleModelStatusChange"
-              />
-            </div>
-            <div v-else-if="!isLoadingCurrentModels" class="model-empty">
-              <Empty description="暂无模型">
-                <Button type="primary" size="small" @click="handleAddModel">添加模型</Button>
+          <Spin :spinning="loadingProviders">
+            <div v-if="providers.length === 0 && !loadingProviders" class="sidebar-empty">
+              <Empty :image="Empty.PRESENTED_IMAGE_SIMPLE" description="暂无供应商">
+                <Button type="primary" size="small" @click="handleAddProvider">添加供应商</Button>
               </Empty>
             </div>
+
+            <div v-else class="provider-list">
+              <div
+                v-for="provider in providers"
+                :key="provider.id"
+                class="provider-item"
+                :class="{ 'provider-item--active': selectedProviderId === provider.id }"
+                @click="selectProvider(provider)"
+              >
+                <div class="provider-item__icon">
+                  {{ provider.name.charAt(0) }}
+                </div>
+                <div class="provider-item__content">
+                  <div class="provider-item__name">{{ provider.name }}</div>
+                  <div class="provider-item__meta">
+                    <Badge
+                      :status="provider.status === 1 ? 'success' : 'default'"
+                      class="provider-item__status"
+                    />
+                    <span class="provider-item__count">
+                      {{ provider.model_count || 0 }} 个模型
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </Spin>
-        </div>
+        </aside>
       </template>
 
-      <div v-else class="content-placeholder">
-        <Empty :image="Empty.PRESENTED_IMAGE_SIMPLE" description="请在左侧选择一个供应商" />
-      </div>
-    </main>
+      <template #right>
+        <!-- 右侧内容区 -->
+        <main class="content-area">
+          <template v-if="selectedProvider">
+            <!-- 供应商信息栏 -->
+            <div class="content-header">
+              <h3 class="content-header__name">{{ selectedProvider.name }}</h3>
+              <Tag
+                :color="selectedProvider.status === 1 ? 'success' : 'default'"
+                class="content-header__tag"
+              >
+                {{ selectedProvider.status === 1 ? '已启用' : '已禁用' }}
+              </Tag>
+              <Switch
+                :checked="selectedProvider.status === 1"
+                size="small"
+                @change="(checked: any) => handleProviderStatusChange(selectedProvider!, !!checked)"
+              />
+              <span class="content-header__divider" />
+              <LinkOutlined class="content-header__url-icon" />
+              <span class="content-header__url">{{ selectedProvider.api_base_url }}</span>
+              <div class="content-header__actions">
+                <Tooltip title="编辑供应商">
+                  <Button size="small" type="text" class="content-header__action-btn" @click="handleEditProvider(selectedProvider!)">
+                    <template #icon><EditOutlined /></template>
+                  </Button>
+                </Tooltip>
+                <Tooltip title="删除供应商">
+                  <Button size="small" type="text" danger class="content-header__action-btn" @click="handleDeleteProvider(selectedProvider!)">
+                    <template #icon><DeleteOutlined /></template>
+                  </Button>
+                </Tooltip>
+              </div>
+            </div>
+
+            <!-- 模型工具栏 -->
+            <div class="model-toolbar">
+              <div class="model-toolbar__title">
+                模型列表
+                <span class="model-toolbar__count">{{ currentModels.length }}</span>
+              </div>
+              <Button type="primary" size="small" @click="handleAddModel">
+                <template #icon><PlusOutlined /></template>
+                添加模型
+              </Button>
+            </div>
+
+            <!-- 模型卡片网格 -->
+            <div class="model-grid-wrapper">
+              <Spin :spinning="isLoadingCurrentModels">
+                <div v-if="currentModels.length > 0" class="model-grid">
+                  <ModelCard
+                    v-for="model in currentModels"
+                    :key="model.id"
+                    :model="model"
+                    @chat="handleChat"
+                    @edit="handleEditModel"
+                    @delete="handleDeleteModel"
+                    @status-change="handleModelStatusChange"
+                  />
+                </div>
+                <div v-else-if="!isLoadingCurrentModels" class="model-empty">
+                  <Empty description="暂无模型">
+                    <Button type="primary" size="small" @click="handleAddModel">添加模型</Button>
+                  </Empty>
+                </div>
+              </Spin>
+            </div>
+          </template>
+
+          <div v-else class="content-placeholder">
+            <Empty :image="Empty.PRESENTED_IMAGE_SIMPLE" description="请在左侧选择一个供应商" />
+          </div>
+        </main>
+      </template>
+    </SplitPane>
 
     <ProviderFormModal ref="providerFormRef" @success="handleFormSuccess" />
     <ModelFormModal ref="modelFormRef" @success="handleFormSuccess" />
@@ -335,9 +346,8 @@ onMounted(() => {
 .provider-sidebar {
   display: flex;
   flex-direction: column;
-  width: 280px;
-  flex-shrink: 0;
-  border-right: 1px solid var(--ant-color-border-secondary, #f0f0f0);
+  width: 100%;
+  height: 100%;
   background: hsl(var(--header));
 }
 
