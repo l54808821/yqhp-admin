@@ -15,13 +15,10 @@ import {
   Modal,
   Spin,
   Switch,
-  Tooltip,
 } from 'ant-design-vue';
 import { createIconifyIcon } from '@vben/icons';
 
 const PlusOutlined = createIconifyIcon('ant-design:plus-outlined');
-const SettingOutlined = createIconifyIcon('ant-design:setting-outlined');
-const EditOutlined = createIconifyIcon('ant-design:edit-outlined');
 import {
   deleteAiModelApi,
   deleteAiProviderApi,
@@ -267,16 +264,6 @@ onMounted(() => {
             <div class="content-header__url">{{ selectedProvider.api_base_url }}</div>
           </div>
           <div class="content-header__actions">
-            <Tooltip title="编辑">
-              <Button size="small" type="text" @click="handleEditProvider(selectedProvider!)">
-                <template #icon><EditOutlined /></template>
-              </Button>
-            </Tooltip>
-            <Tooltip title="配置">
-              <Button size="small" type="text" @click="handleEditProvider(selectedProvider!)">
-                <template #icon><SettingOutlined /></template>
-              </Button>
-            </Tooltip>
             <Dropdown :trigger="['click']">
               <Button size="small" type="text">···</Button>
               <template #overlay>
