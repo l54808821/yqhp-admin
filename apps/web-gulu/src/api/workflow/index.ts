@@ -240,6 +240,10 @@ export async function saveConversationMessageApi(conversationId: number, params:
   return requestClient.post<AIConversationMessage>(`/conversations/${conversationId}/messages`, params);
 }
 
+export async function deleteMessagesFromApi(conversationId: number, messageId: number) {
+  return requestClient.delete(`/conversations/${conversationId}/messages/from/${messageId}`);
+}
+
 // ============ 通用附件上传 ============
 
 export interface AttachmentResult {

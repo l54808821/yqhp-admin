@@ -15,6 +15,7 @@ import {
   deleteConversationApi,
   updateConversationTitleApi,
   saveConversationMessageApi,
+  deleteMessagesFromApi,
 } from '#/api/workflow';
 import type { AIInteractionData } from '#/api/debug';
 import { submitInteractionApi } from '#/api/debug';
@@ -283,6 +284,18 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
     }
     if (!userMsg) return;
 
+    // 如果是来自数据库的消息，先调用截断 API 删除该消息及之后的记录
+    if (targetMsg.id.startsWith('db_') && currentConversation.value) {
+      const dbId = parseInt(targetMsg.id.replace('db_', ''), 10);
+      if (!isNaN(dbId)) {
+        try {
+          await deleteMessagesFromApi(currentConversation.value.id, dbId);
+        } catch {
+          // 截断失败不阻塞重新生成
+        }
+      }
+    }
+
     // 移除该 assistant 消息及之后的所有消息，保留 user 消息
     messages.value.splice(msgIndex);
 
@@ -386,7 +399,7 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
       streamStatus.value = 'done';
 
       if (currentConversation.value) {
-        await persistMessages(userMsg, assistantMsg);
+        await persistAssistantMessage(assistantMsg);
       }
     } catch (err: any) {
       if (err.name === 'AbortError') {
@@ -401,6 +414,23 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
       }
     } finally {
       abortController.value = null;
+    }
+  }
+
+  async function persistAssistantMessage(assistantMsg: ChatMessage) {
+    if (!persistConversation || !currentConversation.value) return;
+    const convId = currentConversation.value.id;
+    try {
+      const content = serializeBlocks(assistantMsg.blocks);
+      if (content?.trim()) {
+        await saveConversationMessageApi(convId, {
+          role: 'assistant',
+          content,
+          metadata: assistantMsg.metadata,
+        });
+      }
+    } catch {
+      // 持久化失败不影响对话
     }
   }
 
