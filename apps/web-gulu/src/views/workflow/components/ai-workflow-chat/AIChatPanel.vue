@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick, onUnmounted } from 'vue';
 
-import { Button, Dropdown, Typography, Tooltip, Popconfirm, Tag } from 'ant-design-vue';
+import { Button, Dropdown, Typography, Tooltip, Popconfirm } from 'ant-design-vue';
 import { createIconifyIcon } from '@vben/icons';
 
 import type { Workflow } from '#/api/workflow';
@@ -323,12 +323,12 @@ onUnmounted(() => {
 
                 <!-- 元信息：Token 用量 -->
                 <div v-if="msg.metadata?.usage" class="msg-usage">
-                  <Tag v-if="msg.metadata?.usage?.prompt_tokens != null" color="default" class="usage-tag">
+                  <span v-if="msg.metadata?.usage?.prompt_tokens != null" class="usage-item usage-item--input">
                     <ArrowBigUpIcon class="usage-icon" /> {{ msg.metadata.usage.prompt_tokens }}
-                  </Tag>
-                  <Tag v-if="msg.metadata?.usage?.completion_tokens != null" color="default" class="usage-tag">
+                  </span>
+                  <span v-if="msg.metadata?.usage?.completion_tokens != null" class="usage-item usage-item--output">
                     <ArrowBigDownIcon class="usage-icon" /> {{ msg.metadata.usage.completion_tokens }}
-                  </Tag>
+                  </span>
                 </div>
               </div>
             </template>
@@ -712,16 +712,25 @@ onUnmounted(() => {
   margin-top: 4px;
 }
 
-.usage-tag {
+.usage-item {
   display: inline-flex;
   align-items: center;
   gap: 2px;
+  margin-right: 8px;
   font-size: 11px;
-  opacity: 0.6;
+  color: #999;
 }
 
 .usage-icon {
   font-size: 12px;
+}
+
+.usage-item--input .usage-icon {
+  color: #1677ff;
+}
+
+.usage-item--output .usage-icon {
+  color: #52c41a;
 }
 
 /* ============ 底部输入区 ============ */
