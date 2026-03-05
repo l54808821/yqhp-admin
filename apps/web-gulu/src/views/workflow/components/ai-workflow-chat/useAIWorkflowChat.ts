@@ -434,6 +434,9 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
             completion_tokens: data.completionTokens,
             total_tokens: data.totalTokens,
           },
+          model: data.model || msg.metadata?.model,
+          finishReason: data.finishReason || msg.metadata?.finishReason,
+          verified: data.verified || msg.metadata?.verified,
         };
         break;
 
