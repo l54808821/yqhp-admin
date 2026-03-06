@@ -323,6 +323,15 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
       ? buildMultimodalContent(userMsg.content, doneAttachments)
       : userMsg.content;
 
+    const userinputFiles = doneAttachments
+      .filter((att) => att.url)
+      .map((att) => ({
+        url: att.dataUrl || resolveAttachmentUrl(att.url!),
+        name: att.name,
+        type: att.type,
+        mimeType: att.mimeType,
+      }));
+
     try {
       const wfDef = parseWorkflowDefinition();
       const accessStore = useAccessStore();
@@ -341,6 +350,10 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
             name: workflow.name,
             steps: wfDef.steps || [],
             variables: wfDef.variables || {},
+          },
+          paramValues: {
+            'userinput.query': userMsg.content,
+            'userinput.files': userinputFiles,
           },
           stream: true,
           mode: 'debug',
@@ -491,6 +504,15 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
       ? buildMultimodalContent(text, doneAttachments)
       : text;
 
+    const userinputFiles = doneAttachments
+      .filter((att) => att.url)
+      .map((att) => ({
+        url: att.dataUrl || resolveAttachmentUrl(att.url!),
+        name: att.name,
+        type: att.type,
+        mimeType: att.mimeType,
+      }));
+
     try {
       const wfDef = parseWorkflowDefinition();
       const accessStore = useAccessStore();
@@ -509,6 +531,10 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
             name: workflow.name,
             steps: wfDef.steps || [],
             variables: wfDef.variables || {},
+          },
+          paramValues: {
+            'userinput.query': text,
+            'userinput.files': userinputFiles,
           },
           stream: true,
           mode: 'debug',

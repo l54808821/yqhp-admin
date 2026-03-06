@@ -247,6 +247,10 @@ async function handleSaveEdit() {
         let defaultDefinition: Record<string, any> = { steps: [] };
         if (editForm.value.workflow_type === 'ai_workflow') {
           defaultDefinition = {
+            params: [
+              { name: 'userinput.query', type: 'paragraph', description: '用户输入文本', required: true },
+              { name: 'userinput.files', type: 'file_list', description: '用户上传文件', required: false },
+            ],
             steps: [
               {
                 id: 'ai_main',
@@ -255,7 +259,7 @@ async function handleSaveEdit() {
                 config: {
                   ai_model_id: 0,
                   system_prompt: '你是一个有用的助手。',
-                  prompt: '${__user_message__}',
+                  prompt: '${userinput.query}',
                   streaming: true,
                   enable_plan_mode: true,
                 },
