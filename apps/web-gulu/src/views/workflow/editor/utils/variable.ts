@@ -1,6 +1,7 @@
 /**
  * 变量解析工具函数
  * 支持 ${variable} 格式的变量表达式解析
+ * 环境变量可通过 ${env.variableName} 访问，也兼容 ${variableName}
  */
 
 /**

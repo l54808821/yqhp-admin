@@ -169,8 +169,8 @@ const hasDomain = computed(() => !!localNode.value?.config?.domainCode);
 // URL 输入框 placeholder
 const urlPlaceholder = computed(() =>
   hasDomain.value
-    ? '输入路径，如 /api/users，支持变量 ${var}'
-    : '输入请求 URL，支持变量 ${var}',
+    ? '输入路径，如 /api/users，支持 ${var} 或 ${env.var}'
+    : '输入请求 URL，支持 ${var} 或 ${env.var}',
 );
 
 function updateMethod(method: string) {

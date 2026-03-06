@@ -256,7 +256,7 @@ const sqlPlaceholder = computed(() => {
   const action = localNode.value?.config?.action || 'query';
   switch (action) {
     case 'query':
-      return 'SELECT * FROM users WHERE id = ? LIMIT 10;\n\n-- 支持变量: ${userId}\n-- 支持参数占位符: ?';
+      return 'SELECT * FROM users WHERE id = ? LIMIT 10;\n\n-- 支持变量: ${userId}，环境变量: ${env.varName}\n-- 支持参数占位符: ?';
     case 'execute':
       return 'INSERT INTO users (name, email) VALUES (?, ?);\n\n-- 或 UPDATE / DELETE 语句';
     case 'count':
@@ -327,7 +327,7 @@ const sqlPlaceholder = computed(() => {
           </template>
           <div class="tab-content">
             <div class="params-hint">
-              SQL 中使用 <code>?</code> 占位符，参数按顺序绑定。支持变量引用 <code>${'{'}变量名{'}'}</code>
+              SQL 中使用 <code>?</code> 占位符，参数按顺序绑定。支持变量引用 <code>${'{'}变量名{'}'}</code>，环境变量 <code>${'{'}env.变量名{'}'}</code>
             </div>
             <ParamTable
               :items="localNode.config?.params || []"

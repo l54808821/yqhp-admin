@@ -69,7 +69,7 @@ function updateScope(value: string) {
         class="field-name"
         @change="(e: any) => updateVariableName(e.target.value)"
       />
-      <Tooltip title="临时变量：仅在当前执行中有效；环境变量：保存到当前环境，后续执行可用">
+      <Tooltip title="临时变量：通过 ${变量名} 引用，仅在当前执行中有效；环境变量：通过 ${env.变量名} 或 ${变量名} 引用，保存到当前环境">
         <Select
           :value="localConfig.scope"
           :options="VARIABLE_SCOPE_OPTIONS"
