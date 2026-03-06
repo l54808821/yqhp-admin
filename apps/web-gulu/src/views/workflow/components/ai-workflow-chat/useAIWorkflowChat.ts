@@ -337,6 +337,18 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
       const accessStore = useAccessStore();
       const token = accessStore.accessToken || '';
 
+      const wfParams = [...(wfDef.params || [])];
+      const setOrAddParam = (name: string, value: string) => {
+        const idx = wfParams.findIndex((p: any) => p.name === name);
+        if (idx >= 0) {
+          wfParams[idx] = { ...wfParams[idx], defaultValue: value };
+        } else {
+          wfParams.push({ name, type: 'string', defaultValue: value, required: false });
+        }
+      };
+      setOrAddParam('userinput.query', userMsg.content);
+      setOrAddParam('userinput.files', JSON.stringify(userinputFiles));
+
       const response = await fetch(getExecuteUrl(), {
         method: 'POST',
         headers: {
@@ -350,10 +362,7 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
             name: workflow.name,
             steps: wfDef.steps || [],
             variables: wfDef.variables || {},
-          },
-          paramValues: {
-            'userinput.query': userMsg.content,
-            'userinput.files': userinputFiles,
+            params: wfParams,
           },
           stream: true,
           mode: 'debug',
@@ -518,6 +527,18 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
       const accessStore = useAccessStore();
       const token = accessStore.accessToken || '';
 
+      const wfParams = [...(wfDef.params || [])];
+      const setOrAddParam = (name: string, value: string) => {
+        const idx = wfParams.findIndex((p: any) => p.name === name);
+        if (idx >= 0) {
+          wfParams[idx] = { ...wfParams[idx], defaultValue: value };
+        } else {
+          wfParams.push({ name, type: 'string', defaultValue: value, required: false });
+        }
+      };
+      setOrAddParam('userinput.query', text);
+      setOrAddParam('userinput.files', JSON.stringify(userinputFiles));
+
       const response = await fetch(getExecuteUrl(), {
         method: 'POST',
         headers: {
@@ -531,10 +552,7 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
             name: workflow.name,
             steps: wfDef.steps || [],
             variables: wfDef.variables || {},
-          },
-          paramValues: {
-            'userinput.query': text,
-            'userinput.files': userinputFiles,
+            params: wfParams,
           },
           stream: true,
           mode: 'debug',

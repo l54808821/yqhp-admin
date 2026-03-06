@@ -248,7 +248,7 @@ async function handleSaveEdit() {
         if (editForm.value.workflow_type === 'ai_workflow') {
           defaultDefinition = {
             params: [
-              { name: 'userinput.query', type: 'paragraph', description: '用户输入文本', required: true },
+              { name: 'userinput.query', type: 'paragraph', description: '用户输入文本', required: false },
               { name: 'userinput.files', type: 'file_list', description: '用户上传文件', required: false },
             ],
             steps: [
