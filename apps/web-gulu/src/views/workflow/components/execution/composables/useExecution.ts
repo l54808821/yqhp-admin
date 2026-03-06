@@ -15,6 +15,7 @@ import {
 } from '#/api/debug';
 import type {
   DebugSummary,
+  ProgressData,
   StepResult,
   StepStartedData,
 } from '#/api/debug';
@@ -81,6 +82,7 @@ export function useExecution(options: UseExecutionOptions) {
   const executionSummary = ref<DebugSummary | null>(null);
   const logs = ref<string[]>([]);
   const errorMessage = ref<string | null>(null);
+  const currentProgress = ref<ProgressData | null>(null);
 
   // AI 状态（blocks 是唯一数据源）
   const currentAIStepId = ref<string | null>(null);
@@ -228,6 +230,18 @@ export function useExecution(options: UseExecutionOptions) {
       durationMs: 0,
     };
     stepResults.value = [...stepResults.value, result];
+
+    const totalSteps = definition?.value?.steps?.length || 0;
+    const currentStep = stepResults.value.filter((r) => !r.parentId).length;
+    if (totalSteps > 0) {
+      currentProgress.value = {
+        currentStep,
+        totalSteps,
+        percentage: Math.round((currentStep / totalSteps) * 100),
+        stepName: data.stepName,
+      };
+    }
+
     onStepStarted?.(result);
   }
 
@@ -421,6 +435,7 @@ export function useExecution(options: UseExecutionOptions) {
       errorMessage.value = null;
       stepResults.value = [];
       executionSummary.value = null;
+      currentProgress.value = null;
       logs.value = [];
       aiStreamingBlocks.value = new Map();
       currentAIStepId.value = null;
@@ -564,6 +579,7 @@ export function useExecution(options: UseExecutionOptions) {
     sseState,
     stepResults,
     executionSummary,
+    currentProgress,
     logs,
     errorMessage,
 
