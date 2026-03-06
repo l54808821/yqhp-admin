@@ -74,11 +74,31 @@ function formatValue(value: unknown): string {
   return String(value);
 }
 
+const ENV_PREFIX = 'env.';
+
+// 从统一 variables map 中按 env. 前缀分离环境变量和临时变量
+function splitSnapshotVars(snapshot: VariableSnapshotInfo): {
+  envVars: Record<string, unknown>;
+  tempVars: Record<string, unknown>;
+} {
+  const envVars: Record<string, unknown> = {};
+  const tempVars: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(snapshot.variables || {})) {
+    if (k.startsWith(ENV_PREFIX)) {
+      envVars[k.slice(ENV_PREFIX.length)] = v;
+    } else {
+      tempVars[k] = v;
+    }
+  }
+  return { envVars, tempVars };
+}
+
 // 获取快照变量数量
 function getSnapshotVarCount(snapshot: VariableSnapshotInfo): { env: number; temp: number } {
+  const { envVars, tempVars } = splitSnapshotVars(snapshot);
   return {
-    env: Object.keys(snapshot.envVars || {}).length,
-    temp: Object.keys(snapshot.tempVars || {}).length,
+    env: Object.keys(envVars).length,
+    temp: Object.keys(tempVars).length,
   };
 }
 
@@ -204,12 +224,12 @@ function getTruncatedMessage(message?: string): string {
             <div v-if="isSnapshotExpanded(idx)" class="snapshot-content">
               <!-- 环境变量 -->
               <div
-                v-if="Object.keys(entry.snapshot.envVars || {}).length > 0"
+                v-if="Object.keys(splitSnapshotVars(entry.snapshot).envVars).length > 0"
                 class="var-section"
               >
                 <div class="section-title">环境变量</div>
                 <div
-                  v-for="(val, key) in entry.snapshot.envVars"
+                  v-for="(val, key) in splitSnapshotVars(entry.snapshot).envVars"
                   :key="String(key)"
                   class="var-item"
                 >
@@ -219,12 +239,12 @@ function getTruncatedMessage(message?: string): string {
               </div>
               <!-- 临时变量 -->
               <div
-                v-if="Object.keys(entry.snapshot.tempVars || {}).length > 0"
+                v-if="Object.keys(splitSnapshotVars(entry.snapshot).tempVars).length > 0"
                 class="var-section"
               >
                 <div class="section-title">临时变量</div>
                 <div
-                  v-for="(val, key) in entry.snapshot.tempVars"
+                  v-for="(val, key) in splitSnapshotVars(entry.snapshot).tempVars"
                   :key="String(key)"
                   class="var-item"
                 >
@@ -234,10 +254,7 @@ function getTruncatedMessage(message?: string): string {
               </div>
               <!-- 无变量 -->
               <div
-                v-if="
-                  Object.keys(entry.snapshot.envVars || {}).length === 0 &&
-                  Object.keys(entry.snapshot.tempVars || {}).length === 0
-                "
+                v-if="Object.keys(entry.snapshot.variables || {}).length === 0"
                 class="no-vars"
               >
                 暂无变量

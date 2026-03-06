@@ -27,9 +27,9 @@ export interface VariableChangeInfo {
 }
 
 // 变量快照信息
+// variables 统一存储所有变量，环境变量以 "env." 前缀区分
 export interface VariableSnapshotInfo {
-  envVars: Record<string, unknown>;
-  tempVars: Record<string, unknown>;
+  variables: Record<string, unknown>;
 }
 
 // 统一的控制台日志条目
