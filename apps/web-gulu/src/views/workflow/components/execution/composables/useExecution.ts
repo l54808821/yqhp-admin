@@ -462,6 +462,18 @@ export function useExecution(options: UseExecutionOptions) {
         if (def.variables && Object.keys(def.variables).length > 0) {
           params.workflow.variables = def.variables;
         }
+        // 将参数默认值提取为 paramValues 注入上下文
+        if (def.params && Array.isArray(def.params) && def.params.length > 0) {
+          const paramValues: Record<string, any> = {};
+          for (const p of def.params) {
+            if (p.name && p.defaultValue !== undefined && p.defaultValue !== '') {
+              paramValues[p.name] = p.defaultValue;
+            }
+          }
+          if (Object.keys(paramValues).length > 0) {
+            params.paramValues = paramValues;
+          }
+        }
       }
 
       if (selectedSteps?.value && selectedSteps.value.length > 0) {
