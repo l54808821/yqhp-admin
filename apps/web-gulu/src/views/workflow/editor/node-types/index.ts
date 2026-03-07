@@ -25,9 +25,6 @@ import WaitProperty from './WaitProperty.vue';
 import { createIconifyIcon } from '@vben/icons';
 const BrainCircuit = createIconifyIcon('lucide:brain-circuit');
 const Workflow = createIconifyIcon('lucide:workflow');
-const Zap = createIconifyIcon('lucide:zap');
-const ListChecks = createIconifyIcon('lucide:list-checks');
-const MessageCircleIcon = createIconifyIcon('lucide:message-circle');
 
 export interface NodeTypeConfig {
   key: string;
@@ -40,8 +37,8 @@ export interface NodeTypeConfig {
   canHaveChildren?: boolean;
 }
 
-// 旧 AI 节点类型列表（用于兼容迁移）
-const legacyAITypes = ['ai', 'ai_chat', 'ai_plan_execute', 'ai_reflection', 'ai_supervisor', 'ai_deep_agent'];
+// 旧 AI 节点类型列表（用于兼容迁移，打开时自动映射为 ai_agent）
+const legacyAITypes = ['ai', 'ai_chat', 'ai_react', 'ai_plan', 'ai_direct', 'ai_plan_execute', 'ai_reflection', 'ai_supervisor', 'ai_deep_agent'];
 
 // 节点类型注册表
 export const nodeTypeRegistry: Record<string, NodeTypeConfig> = {
@@ -94,44 +91,6 @@ export const nodeTypeRegistry: Record<string, NodeTypeConfig> = {
     color: '#722ed1',
     propertyComponent: UnifiedAgentPropertyPanel,
     defaultConfig: () => ({ config: createDefaultUnifiedAgentConfig() }),
-    getDescription: (node) => node.config?.ai_model_name || '未选择模型',
-  },
-  ai_react: {
-    key: 'ai_react',
-    label: 'ReAct Agent',
-    icon: Zap,
-    color: '#1677ff',
-    propertyComponent: UnifiedAgentPropertyPanel,
-    defaultConfig: () => ({
-      config: { ...createDefaultUnifiedAgentConfig(), enable_plan_mode: false },
-    }),
-    getDescription: (node) => node.config?.ai_model_name || '未选择模型',
-  },
-  ai_plan: {
-    key: 'ai_plan',
-    label: 'Plan Agent',
-    icon: ListChecks,
-    color: '#fa8c16',
-    propertyComponent: UnifiedAgentPropertyPanel,
-    defaultConfig: () => ({
-      config: { ...createDefaultUnifiedAgentConfig(), enable_plan_mode: true },
-    }),
-    getDescription: (node) => node.config?.ai_model_name || '未选择模型',
-  },
-  ai_direct: {
-    key: 'ai_direct',
-    label: 'Direct Agent',
-    icon: MessageCircleIcon,
-    color: '#52c41a',
-    propertyComponent: UnifiedAgentPropertyPanel,
-    defaultConfig: () => ({
-      config: {
-        ...createDefaultUnifiedAgentConfig(),
-        enable_plan_mode: false,
-        tools: [],
-        max_tool_rounds: 0,
-      },
-    }),
     getDescription: (node) => node.config?.ai_model_name || '未选择模型',
   },
   condition: {

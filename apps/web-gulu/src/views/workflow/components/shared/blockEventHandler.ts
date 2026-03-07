@@ -91,18 +91,6 @@ export function handleBlockEvent(
         status: 'running',
       };
 
-      const pb = findPlanBlock(blocks);
-      if (pb && data.planStepIndex > 0) {
-        const targetStep = pb.steps.find(
-          (s) => s.index === data.planStepIndex,
-        );
-        if (targetStep) {
-          targetStep.toolCalls = targetStep.toolCalls || [];
-          targetStep.toolCalls.push(tcBlock);
-          return true;
-        }
-      }
-
       blocks.push(tcBlock);
       return true;
     }

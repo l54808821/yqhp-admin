@@ -178,7 +178,6 @@ export interface AIToolCallStartData {
   stepId: string;
   toolName: string;
   arguments: string;
-  planStepIndex?: number;
 }
 
 // AI 工具调用完成数据

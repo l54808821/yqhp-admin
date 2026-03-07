@@ -21,8 +21,6 @@ export interface AIConfig {
   knowledge_base_ids: number[];
   kb_top_k: number;
   kb_score_threshold: number;
-  enable_plan_mode: boolean;
-  max_plan_steps: number;
   tool_timeout: number;
   // Fallback 配置
   fallback_models: FallbackModel[];
@@ -35,7 +33,7 @@ export interface FallbackModel {
   base_url: string;
 }
 
-export type AINodeType = 'ai_agent' | 'ai_react' | 'ai_plan' | 'ai_direct';
+export type AINodeType = 'ai_agent';
 
 export interface AIStepNode {
   id: string;
@@ -103,8 +101,6 @@ export function createDefaultAIConfig(): AIConfig {
     knowledge_base_ids: [],
     kb_top_k: 5,
     kb_score_threshold: 0.7,
-    enable_plan_mode: true,
-    max_plan_steps: 10,
     tool_timeout: 180,
     fallback_models: [],
   };

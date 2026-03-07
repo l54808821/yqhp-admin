@@ -123,31 +123,8 @@ const containerRef = ref<HTMLElement | null>(null);
 const editorPanelHeight = ref(60);
 const isDragging = ref(false);
 
-const nodeType = computed(() => localNode.value?.type || 'ai_agent');
-const isDirect = computed(() => nodeType.value === 'ai_direct');
-const isPlan = computed(() => nodeType.value === 'ai_plan');
-const isRouter = computed(() => nodeType.value === 'ai_agent');
-const showToolsTab = computed(() => !isDirect.value);
-const showPlanSwitch = computed(() => isRouter.value);
-const showToolRounds = computed(() => !isDirect.value);
-
-const agentLabel = computed(() => {
-  switch (nodeType.value) {
-    case 'ai_react': return 'ReAct Agent';
-    case 'ai_plan': return 'Plan Agent';
-    case 'ai_direct': return 'Direct Agent';
-    default: return '智能 Agent';
-  }
-});
-
-const agentModeTip = computed(() => {
-  switch (nodeType.value) {
-    case 'ai_react': return '思考 → 行动 → 观察循环，适合需要工具的任务';
-    case 'ai_plan': return '规划 → 逐步执行 → 汇总，适合复杂多步任务';
-    case 'ai_direct': return '单次 LLM 调用，适合简单问答和文本生成';
-    default: return '自动路由：直接回答 / 工具调用 / Plan 模式';
-  }
-});
+const agentLabel = '智能 Agent';
+const agentModeTip = '自主分析问题并使用工具完成任务，复杂任务自动规划分步执行';
 
 watch(
   () => props.node,
@@ -203,8 +180,8 @@ function handleRun() {
 
   run({
     id: localNode.value.id,
-    type: localNode.value.type || 'ai_agent',
-    name: localNode.value.name || agentLabel.value,
+    type: 'ai_agent',
+    name: localNode.value.name || agentLabel,
     config: {
       ai_model_id: localNode.value.config.ai_model_id,
       ai_model_name: localNode.value.config.ai_model_name || '',
@@ -225,8 +202,6 @@ function handleRun() {
       max_tool_rounds: localNode.value.config.max_tool_rounds || 15,
       tool_timeout: localNode.value.config.tool_timeout || 180,
       interaction_timeout: localNode.value.config.interaction_timeout || 300,
-      enable_plan_mode: localNode.value.config.enable_plan_mode ?? true,
-      max_plan_steps: localNode.value.config.max_plan_steps || 10,
       fallback_models: localNode.value.config.fallback_models || [],
     },
     postProcessors: localNode.value.postProcessors?.map((p: KeywordConfig) => ({
@@ -354,39 +329,10 @@ function stopDrag() {
                     @change="(val: any) => handleConfigUpdate({ interactive: val })"
                   />
                 </div>
-                <div v-if="showPlanSwitch" class="switch-row">
-                  <span class="switch-label">
-                    Plan 模式
-                    <Tooltip title="Agent 遇到复杂任务会自动切换到分步规划执行模式">
-                      <HelpCircleIcon class="hint-icon" />
-                    </Tooltip>
-                  </span>
-                  <Switch
-                    size="small"
-                    :checked="localNode.config.enable_plan_mode ?? true"
-                    @change="(val: any) => handleConfigUpdate({ enable_plan_mode: val })"
-                  />
-                </div>
               </div>
 
               <div class="number-grid">
-                <div v-if="isPlan || (showPlanSwitch && localNode.config.enable_plan_mode)" class="number-cell">
-                  <span class="number-label">
-                    最大计划步骤
-                    <Tooltip title="Plan 模式下最大步骤数">
-                      <HelpCircleIcon class="hint-icon" />
-                    </Tooltip>
-                  </span>
-                  <InputNumber
-                    size="small"
-                    :value="localNode.config.max_plan_steps"
-                    :min="2"
-                    :max="20"
-                    class="number-input"
-                    @change="(val: any) => handleConfigUpdate({ max_plan_steps: val })"
-                  />
-                </div>
-                <div v-if="showToolRounds" class="number-cell">
+                <div class="number-cell">
                   <span class="number-label">
                     最大工具轮次
                     <Tooltip title="ReAct 循环中工具调用的最大轮次">
@@ -402,7 +348,7 @@ function stopDrag() {
                     @change="(val: any) => handleConfigUpdate({ max_tool_rounds: val })"
                   />
                 </div>
-                <div v-if="showToolRounds" class="number-cell">
+                <div class="number-cell">
                   <span class="number-label">
                     工具超时(s)
                     <Tooltip title="单个工具（含 Skill）执行的最大超时，默认 180 秒">
@@ -454,7 +400,7 @@ function stopDrag() {
             </div>
           </Tabs.TabPane>
 
-          <Tabs.TabPane v-if="showToolsTab" key="tools" tab="工具">
+          <Tabs.TabPane key="tools" tab="工具">
             <ToolsPanel
               :config="(localNode.config as unknown as AIConfig)"
               @update="handleConfigUpdate"

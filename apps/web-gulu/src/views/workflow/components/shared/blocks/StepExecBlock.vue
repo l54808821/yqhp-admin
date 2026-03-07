@@ -25,7 +25,7 @@ const hasDetail = computed(() => !!props.block.result);
 const isHttpStep = computed(() => props.block.stepType === 'http');
 const isScriptStep = computed(() => props.block.stepType === 'script');
 const isAIStep = computed(() =>
-  ['ai', 'ai_agent', 'ai_react', 'ai_plan', 'ai_direct'].includes(props.block.stepType),
+  ['ai', 'ai_agent'].includes(props.block.stepType),
 );
 
 const aiResponseData = computed(() => {
