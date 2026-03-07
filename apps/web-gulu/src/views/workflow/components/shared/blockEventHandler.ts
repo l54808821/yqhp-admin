@@ -70,8 +70,12 @@ export function handleBlockEvent(
       const blockId = data.blockId;
       const existing = findBlockById(blocks, blockId);
       if (existing?.type === 'thinking') {
-        (existing as ThinkingBlock).content += data.chunk || '';
-      } else {
+        if (data.isComplete) {
+          (existing as ThinkingBlock).isComplete = true;
+        } else {
+          (existing as ThinkingBlock).content += data.chunk || '';
+        }
+      } else if (!data.isComplete) {
         blocks.push({
           type: 'thinking',
           id: blockId,
