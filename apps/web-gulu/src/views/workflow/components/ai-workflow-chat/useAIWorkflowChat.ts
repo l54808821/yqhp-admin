@@ -274,10 +274,9 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
     const targetMsg = messages.value[msgIndex]!;
     if (targetMsg.role !== 'user') return;
 
-    // 截断数据库中该消息之后的记录（如果存在下一条 assistant 消息且来自数据库）
-    const nextMsg = messages.value[msgIndex + 1];
-    if (nextMsg?.id.startsWith('db_') && currentConversation.value) {
-      const dbId = parseInt(nextMsg.id.replace('db_', ''), 10);
+    // 截断数据库中该用户消息及之后的所有记录
+    if (targetMsg.id.startsWith('db_') && currentConversation.value) {
+      const dbId = parseInt(targetMsg.id.replace('db_', ''), 10);
       if (!isNaN(dbId)) {
         try {
           await deleteMessagesFromApi(currentConversation.value.id, dbId);
