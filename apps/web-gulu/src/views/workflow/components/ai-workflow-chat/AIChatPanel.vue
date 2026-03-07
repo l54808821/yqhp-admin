@@ -23,6 +23,10 @@ const PanelLeftOpen = createIconifyIcon('lucide:panel-left-open');
 const ArrowBigUpIcon = createIconifyIcon('lucide:arrow-big-up');
 const ArrowBigDownIcon = createIconifyIcon('lucide:arrow-big-down');
 const RefreshCwIcon = createIconifyIcon('lucide:refresh-cw');
+const PencilIcon = createIconifyIcon('lucide:pencil');
+const CheckIcon = createIconifyIcon('lucide:check');
+const XIcon = createIconifyIcon('lucide:x');
+const PaperclipIcon = createIconifyIcon('lucide:paperclip');
 
 interface Props {
   workflow: Workflow;
@@ -110,6 +114,80 @@ function handleUploadFiles(files: File[], callback: (results: ChatSenderAttachme
 
 function handleSuggestedQuestion(q: string) {
   chat.sendMessage(q);
+}
+
+// ============ 编辑用户消息 ============
+const editingMsgId = ref<string | null>(null);
+const editingText = ref('');
+const editingAttachments = ref<ChatSenderAttachment[]>([]);
+const editFileInputRef = ref<HTMLInputElement | null>(null);
+
+function startEditing(msg: InstanceType<typeof Object> & { id: string; content: string; blocks?: any[]; attachments?: any[] }) {
+  editingMsgId.value = msg.id;
+  editingText.value = msg.content || '';
+  editingAttachments.value = [];
+
+  if (msg.attachments?.length) {
+    editingAttachments.value = msg.attachments
+      .filter((a: any) => a.status === 'done' && a.url)
+      .map((a: any) => ({ ...a }));
+  } else if (msg.blocks?.length) {
+    for (const block of msg.blocks) {
+      if (block.type === 'image' && block.url) {
+        editingAttachments.value.push({
+          id: `att_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          url: block.url,
+          name: block.name || 'image',
+          size: 0,
+          mimeType: 'image/*',
+          type: 'image',
+          status: 'done',
+        });
+      }
+    }
+  }
+}
+
+function cancelEditing() {
+  editingMsgId.value = null;
+  editingText.value = '';
+  editingAttachments.value = [];
+}
+
+function handleEditConfirm() {
+  if (!editingMsgId.value) return;
+  if (!editingText.value.trim() && !editingAttachments.value.length) return;
+  const doneAttachments = editingAttachments.value.filter((a) => a.status === 'done' && a.url);
+  chat.editAndResend(editingMsgId.value, editingText.value, doneAttachments.length > 0 ? doneAttachments : undefined);
+  cancelEditing();
+}
+
+function triggerEditFileInput() {
+  editFileInputRef.value?.click();
+}
+
+function handleEditFileChange(e: Event) {
+  const input = e.target as HTMLInputElement;
+  const files = Array.from(input.files || []);
+  if (!files.length) return;
+  input.value = '';
+  chat.uploadFiles(files).then((results) => {
+    editingAttachments.value.push(...results.map((a) => ({
+      id: a.id,
+      file: a.file,
+      url: a.url,
+      name: a.name,
+      size: a.size,
+      mimeType: a.mimeType,
+      type: a.type as ChatSenderAttachment['type'],
+      status: a.status as ChatSenderAttachment['status'],
+      error: a.error,
+    })));
+  });
+}
+
+function removeEditAttachment(id: string) {
+  editingAttachments.value = editingAttachments.value.filter((a) => a.id !== id);
 }
 
 function handleInteractionConfirm(value: string) {
@@ -276,12 +354,75 @@ onUnmounted(() => {
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               </div>
               <div class="msg-content-wrapper">
-                <div class="msg-bubble msg-bubble--user">
-                  <ContentBlockRenderer
-                    v-if="msg.blocks?.length"
-                    :blocks="msg.blocks"
+                <!-- 编辑态 -->
+                <div v-if="editingMsgId === msg.id" class="msg-edit-container">
+                  <input
+                    ref="editFileInputRef"
+                    type="file"
+                    multiple
+                    class="msg-edit-file-input"
+                    @change="handleEditFileChange"
                   />
-                  <template v-else>{{ msg.content }}</template>
+                  <!-- 编辑附件预览 -->
+                  <div v-if="editingAttachments.length" class="msg-edit-attachments">
+                    <div
+                      v-for="att in editingAttachments"
+                      :key="att.id"
+                      class="msg-edit-att-item"
+                    >
+                      <img v-if="att.type === 'image' && att.url" :src="att.url" :alt="att.name" class="msg-edit-att-thumb" />
+                      <span v-else class="msg-edit-att-name">{{ att.name }}</span>
+                      <button class="msg-edit-att-remove" @click="removeEditAttachment(att.id)">
+                        <XIcon class="size-3" />
+                      </button>
+                    </div>
+                  </div>
+                  <!-- 文本编辑区 -->
+                  <textarea
+                    v-model="editingText"
+                    class="msg-edit-textarea"
+                    rows="3"
+                    @keydown.enter.ctrl="handleEditConfirm"
+                    @keydown.escape="cancelEditing"
+                  />
+                  <!-- 操作栏 -->
+                  <div class="msg-edit-actions">
+                    <Tooltip title="添加附件">
+                      <button class="msg-edit-tool-btn" @click="triggerEditFileInput">
+                        <PaperclipIcon class="size-4" />
+                      </button>
+                    </Tooltip>
+                    <div class="msg-edit-actions-right">
+                      <button class="msg-edit-cancel-btn" @click="cancelEditing">取消</button>
+                      <button
+                        class="msg-edit-confirm-btn"
+                        :disabled="!editingText.trim() && !editingAttachments.length"
+                        @click="handleEditConfirm"
+                      >
+                        <CheckIcon class="size-3" />
+                        发送
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <!-- 非编辑态 -->
+                <div v-else class="msg-bubble-wrapper">
+                  <div class="msg-bubble msg-bubble--user">
+                    <ContentBlockRenderer
+                      v-if="msg.blocks?.length"
+                      :blocks="msg.blocks"
+                    />
+                    <template v-else>{{ msg.content }}</template>
+                  </div>
+                  <Tooltip title="编辑消息">
+                    <button
+                      v-if="!chat.isStreaming.value"
+                      class="msg-edit-btn"
+                      @click="startEditing(msg)"
+                    >
+                      <PencilIcon class="size-3" />
+                    </button>
+                  </Tooltip>
                 </div>
               </div>
             </template>
@@ -1023,6 +1164,202 @@ onUnmounted(() => {
 @keyframes dot-pulse {
   0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
   40% { opacity: 1; transform: scale(1); }
+}
+
+/* ============ 用户消息编辑 ============ */
+.msg-bubble-wrapper {
+  position: relative;
+}
+
+.msg-edit-btn {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+  border-radius: 50%;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.msg-bubble-wrapper:hover .msg-edit-btn {
+  display: flex;
+}
+
+.msg-edit-btn:hover {
+  color: var(--ant-color-primary, #1677ff);
+  border-color: var(--ant-color-primary, #1677ff);
+  background: hsl(var(--accent));
+}
+
+.msg-edit-container {
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  padding: 12px;
+  transition: border-color 0.2s;
+}
+
+.msg-edit-container:focus-within {
+  border-color: var(--ant-color-primary, #1677ff);
+}
+
+.msg-edit-file-input {
+  display: none;
+}
+
+.msg-edit-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.msg-edit-att-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  background: hsl(var(--accent));
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+}
+
+.msg-edit-att-thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.msg-edit-att-name {
+  font-size: 12px;
+  color: hsl(var(--foreground));
+  padding: 0 6px;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.msg-edit-att-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+  border-radius: 50%;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: all 0.2s;
+  opacity: 0;
+}
+
+.msg-edit-att-item:hover .msg-edit-att-remove {
+  opacity: 1;
+}
+
+.msg-edit-att-remove:hover {
+  color: #ff4d4f;
+  border-color: #ff4d4f;
+  background: #fff2f0;
+}
+
+.msg-edit-textarea {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  line-height: 1.6;
+  color: hsl(var(--foreground));
+  resize: vertical;
+  min-height: 60px;
+  font-family: inherit;
+}
+
+.msg-edit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.msg-edit-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.msg-edit-tool-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.msg-edit-tool-btn:hover {
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
+}
+
+.msg-edit-cancel-btn {
+  padding: 4px 12px;
+  font-size: 13px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+  border-radius: 6px;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.msg-edit-cancel-btn:hover {
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--foreground) / 30%);
+}
+
+.msg-edit-confirm-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 14px;
+  font-size: 13px;
+  border: none;
+  background: var(--ant-color-primary, #1677ff);
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.msg-edit-confirm-btn:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.msg-edit-confirm-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 </style>

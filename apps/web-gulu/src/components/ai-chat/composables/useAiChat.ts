@@ -167,6 +167,71 @@ export function useAiChat(config: AiChatConfig) {
     stream.reset();
   }
 
+  async function editAndResend(msgId: string, newText: string, newImages?: ImageAttachment[]) {
+    if (isStreaming.value) return;
+
+    const msgIndex = messages.value.findIndex((m) => m.id === msgId);
+    if (msgIndex < 0) return;
+    if (messages.value[msgIndex]!.role !== 'user') return;
+
+    messages.value.splice(msgIndex);
+
+    let preparedImages: ImageAttachment[] | undefined;
+    if (newImages?.length) {
+      preparedImages = await prepareImages(newImages);
+    }
+
+    addUserMessage(newText, preparedImages);
+    addAssistantPlaceholder();
+    const aiMsg = getAssistantMessage()!;
+
+    const chatMessages = buildChatHistory();
+    const url = `${config.apiBaseUrl}/ai-models/${config.modelId}/chat`;
+
+    await stream.startOpenAIStream({
+      url,
+      method: 'POST',
+      headers: config.token
+        ? { Authorization: `Bearer ${config.token}` }
+        : {},
+      body: {
+        messages: chatMessages,
+        ...(config.temperature != null ? { temperature: config.temperature } : {}),
+        ...(config.maxTokens != null ? { max_tokens: config.maxTokens } : {}),
+      },
+      onChunk() {
+        aiMsg.loading = false;
+        aiMsg.content = stream.content.value;
+        if (stream.thinking.value) {
+          aiMsg.thinking = {
+            content: stream.thinking.value,
+            isComplete: false,
+          };
+        }
+      },
+      onComplete(finalContent) {
+        aiMsg.loading = false;
+        aiMsg.content = finalContent || '(模型未返回内容)';
+        if (aiMsg.thinking) {
+          aiMsg.thinking.isComplete = true;
+        }
+        if (stream.toolCalls.value.length > 0) {
+          aiMsg.toolCalls = [...stream.toolCalls.value];
+        }
+      },
+      onError(err) {
+        aiMsg.loading = false;
+        aiMsg.error = err.message;
+        aiMsg.content = aiMsg.content || `请求失败: ${err.message}`;
+      },
+    });
+
+    if (stream.status.value === 'aborted') {
+      aiMsg.loading = false;
+      aiMsg.content += '\n\n[已停止]';
+    }
+  }
+
   async function regenerate(messageId?: string) {
     let targetIdx = messages.value.length - 1;
     if (messageId) {
@@ -220,6 +285,7 @@ export function useAiChat(config: AiChatConfig) {
     isStreaming,
     streamStatus,
     sendMessage,
+    editAndResend,
     stopGeneration,
     clearMessages,
     regenerate,

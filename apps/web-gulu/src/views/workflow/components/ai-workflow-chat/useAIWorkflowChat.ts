@@ -265,6 +265,192 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
     }
   }
 
+  async function editAndResend(msgId: string, newText: string, newAttachments?: ChatAttachment[]) {
+    if (isStreaming.value) return;
+
+    const msgIndex = messages.value.findIndex((m) => m.id === msgId);
+    if (msgIndex < 0) return;
+
+    const targetMsg = messages.value[msgIndex]!;
+    if (targetMsg.role !== 'user') return;
+
+    // 截断数据库中该消息之后的记录（如果存在下一条 assistant 消息且来自数据库）
+    const nextMsg = messages.value[msgIndex + 1];
+    if (nextMsg?.id.startsWith('db_') && currentConversation.value) {
+      const dbId = parseInt(nextMsg.id.replace('db_', ''), 10);
+      if (!isNaN(dbId)) {
+        try {
+          await deleteMessagesFromApi(currentConversation.value.id, dbId);
+        } catch {
+          // 截断失败不阻塞
+        }
+      }
+    }
+
+    // 移除该消息及之后所有消息
+    messages.value.splice(msgIndex);
+
+    const doneAttachments = newAttachments?.filter((a) => a.status === 'done' && a.url) || [];
+
+    const userBlocks: ContentBlock[] = [];
+    if (newText.trim()) {
+      userBlocks.push({ type: 'text', content: newText });
+    }
+    for (const att of doneAttachments) {
+      if (att.type === 'image' && att.url) {
+        userBlocks.push({ type: 'image', url: att.url, name: att.name });
+      } else if (att.url) {
+        userBlocks.push({ type: 'file', url: att.url, name: att.name, size: att.size, mimeType: att.mimeType });
+      }
+    }
+
+    const userMsg: ChatMessage = {
+      id: generateId(),
+      role: 'user',
+      blocks: userBlocks,
+      content: newText,
+      attachments: doneAttachments.length > 0 ? doneAttachments : undefined,
+      timestamp: Date.now(),
+    };
+    messages.value.push(userMsg);
+
+    const chatHistory = buildChatHistory();
+
+    messages.value.push({
+      id: generateId(),
+      role: 'assistant',
+      blocks: [],
+      content: '',
+      loading: true,
+      metadata: {},
+      timestamp: Date.now(),
+    });
+    const assistantMsg = messages.value[messages.value.length - 1]!;
+
+    streamStatus.value = 'connecting';
+    sessionId.value = null;
+    abortController.value = new AbortController();
+
+    const userMessage: string | MultimodalContentPart[] = doneAttachments.length > 0
+      ? buildMultimodalContent(newText, doneAttachments)
+      : newText;
+
+    const userinputFiles = doneAttachments
+      .filter((att) => att.url)
+      .map((att) => ({
+        url: att.dataUrl || resolveAttachmentUrl(att.url!),
+        name: att.name,
+        type: att.type,
+        mimeType: att.mimeType,
+      }));
+
+    try {
+      const wfDef = parseWorkflowDefinition();
+      const accessStore = useAccessStore();
+      const token = accessStore.accessToken || '';
+
+      const wfParams = [...(wfDef.params || [])];
+      const setOrAddParam = (name: string, value: string) => {
+        const idx = wfParams.findIndex((p: any) => p.name === name);
+        if (idx >= 0) {
+          wfParams[idx] = { ...wfParams[idx], defaultValue: value };
+        } else {
+          wfParams.push({ name, type: 'string', defaultValue: value, required: false });
+        }
+      };
+      setOrAddParam('userinput.query', newText);
+      setOrAddParam('userinput.files', JSON.stringify(userinputFiles));
+
+      const response = await fetch(getExecuteUrl(), {
+        method: 'POST',
+        headers: {
+          'Accept': 'text/event-stream',
+          'Content-Type': 'application/json',
+          ...(token ? { satoken: token } : {}),
+        },
+        body: JSON.stringify({
+          workflow: {
+            id: `ai_wf_${workflow.id}`,
+            name: workflow.name,
+            steps: wfDef.steps || [],
+            variables: wfDef.variables || {},
+            params: wfParams,
+          },
+          stream: true,
+          mode: 'debug',
+          persist: false,
+          ...(envId ? { envId } : {}),
+          conversationId: currentConversation.value?.id
+            ? String(currentConversation.value.id)
+            : undefined,
+          userMessage,
+          chatHistory,
+        }),
+        signal: abortController.value.signal,
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`执行失败 (${response.status}): ${errText}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('无法获取响应流');
+
+      streamStatus.value = 'streaming';
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let eventType = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            eventType = line.slice(7).trim();
+          } else if (line.startsWith('data: ') && eventType) {
+            try {
+              const raw = JSON.parse(line.slice(6));
+              if (raw.sessionId && !sessionId.value) {
+                sessionId.value = raw.sessionId;
+              }
+              const eventData = raw.data || raw;
+              handleSSEEvent(eventType, eventData, assistantMsg);
+            } catch {
+              // ignore parse errors
+            }
+            eventType = '';
+          }
+        }
+      }
+
+      assistantMsg.loading = false;
+      streamStatus.value = 'done';
+
+      if (currentConversation.value) {
+        await persistMessages(userMsg, assistantMsg);
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        streamStatus.value = 'aborted';
+        assistantMsg.loading = false;
+        assistantMsg.content += '\n\n[已停止]';
+      } else {
+        streamStatus.value = 'error';
+        assistantMsg.loading = false;
+        assistantMsg.error = err.message;
+        assistantMsg.content = assistantMsg.content || `请求失败: ${err.message}`;
+      }
+    } finally {
+      abortController.value = null;
+    }
+  }
+
   async function regenerateMessage(msgId: string) {
     if (isStreaming.value) return;
 
@@ -817,6 +1003,7 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
     deleteConversation,
     renameConversation,
     sendMessage,
+    editAndResend,
     regenerateMessage,
     stopGeneration,
     startNewConversation,

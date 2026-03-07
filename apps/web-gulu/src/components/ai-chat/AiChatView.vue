@@ -2,7 +2,7 @@
 import { h, ref, computed, onUnmounted } from 'vue';
 import { BubbleList } from 'ant-design-x-vue';
 import type { BubbleListProps } from 'ant-design-x-vue';
-import { Button, Tag, Typography, Image as AImage, message } from 'ant-design-vue';
+import { Button, Tag, Typography, Image as AImage, Tooltip, message } from 'ant-design-vue';
 import { createIconifyIcon } from '@vben/icons';
 import { useAiChat } from './composables/useAiChat';
 import AiBubbleContent from './AiBubbleContent.vue';
@@ -14,6 +14,10 @@ const StopIcon = createIconifyIcon('lucide:square');
 const TrashIcon = createIconifyIcon('lucide:trash-2');
 const ArrowDownIcon = createIconifyIcon('lucide:arrow-down');
 const BotIcon = createIconifyIcon('lucide:bot');
+const PencilIcon = createIconifyIcon('lucide:pencil');
+const CheckIcon = createIconifyIcon('lucide:check');
+const XIcon = createIconifyIcon('lucide:x');
+const PaperclipIcon = createIconifyIcon('lucide:paperclip');
 
 function avatarSvg(svgPath: string, bg: string) {
   return h('div', {
@@ -57,6 +61,7 @@ const {
   messages,
   isStreaming,
   sendMessage,
+  editAndResend,
   stopGeneration,
   clearMessages,
   regenerate,
@@ -174,6 +179,89 @@ function handleRegenerate(messageId: string) {
   regenerate(messageId);
 }
 
+// ============ 编辑用户消息 ============
+const editingMsgId = ref<string | null>(null);
+const editingText = ref('');
+const editingImages = ref<ChatSenderAttachment[]>([]);
+const editFileInputRef = ref<HTMLInputElement | null>(null);
+
+function startEditing(msg: AiChatMessage) {
+  editingMsgId.value = msg.id;
+  editingText.value = msg.content || '';
+  editingImages.value = [];
+  if (msg.images?.length) {
+    editingImages.value = msg.images.map((img) => ({
+      id: img.id,
+      file: img.file,
+      url: img.url,
+      name: img.name,
+      size: img.size,
+      mimeType: 'image/*',
+      type: 'image' as const,
+      status: 'done' as const,
+    }));
+  }
+}
+
+function cancelEditing() {
+  editingMsgId.value = null;
+  editingText.value = '';
+  editingImages.value = [];
+}
+
+function handleEditConfirm() {
+  if (!editingMsgId.value) return;
+  if (!editingText.value.trim() && !editingImages.value.length) return;
+  const images: ImageAttachment[] = editingImages.value
+    .filter((a) => a.type === 'image' && a.url)
+    .map((a) => ({
+      id: a.id,
+      file: a.file,
+      url: a.url!,
+      name: a.name,
+      size: a.size,
+      status: 'done' as const,
+    }));
+  editAndResend(editingMsgId.value, editingText.value, images.length ? images : undefined);
+  cancelEditing();
+}
+
+function triggerEditFileInput() {
+  editFileInputRef.value?.click();
+}
+
+function handleEditFileChange(e: Event) {
+  const input = e.target as HTMLInputElement;
+  const files = Array.from(input.files || []);
+  if (!files.length) return;
+  input.value = '';
+  for (const file of files) {
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      message.warning('仅支持 PNG、JPG、GIF、WebP 格式');
+      continue;
+    }
+    if (file.size > MAX_IMAGE_SIZE) {
+      message.warning('图片大小不能超过 5MB');
+      continue;
+    }
+    const url = URL.createObjectURL(file);
+    editingImages.value.push({
+      id: `img_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      file,
+      url,
+      name: file.name,
+      size: file.size,
+      mimeType: file.type,
+      type: 'image',
+      status: 'done',
+    });
+  }
+}
+
+function removeEditImage(id: string) {
+  editingImages.value = editingImages.value.filter((a) => a.id !== id);
+}
+
 onUnmounted(() => {
   stopGeneration();
 });
@@ -213,23 +301,78 @@ onUnmounted(() => {
       >
         <template #message="{ item }">
           <template v-if="item.role === 'user'">
-            <div class="user-message">
-              <!-- 用户消息中的图片 -->
-              <div v-if="(item.content as AiChatMessage).images?.length" class="user-images">
-                <AImage.PreviewGroup>
-                  <AImage
-                    v-for="img in (item.content as AiChatMessage).images"
-                    :key="img.id"
-                    :src="img.url"
-                    :alt="img.name"
-                    class="user-image-thumb"
-                    :style="{ maxWidth: '200px', maxHeight: '200px', borderRadius: '8px' }"
-                  />
-                </AImage.PreviewGroup>
+            <!-- 编辑态 -->
+            <div v-if="editingMsgId === (item.content as AiChatMessage).id" class="user-edit-container">
+              <input
+                ref="editFileInputRef"
+                type="file"
+                multiple
+                accept="image/png,image/jpeg,image/gif,image/webp"
+                class="user-edit-file-input"
+                @change="handleEditFileChange"
+              />
+              <div v-if="editingImages.length" class="user-edit-images">
+                <div v-for="att in editingImages" :key="att.id" class="user-edit-img-item">
+                  <img :src="att.url" :alt="att.name" class="user-edit-img-thumb" />
+                  <button class="user-edit-img-remove" @click="removeEditImage(att.id)">
+                    <XIcon class="size-3" />
+                  </button>
+                </div>
               </div>
-              <div v-if="(item.content as AiChatMessage).content">
-                {{ (item.content as AiChatMessage).content }}
+              <textarea
+                v-model="editingText"
+                class="user-edit-textarea"
+                rows="3"
+                @keydown.enter.ctrl="handleEditConfirm"
+                @keydown.escape="cancelEditing"
+              />
+              <div class="user-edit-actions">
+                <Tooltip title="添加图片">
+                  <button class="user-edit-tool-btn" @click="triggerEditFileInput">
+                    <PaperclipIcon class="size-4" />
+                  </button>
+                </Tooltip>
+                <div class="user-edit-actions-right">
+                  <button class="user-edit-cancel-btn" @click="cancelEditing">取消</button>
+                  <button
+                    class="user-edit-confirm-btn"
+                    :disabled="!editingText.trim() && !editingImages.length"
+                    @click="handleEditConfirm"
+                  >
+                    <CheckIcon class="size-3" />
+                    发送
+                  </button>
+                </div>
               </div>
+            </div>
+            <!-- 非编辑态 -->
+            <div v-else class="user-message-wrapper">
+              <div class="user-message">
+                <div v-if="(item.content as AiChatMessage).images?.length" class="user-images">
+                  <AImage.PreviewGroup>
+                    <AImage
+                      v-for="img in (item.content as AiChatMessage).images"
+                      :key="img.id"
+                      :src="img.url"
+                      :alt="img.name"
+                      class="user-image-thumb"
+                      :style="{ maxWidth: '200px', maxHeight: '200px', borderRadius: '8px' }"
+                    />
+                  </AImage.PreviewGroup>
+                </div>
+                <div v-if="(item.content as AiChatMessage).content">
+                  {{ (item.content as AiChatMessage).content }}
+                </div>
+              </div>
+              <Tooltip title="编辑消息">
+                <button
+                  v-if="!isStreaming"
+                  class="user-msg-edit-btn"
+                  @click="startEditing(item.content as AiChatMessage)"
+                >
+                  <PencilIcon class="size-3" />
+                </button>
+              </Tooltip>
             </div>
           </template>
           <template v-else>
@@ -450,5 +593,187 @@ onUnmounted(() => {
 .clear-icon {
   width: 13px;
   height: 13px;
+}
+
+/* ============ 用户消息编辑 ============ */
+.user-message-wrapper {
+  position: relative;
+}
+
+.user-msg-edit-btn {
+  position: absolute;
+  bottom: -4px;
+  left: -4px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid #d9d9d9;
+  background: #fff;
+  border-radius: 50%;
+  color: #999;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.user-message-wrapper:hover .user-msg-edit-btn {
+  display: flex;
+}
+
+.user-msg-edit-btn:hover {
+  color: #1677ff;
+  border-color: #1677ff;
+  background: #f0f5ff;
+}
+
+.user-edit-container {
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 12px;
+  padding: 12px;
+  min-width: 300px;
+  max-width: 520px;
+  transition: border-color 0.2s;
+}
+
+.user-edit-container:focus-within {
+  border-color: #1677ff;
+}
+
+.user-edit-file-input {
+  display: none;
+}
+
+.user-edit-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.user-edit-img-item {
+  position: relative;
+}
+
+.user-edit-img-thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
+}
+
+.user-edit-img-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid #d9d9d9;
+  background: #fff;
+  border-radius: 50%;
+  color: #999;
+  cursor: pointer;
+  transition: all 0.2s;
+  opacity: 0;
+}
+
+.user-edit-img-item:hover .user-edit-img-remove {
+  opacity: 1;
+}
+
+.user-edit-img-remove:hover {
+  color: #ff4d4f;
+  border-color: #ff4d4f;
+  background: #fff2f0;
+}
+
+.user-edit-textarea {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #1a1a2e;
+  resize: vertical;
+  min-height: 60px;
+  font-family: inherit;
+}
+
+.user-edit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.user-edit-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-edit-tool-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: #999;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.user-edit-tool-btn:hover {
+  background: #f5f5f5;
+  color: #595959;
+}
+
+.user-edit-cancel-btn {
+  padding: 4px 12px;
+  font-size: 13px;
+  border: 1px solid #d9d9d9;
+  background: #fff;
+  border-radius: 6px;
+  color: #999;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.user-edit-cancel-btn:hover {
+  color: #595959;
+  border-color: #8c8c8c;
+}
+
+.user-edit-confirm-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 14px;
+  font-size: 13px;
+  border: none;
+  background: #1677ff;
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.user-edit-confirm-btn:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.user-edit-confirm-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 </style>
