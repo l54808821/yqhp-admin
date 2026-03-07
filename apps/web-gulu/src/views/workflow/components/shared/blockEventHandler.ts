@@ -118,9 +118,13 @@ export function handleBlockEvent(
 
     case 'message_complete': {
       if (data.content) {
-        const textBlock = blocks.find((b) => b.type === 'text') as
-          | TextBlock
-          | undefined;
+        let textBlock: TextBlock | undefined;
+        for (let i = blocks.length - 1; i >= 0; i--) {
+          if (blocks[i]!.type === 'text') {
+            textBlock = blocks[i] as TextBlock;
+            break;
+          }
+        }
         if (textBlock) {
           textBlock.content = data.content;
         }
