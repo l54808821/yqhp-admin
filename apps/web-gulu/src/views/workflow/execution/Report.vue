@@ -106,11 +106,11 @@ const vuChartRef = ref<EchartsUIType>();
 const errorChartRef = ref<EchartsUIType>();
 const trafficChartRef = ref<EchartsUIType>();
 
-const { renderEcharts: renderQps, updateDate: updateQps } = useEcharts(qpsChartRef);
-const { renderEcharts: renderRt, updateDate: updateRt } = useEcharts(rtChartRef);
-const { renderEcharts: renderVu, updateDate: updateVu } = useEcharts(vuChartRef);
-const { renderEcharts: renderError, updateDate: updateError } = useEcharts(errorChartRef);
-const { renderEcharts: renderTraffic, updateDate: updateTraffic } = useEcharts(trafficChartRef);
+const { renderEcharts: renderQps, updateData: updateQps } = useEcharts(qpsChartRef);
+const { renderEcharts: renderRt, updateData: updateRt } = useEcharts(rtChartRef);
+const { renderEcharts: renderVu, updateData: updateVu } = useEcharts(vuChartRef);
+const { renderEcharts: renderError, updateData: updateError } = useEcharts(errorChartRef);
+const { renderEcharts: renderTraffic, updateData: updateTraffic } = useEcharts(trafficChartRef);
 
 // --- Step metrics table ---
 
