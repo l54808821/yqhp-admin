@@ -6,15 +6,18 @@ import { computed, onMounted, ref } from 'vue';
 
 import {
   Button,
-  Checkbox,
   Form,
   Input,
   Modal,
   Select,
-  Spin,
   Tag,
+  Tooltip,
   message,
 } from 'ant-design-vue';
+
+import { createIconifyIcon } from '@vben/icons';
+
+const XIcon = createIconifyIcon('lucide:x');
 
 import { type McpServer, getMcpServerListApi } from '#/api/mcp-server';
 import type { Skill } from '#/api/skill';
@@ -148,6 +151,17 @@ function removeTool(toolName: string) {
   emit('update', { tools });
 }
 
+const mcpServerOptions = computed(() =>
+  mcpServerList.value.map((s) => ({
+    label: s.name,
+    value: s.id,
+  })),
+);
+
+function mcpFilterOption(input: string, option: any) {
+  return (option?.label ?? '').toLowerCase().includes(input.toLowerCase());
+}
+
 function handleMcpServerChange(selectedIds: number[]) {
   emit('update', { mcp_server_ids: selectedIds });
 }
@@ -217,7 +231,7 @@ onMounted(() => {
 
 <template>
   <Form layout="vertical" class="config-form">
-    <!-- 内置工具（分类展示） -->
+    <!-- 内置工具 -->
     <div class="tools-section-title">
       内置工具
       <Tag size="small" color="processing">{{ (config.tools || []).length }} / {{ builtinTools.length }}</Tag>
@@ -227,47 +241,26 @@ onMounted(() => {
         style="margin-left: auto"
         @click="openToolModal"
       >
-        + 添加工具
+        + 添加
       </Button>
     </div>
-    <div class="tool-category-hint">
-      选择 Agent 可使用的工具能力。联网搜索、代码执行等工具默认启用。
-    </div>
 
-    <template v-if="(config.tools || []).length > 0">
-      <div
-        v-for="(tools, category) in selectedToolsByCategory"
-        :key="category"
-        class="tool-category-group"
-      >
-        <div class="tool-category-label">
-          <Tag :color="getToolCategoryColor(category as string)" size="small">
-            {{ toolCategoryLabels[category as string] || category }}
-          </Tag>
-        </div>
-        <div class="selected-tools-list">
-          <div
-            v-for="tool in tools"
-            :key="tool.name"
-            class="selected-tool-item"
-          >
-            <div class="selected-tool-info">
-              <span class="selected-tool-name">{{ tool.label }}</span>
-              <span class="selected-tool-desc">{{ tool.description }}</span>
-            </div>
-            <Button type="text" size="small" danger @click="removeTool(tool.name)">
-              移除
-            </Button>
-          </div>
-        </div>
-      </div>
-    </template>
+    <div v-if="(config.tools || []).length > 0" class="tool-chips-wrap">
+      <template v-for="(tools, category) in selectedToolsByCategory" :key="category">
+        <Tooltip v-for="tool in tools" :key="tool.name" :title="tool.description" placement="top">
+          <span class="tool-chip" :class="`tool-chip--${category}`">
+            {{ tool.label }}
+            <XIcon class="tool-chip-x" @click.stop="removeTool(tool.name)" />
+          </span>
+        </Tooltip>
+      </template>
+    </div>
     <div v-else class="tools-empty-hint">
-      暂未添加工具，点击上方按钮添加
+      暂未添加工具
     </div>
 
     <!-- Skill 能力 -->
-    <div class="tools-section-title" style="margin-top: 20px">
+    <div class="tools-section-title" style="margin-top: 10px">
       Skill 能力
       <Button
         type="primary"
@@ -275,84 +268,38 @@ onMounted(() => {
         style="margin-left: auto"
         @click="openSkillModal"
       >
-        + 添加 Skill
+        + 添加
       </Button>
     </div>
-    <div class="tool-category-hint">
-      AI 会根据用户问题自动选择调用已挂载的 Skill。
-    </div>
 
-    <div v-if="selectedSkills.length > 0" class="selected-tools-list">
-      <div
-        v-for="skill in selectedSkills"
-        :key="skill.id"
-        class="selected-tool-item"
-      >
-        <div class="selected-tool-info">
-          <div class="selected-tool-header">
-            <span class="selected-tool-name">{{ skill.name }}</span>
-            <Tag v-if="skill.type === 1" color="gold" size="small">内置</Tag>
-            <Tag v-if="skill.category" :color="getSkillCategoryColor(skill.category)" size="small">
-              {{ skill.category }}
-            </Tag>
-          </div>
-          <span class="selected-tool-desc">{{ skill.description }}</span>
-        </div>
-        <Button type="text" size="small" danger @click="removeSkill(skill.id)">
-          移除
-        </Button>
-      </div>
+    <div v-if="selectedSkills.length > 0" class="tool-chips-wrap">
+      <Tooltip v-for="skill in selectedSkills" :key="skill.id" :title="skill.description" placement="top">
+        <span class="tool-chip tool-chip--skill">
+          {{ skill.name }}
+          <XIcon class="tool-chip-x" @click.stop="removeSkill(skill.id)" />
+        </span>
+      </Tooltip>
     </div>
     <div v-else class="tools-empty-hint">
-      暂未添加 Skill，点击上方按钮添加
+      暂未添加 Skill
     </div>
 
-    <!-- MCP 服务器选择 -->
-    <div class="tools-section-title" style="margin-top: 20px">
+    <!-- MCP 服务器 -->
+    <div class="tools-section-title" style="margin-top: 10px">
       MCP 服务器
-      <Button
-        type="link"
-        size="small"
-        :loading="mcpServerLoading"
-        style="padding: 0; margin-left: 8px"
-        @click="loadMcpServers"
-      >
-        刷新
-      </Button>
     </div>
-    <Spin :spinning="mcpServerLoading">
-      <div
-        v-if="mcpServerList.length === 0 && !mcpServerLoading"
-        class="mcp-empty"
-      >
-        暂无可用的 MCP 服务器
-      </div>
-      <Checkbox.Group
-        v-else
-        :value="config.mcp_server_ids || []"
-        class="mcp-server-group"
-        @change="(val: any) => handleMcpServerChange(val as number[])"
-      >
-        <div
-          v-for="server in mcpServerList"
-          :key="server.id"
-          class="mcp-server-item"
-        >
-          <Checkbox :value="server.id">
-            <span class="mcp-server-name">{{ server.name }}</span>
-            <Tag
-              size="small"
-              :color="server.transport === 'stdio' ? 'blue' : server.transport === 'streamable-http' ? 'purple' : 'green'"
-            >
-              {{ server.transport }}
-            </Tag>
-          </Checkbox>
-          <div v-if="server.description" class="mcp-server-desc">
-            {{ server.description }}
-          </div>
-        </div>
-      </Checkbox.Group>
-    </Spin>
+    <Select
+      mode="multiple"
+      :value="config.mcp_server_ids || []"
+      :loading="mcpServerLoading"
+      placeholder="选择 MCP 服务器..."
+      :options="mcpServerOptions"
+      :filter-option="mcpFilterOption"
+      style="width: 100%"
+      size="small"
+      allow-clear
+      @change="(val: any) => handleMcpServerChange(val as number[])"
+    />
 
   </Form>
 
@@ -461,17 +408,11 @@ onMounted(() => {
   padding-top: 0;
 }
 
-.tool-category-hint {
-  font-size: 12px;
-  color: hsl(var(--muted-foreground));
-  margin-bottom: 10px;
-}
-
 .tools-section-title {
   font-size: 13px;
   font-weight: 500;
   color: hsl(var(--foreground));
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -481,84 +422,62 @@ onMounted(() => {
   margin: 0;
 }
 
-.tool-category-group {
-  margin-bottom: 12px;
-}
-
-.tool-category-label {
-  margin-bottom: 6px;
-}
-
-.tool-category-label :deep(.ant-tag) {
-  margin: 0;
-  font-size: 11px;
-}
-
-.selected-tools-list {
+/* ---- 工具 / Skill 芯片流式布局 ---- */
+.tool-chips-wrap {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
-.selected-tool-item {
-  display: flex;
+.tool-chip {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  border-radius: 8px;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  line-height: 20px;
+  border-radius: 4px;
   border: 1px solid hsl(var(--border));
   background: hsl(var(--card));
-  transition: all 0.2s;
-}
-
-.selected-tool-item:hover {
-  border-color: hsl(var(--primary) / 40%);
-  background: hsl(var(--primary) / 4%);
-}
-
-.selected-tool-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  flex: 1;
-}
-
-.selected-tool-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.selected-tool-header :deep(.ant-tag) {
-  margin: 0;
-  font-size: 10px;
-  line-height: 16px;
-  padding: 0 4px;
-}
-
-.selected-tool-name {
-  font-size: 13px;
-  font-weight: 500;
   color: hsl(var(--foreground));
+  cursor: default;
+  transition: border-color 0.15s, background 0.15s;
+  white-space: nowrap;
 }
 
-.selected-tool-desc {
-  font-size: 11px;
-  color: hsl(var(--muted-foreground));
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.tool-chip:hover {
+  border-color: hsl(var(--primary) / 50%);
+  background: hsl(var(--primary) / 6%);
+}
+
+.tool-chip--web { border-color: hsl(210 80% 70% / 40%); }
+.tool-chip--code { border-color: hsl(270 60% 70% / 40%); }
+.tool-chip--file { border-color: hsl(30 70% 60% / 40%); }
+.tool-chip--interaction { border-color: hsl(145 60% 50% / 40%); }
+.tool-chip--skill { border-color: hsl(200 70% 60% / 40%); }
+
+.tool-chip-x {
+  width: 12px;
+  height: 12px;
+  color: hsl(var(--muted-foreground) / 60%);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.15s;
+  border-radius: 2px;
+}
+
+.tool-chip-x:hover {
+  color: hsl(var(--destructive, 0 84% 60%));
 }
 
 .tools-empty-hint {
   font-size: 12px;
   color: hsl(var(--muted-foreground));
-  padding: 16px 0;
+  padding: 6px 0;
   text-align: center;
 }
 
-/* Skill 选择弹窗 */
+/* ---- Skill 选择弹窗 ---- */
 .skill-modal-filters {
   display: flex;
   gap: 8px;
@@ -577,8 +496,8 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px;
-  border-radius: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
   border: 1px solid hsl(var(--border));
   cursor: pointer;
   transition: all 0.2s;
@@ -592,7 +511,7 @@ onMounted(() => {
 .skill-modal-info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   min-width: 0;
   flex: 1;
 }
@@ -627,12 +546,12 @@ onMounted(() => {
 
 .skill-modal-empty {
   text-align: center;
-  padding: 24px 0;
+  padding: 20px 0;
   color: hsl(var(--muted-foreground));
   font-size: 13px;
 }
 
-/* 内置工具选择弹窗 */
+/* ---- 内置工具选择弹窗 ---- */
 .tool-modal-filters {
   display: flex;
   gap: 8px;
@@ -660,8 +579,8 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px;
-  border-radius: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
   border: 1px solid hsl(var(--border));
   cursor: pointer;
   transition: all 0.2s;
@@ -692,36 +611,8 @@ onMounted(() => {
 
 .tool-modal-empty {
   text-align: center;
-  padding: 24px 0;
+  padding: 20px 0;
   color: hsl(var(--muted-foreground));
   font-size: 13px;
-}
-
-.mcp-empty {
-  font-size: 12px;
-  color: hsl(var(--muted-foreground));
-  padding: 12px 0;
-}
-
-.mcp-server-group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  width: 100%;
-}
-
-.mcp-server-item {
-  padding: 6px 0;
-}
-
-.mcp-server-name {
-  margin-right: 6px;
-}
-
-.mcp-server-desc {
-  font-size: 11px;
-  color: hsl(var(--muted-foreground));
-  margin-left: 24px;
-  margin-top: 2px;
 }
 </style>
