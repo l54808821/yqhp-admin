@@ -46,6 +46,8 @@ const skillFilterCategory = ref<string | undefined>(undefined);
 // MCP 服务器
 const mcpServerList = ref<McpServer[]>([]);
 const mcpServerLoading = ref(false);
+const mcpModalVisible = ref(false);
+const mcpSearchKeyword = ref('');
 
 // 内置工具选择弹窗
 const toolModalVisible = ref(false);
@@ -151,19 +153,37 @@ function removeTool(toolName: string) {
   emit('update', { tools });
 }
 
-const mcpServerOptions = computed(() =>
-  mcpServerList.value.map((s) => ({
-    label: s.name,
-    value: s.id,
-  })),
-);
+const selectedMcpServers = computed(() => {
+  const ids = props.config?.mcp_server_ids || [];
+  return mcpServerList.value.filter((s) => ids.includes(s.id));
+});
 
-function mcpFilterOption(input: string, option: any) {
-  return (option?.label ?? '').toLowerCase().includes(input.toLowerCase());
+const availableMcpServers = computed(() => {
+  const selectedIds = props.config?.mcp_server_ids || [];
+  const keyword = mcpSearchKeyword.value.toLowerCase();
+  return mcpServerList.value.filter((s) => {
+    if (selectedIds.includes(s.id)) return false;
+    if (keyword && !s.name.toLowerCase().includes(keyword) && !(s.description || '').toLowerCase().includes(keyword)) return false;
+    return true;
+  });
+});
+
+function addMcpServer(serverId: number) {
+  const ids = [...(props.config.mcp_server_ids || [])];
+  if (!ids.includes(serverId)) {
+    ids.push(serverId);
+  }
+  emit('update', { mcp_server_ids: ids });
 }
 
-function handleMcpServerChange(selectedIds: number[]) {
-  emit('update', { mcp_server_ids: selectedIds });
+function removeMcpServer(serverId: number) {
+  const ids = (props.config.mcp_server_ids || []).filter((id: number) => id !== serverId);
+  emit('update', { mcp_server_ids: ids });
+}
+
+function openMcpModal() {
+  mcpSearchKeyword.value = '';
+  mcpModalVisible.value = true;
 }
 
 function getToolCategoryColor(category: string): string {
@@ -287,19 +307,27 @@ onMounted(() => {
     <!-- MCP 服务器 -->
     <div class="tools-section-title" style="margin-top: 10px">
       MCP 服务器
+      <Button
+        type="primary"
+        size="small"
+        style="margin-left: auto"
+        @click="openMcpModal"
+      >
+        + 添加
+      </Button>
     </div>
-    <Select
-      mode="multiple"
-      :value="config.mcp_server_ids || []"
-      :loading="mcpServerLoading"
-      placeholder="选择 MCP 服务器..."
-      :options="mcpServerOptions"
-      :filter-option="mcpFilterOption"
-      style="width: 100%"
-      size="small"
-      allow-clear
-      @change="(val: any) => handleMcpServerChange(val as number[])"
-    />
+
+    <div v-if="selectedMcpServers.length > 0" class="tool-chips-wrap">
+      <Tooltip v-for="server in selectedMcpServers" :key="server.id" :title="server.description || server.transport" placement="top">
+        <span class="tool-chip tool-chip--mcp">
+          {{ server.name }}
+          <XIcon class="tool-chip-x" @click.stop="removeMcpServer(server.id)" />
+        </span>
+      </Tooltip>
+    </div>
+    <div v-else class="tools-empty-hint">
+      暂未添加 MCP 服务器
+    </div>
 
   </Form>
 
@@ -308,7 +336,7 @@ onMounted(() => {
     v-model:open="skillModalVisible"
     title="添加 Skill 能力"
     :footer="null"
-    :width="520"
+    :width="680"
     :destroyOnClose="true"
     @cancel="skillSearchKeyword = ''; skillFilterCategory = undefined"
   >
@@ -327,26 +355,23 @@ onMounted(() => {
         style="width: 120px"
       />
     </div>
-    <div class="skill-modal-list">
+    <div class="modal-grid-list">
       <div
         v-for="skill in availableSkills"
         :key="skill.id"
-        class="skill-modal-item"
+        class="modal-grid-item"
         @click="addSkill(skill.id)"
       >
-        <div class="skill-modal-info">
-          <div class="skill-modal-header">
-            <span class="skill-modal-name">{{ skill.name }}</span>
-            <Tag v-if="skill.type === 1" color="gold" size="small">内置</Tag>
-            <Tag v-if="skill.category" :color="getSkillCategoryColor(skill.category)" size="small">
-              {{ skill.category }}
-            </Tag>
-          </div>
-          <span class="skill-modal-desc">{{ skill.description }}</span>
+        <div class="modal-grid-item-header">
+          <span class="modal-grid-item-name">{{ skill.name }}</span>
+          <Tag v-if="skill.type === 1" color="gold" size="small">内置</Tag>
+          <Tag v-if="skill.category" :color="getSkillCategoryColor(skill.category)" size="small">
+            {{ skill.category }}
+          </Tag>
         </div>
-        <Button type="link" size="small">添加</Button>
+        <span class="modal-grid-item-desc">{{ skill.description }}</span>
       </div>
-      <div v-if="availableSkills.length === 0" class="skill-modal-empty">
+      <div v-if="availableSkills.length === 0" class="modal-grid-empty">
         {{ skillSearchKeyword || skillFilterCategory ? '没有匹配的 Skill' : '所有 Skill 已添加' }}
       </div>
     </div>
@@ -357,7 +382,7 @@ onMounted(() => {
     v-model:open="toolModalVisible"
     title="添加工具"
     :footer="null"
-    :width="480"
+    :width="680"
     :destroyOnClose="true"
     @cancel="toolSearchKeyword = ''; toolFilterCategory = undefined"
   >
@@ -376,28 +401,68 @@ onMounted(() => {
         style="width: 120px"
       />
     </div>
-    <div class="tool-modal-list">
+    <div class="tool-modal-body">
       <template v-for="(tools, category) in availableToolsByCategory" :key="category">
         <div class="tool-modal-category-header">
           <Tag :color="getToolCategoryColor(category as string)" size="small">
             {{ toolCategoryLabels[category as string] || category }}
           </Tag>
         </div>
-        <div
-          v-for="tool in tools"
-          :key="tool.name"
-          class="tool-modal-item"
-          @click="addTool(tool.name)"
-        >
-          <div class="tool-modal-info">
-            <span class="tool-modal-name">{{ tool.label }}</span>
-            <span class="tool-modal-desc">{{ tool.description }}</span>
+        <div class="modal-grid-list">
+          <div
+            v-for="tool in tools"
+            :key="tool.name"
+            class="modal-grid-item"
+            @click="addTool(tool.name)"
+          >
+            <span class="modal-grid-item-name">{{ tool.label }}</span>
+            <span class="modal-grid-item-desc">{{ tool.description }}</span>
           </div>
-          <Button type="link" size="small">添加</Button>
         </div>
       </template>
-      <div v-if="availableTools.length === 0" class="tool-modal-empty">
+      <div v-if="availableTools.length === 0" class="modal-grid-empty">
         {{ toolSearchKeyword || toolFilterCategory ? '没有匹配的工具' : '所有工具已添加' }}
+      </div>
+    </div>
+  </Modal>
+
+  <!-- MCP 服务器选择弹窗 -->
+  <Modal
+    v-model:open="mcpModalVisible"
+    title="添加 MCP 服务器"
+    :footer="null"
+    :width="680"
+    :destroyOnClose="true"
+    @cancel="mcpSearchKeyword = ''"
+  >
+    <div class="skill-modal-filters">
+      <Input
+        v-model:value="mcpSearchKeyword"
+        placeholder="搜索 MCP 服务器..."
+        allowClear
+        style="flex: 1"
+      />
+    </div>
+    <div class="modal-grid-list">
+      <div
+        v-for="server in availableMcpServers"
+        :key="server.id"
+        class="modal-grid-item"
+        @click="addMcpServer(server.id)"
+      >
+        <div class="modal-grid-item-header">
+          <span class="modal-grid-item-name">{{ server.name }}</span>
+          <Tag
+            size="small"
+            :color="server.transport === 'stdio' ? 'blue' : server.transport === 'streamable-http' ? 'purple' : 'green'"
+          >
+            {{ server.transport }}
+          </Tag>
+        </div>
+        <span v-if="server.description" class="modal-grid-item-desc">{{ server.description }}</span>
+      </div>
+      <div v-if="availableMcpServers.length === 0" class="modal-grid-empty">
+        {{ mcpSearchKeyword ? '没有匹配的 MCP 服务器' : '所有 MCP 服务器已添加' }}
       </div>
     </div>
   </Modal>
@@ -455,6 +520,7 @@ onMounted(() => {
 .tool-chip--file { border-color: hsl(30 70% 60% / 40%); }
 .tool-chip--interaction { border-color: hsl(145 60% 50% / 40%); }
 .tool-chip--skill { border-color: hsl(200 70% 60% / 40%); }
+.tool-chip--mcp { border-color: hsl(260 60% 65% / 40%); }
 
 .tool-chip-x {
   width: 12px;
@@ -477,97 +543,21 @@ onMounted(() => {
   text-align: center;
 }
 
-/* ---- Skill 选择弹窗 ---- */
-.skill-modal-filters {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.skill-modal-list {
-  max-height: 400px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.skill-modal-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  border-radius: 6px;
-  border: 1px solid hsl(var(--border));
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.skill-modal-item:hover {
-  border-color: hsl(var(--primary));
-  background: hsl(var(--primary) / 6%);
-}
-
-.skill-modal-info {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-  flex: 1;
-}
-
-.skill-modal-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.skill-modal-header :deep(.ant-tag) {
-  margin: 0;
-  font-size: 10px;
-  line-height: 16px;
-  padding: 0 4px;
-}
-
-.skill-modal-name {
-  font-size: 13px;
-  font-weight: 500;
-  color: hsl(var(--foreground));
-}
-
-.skill-modal-desc {
-  font-size: 11px;
-  color: hsl(var(--muted-foreground));
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.skill-modal-empty {
-  text-align: center;
-  padding: 20px 0;
-  color: hsl(var(--muted-foreground));
-  font-size: 13px;
-}
-
-/* ---- 内置工具选择弹窗 ---- */
+/* ---- 弹窗通用 ---- */
+.skill-modal-filters,
 .tool-modal-filters {
   display: flex;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
-.tool-modal-list {
-  max-height: 420px;
+.tool-modal-body {
+  max-height: 480px;
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 
 .tool-modal-category-header {
-  padding: 6px 0 2px;
+  padding: 6px 0 4px;
 }
 
 .tool-modal-category-header :deep(.ant-tag) {
@@ -575,41 +565,70 @@ onMounted(() => {
   font-size: 11px;
 }
 
-.tool-modal-item {
+/* ---- 弹窗网格列表 ---- */
+.modal-grid-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.skill-modal-filters + .modal-grid-list {
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.modal-grid-item {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
   border-radius: 6px;
   border: 1px solid hsl(var(--border));
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s;
+  min-width: 0;
 }
 
-.tool-modal-item:hover {
+.modal-grid-item:hover {
   border-color: hsl(var(--primary));
   background: hsl(var(--primary) / 6%);
 }
 
-.tool-modal-info {
+.modal-grid-item-header {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
 }
 
-.tool-modal-name {
-  font-size: 13px;
+.modal-grid-item-header :deep(.ant-tag) {
+  margin: 0;
+  font-size: 10px;
+  line-height: 16px;
+  padding: 0 4px;
+}
+
+.modal-grid-item-name {
+  font-size: 12px;
   font-weight: 500;
   color: hsl(var(--foreground));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.tool-modal-desc {
+.modal-grid-item-desc {
   font-size: 11px;
+  line-height: 1.3;
   color: hsl(var(--muted-foreground));
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.tool-modal-empty {
+.modal-grid-empty {
+  grid-column: 1 / -1;
   text-align: center;
   padding: 20px 0;
   color: hsl(var(--muted-foreground));
