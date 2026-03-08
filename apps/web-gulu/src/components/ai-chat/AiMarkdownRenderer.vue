@@ -203,7 +203,7 @@ function handleClick(e: MouseEvent) {
   overflow-x: auto;
   font-size: 13.5px;
   line-height: 1.7;
-  background: #fafafa;
+  background: hsl(var(--background));
 }
 
 .ai-code-pre code {
