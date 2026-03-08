@@ -181,23 +181,29 @@ function selectVariable(v: VariableInfo) {
   const ta = getNativeTextarea();
   if (!ta) return;
 
-  const val = props.value || '';
-  const cursorPos = ta.selectionStart ?? val.length;
-
-  const before = val.slice(0, triggerStart.value);
-  const after = val.slice(cursorPos);
-
+  const cursorPos = ta.selectionStart ?? 0;
   const insertion = `\${${v.name}}`;
-  const newVal = before + insertion + after;
-  emit('update:value', newVal);
+
+  ta.focus();
+  ta.setSelectionRange(triggerStart.value, cursorPos);
+
+  // 使用 insertText 保留浏览器原生 undo 历史
+  if (!document.execCommand('insertText', false, insertion)) {
+    // fallback: 手动插入
+    const val = props.value || '';
+    const before = val.slice(0, triggerStart.value);
+    const after = val.slice(cursorPos);
+    const newVal = before + insertion + after;
+    emit('update:value', newVal);
+    nextTick(() => {
+      const newPos = before.length + insertion.length;
+      ta.setSelectionRange(newPos, newPos);
+    });
+  } else {
+    emit('update:value', ta.value);
+  }
 
   closePopover();
-
-  nextTick(() => {
-    const newPos = before.length + insertion.length;
-    ta.focus();
-    ta.setSelectionRange(newPos, newPos);
-  });
 }
 
 function showPopoverAtCursor(textarea: HTMLTextAreaElement, cursorPos: number) {
