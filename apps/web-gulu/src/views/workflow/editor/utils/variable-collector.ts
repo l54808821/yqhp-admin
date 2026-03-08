@@ -10,19 +10,21 @@ export interface VariableInfo {
 }
 
 export type VariableGroup =
-  | 'userinput'
   | 'variable'
   | 'env'
-  | 'sys'
-  | 'step';
+  | 'sys';
 
 export const VARIABLE_GROUP_LABELS: Record<VariableGroup, string> = {
-  userinput: '用户输入',
-  variable: '工作流变量',
+  variable: '变量',
   env: '环境变量',
   sys: '系统变量',
-  step: '步骤变量',
 };
+
+// 内置的特殊参数（始终存在）
+const BUILTIN_VARIABLES: VariableInfo[] = [
+  { name: 'userinput.query', label: 'userinput.query', type: 'String', group: 'variable', description: '用户输入文本（内置）' },
+  { name: 'userinput.files', label: 'userinput.files', type: 'Array', group: 'variable', description: '用户上传文件（内置）' },
+];
 
 const SYSTEM_VARIABLES: VariableInfo[] = [
   { name: 'sys.dialogue_count', label: 'sys.dialogue_count', type: 'Number', group: 'sys', description: '对话轮次' },
@@ -38,30 +40,54 @@ export interface CollectVariablesOptions {
   variables?: Record<string, any>;
   steps?: StepNode[];
   currentNodeId?: string;
+  envVariables?: Array<{ name: string; type?: string; description?: string }>;
 }
 
 /**
  * 收集当前节点可用的所有变量
+ * 
+ * 变量优先级（后面的覆盖前面的）：
+ * 1. 内置变量（userinput.query, userinput.files）
+ * 2. 参数（转换为变量，但会被同名变量覆盖）
+ * 3. 工作流变量
+ * 4. 步骤变量（后面的步骤会覆盖前面的同名变量）
+ * 
+ * 最终保留三种变量：
+ * - 变量（合并了用户输入、工作流变量、步骤变量）
+ * - 环境变量（env.xxx）
+ * - 系统变量（sys.xxx）
  */
 export function collectAvailableVariables(opts: CollectVariablesOptions): VariableInfo[] {
-  const result: VariableInfo[] = [];
+  // 使用 Map 来去重，后面的变量会覆盖前面的同名变量
+  const variableMap = new Map<string, VariableInfo>();
 
+  // 1. 先添加内置变量
+  for (const v of BUILTIN_VARIABLES) {
+    variableMap.set(v.name, v);
+  }
+
+  // 2. 添加参数（转换为变量，但会被同名变量覆盖）
   if (opts.params?.length) {
     for (const p of opts.params) {
       if (!p.name.trim()) continue;
-      result.push({
-        name: `userinput.${p.name}`,
-        label: `userinput.${p.name}`,
-        type: p.type || 'String',
-        group: 'userinput',
-        description: p.description || '',
-      });
+      const varName = p.name; // 参数名直接作为变量名，不再加 userinput. 前缀
+      // 如果已经有同名变量，跳过（变量会覆盖参数）
+      if (!variableMap.has(varName)) {
+        variableMap.set(varName, {
+          name: varName,
+          label: varName,
+          type: p.type || 'String',
+          group: 'variable',
+          description: p.description || '',
+        });
+      }
     }
   }
 
+  // 3. 添加工作流变量（会覆盖同名参数）
   if (opts.variables) {
     for (const [key, value] of Object.entries(opts.variables)) {
-      result.push({
+      variableMap.set(key, {
         name: key,
         label: key,
         type: inferType(value),
@@ -70,12 +96,33 @@ export function collectAvailableVariables(opts: CollectVariablesOptions): Variab
     }
   }
 
-  result.push(...SYSTEM_VARIABLES);
-
+  // 4. 添加步骤变量（后面的步骤会覆盖前面的同名变量）
   if (opts.steps?.length && opts.currentNodeId) {
     const stepVars = collectStepVariables(opts.steps, opts.currentNodeId);
-    result.push(...stepVars);
+    for (const v of stepVars) {
+      variableMap.set(v.name, v); // 后面的步骤变量会覆盖前面的
+    }
   }
+
+  // 转换为数组
+  const result = Array.from(variableMap.values());
+
+  // 5. 添加环境变量（格式：env.xxx）
+  if (opts.envVariables?.length) {
+    for (const envVar of opts.envVariables) {
+      if (!envVar.name.trim()) continue;
+      result.push({
+        name: `env.${envVar.name}`,
+        label: `env.${envVar.name}`,
+        type: envVar.type || 'String',
+        group: 'env',
+        description: envVar.description || '',
+      });
+    }
+  }
+
+  // 6. 添加系统变量
+  result.push(...SYSTEM_VARIABLES);
 
   return result;
 }
@@ -113,7 +160,7 @@ function collectFromStepList(steps: StepNode[], currentNodeId: string, vars: Var
         name: step.config.settings.saveToVariable,
         label: step.config.settings.saveToVariable,
         type: 'String',
-        group: 'step',
+        group: 'variable',
         description: `来自 ${step.name}`,
       });
     }
@@ -150,7 +197,7 @@ function collectProcessorVariables(
         name: cfg.variableName,
         label: cfg.variableName,
         type: 'String',
-        group: 'step',
+        group: 'variable',
         description: `提取自 ${stepName}`,
       });
     }
@@ -160,7 +207,7 @@ function collectProcessorVariables(
         name: cfg.variableName,
         label: cfg.variableName,
         type: 'String',
-        group: 'step',
+        group: 'variable',
         description: `设置于 ${stepName}`,
       });
     }

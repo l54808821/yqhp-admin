@@ -8,6 +8,7 @@ import type { VariableInfo, VariableGroup } from '../utils/variable-collector';
 import { collectAvailableVariables, VARIABLE_GROUP_LABELS } from '../utils/variable-collector';
 import type { WorkflowParam } from '../../components/WorkflowParamsPanel.vue';
 import type { StepNode } from '../WorkflowTreeEditor.vue';
+import { useProjectStore } from '#/store/project';
 
 const SearchIcon = createIconifyIcon('lucide:search');
 const VariableIcon = createIconifyIcon('lucide:variable');
@@ -43,6 +44,7 @@ const triggerStart = ref(-1);
 // inject workflow context for auto-collecting variables
 const workflowDefinition = inject<any>('workflowDefinition', null);
 const injectedNodeId = inject<any>('currentNodeId', null);
+const projectStore = useProjectStore();
 
 const allVariables = computed<VariableInfo[]>(() => {
   if (props.variables?.length) return props.variables;
@@ -50,11 +52,20 @@ const allVariables = computed<VariableInfo[]>(() => {
   if (workflowDefinition?.value) {
     const def = workflowDefinition.value;
     const nodeId = injectedNodeId?.value ?? injectedNodeId;
+    
+    // 获取环境变量
+    const envVariables = projectStore.variableConfigs.map((config) => ({
+      name: config.name,
+      type: config.extra?.var_type || 'string',
+      description: config.description,
+    }));
+
     return collectAvailableVariables({
       params: def.params as WorkflowParam[] | undefined,
       variables: def.variables as Record<string, any> | undefined,
       steps: def.steps as StepNode[] | undefined,
       currentNodeId: nodeId as string | undefined,
+      envVariables,
     });
   }
   return [];
@@ -84,7 +95,7 @@ const groupedVariables = computed(() => {
     arr.push(v);
   }
 
-  const order: VariableGroup[] = ['userinput', 'variable', 'step', 'env', 'sys'];
+  const order: VariableGroup[] = ['variable', 'env', 'sys'];
   for (const g of order) {
     const items = map.get(g);
     if (items?.length) {
