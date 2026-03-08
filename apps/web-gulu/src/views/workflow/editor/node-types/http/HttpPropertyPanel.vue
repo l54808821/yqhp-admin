@@ -6,7 +6,6 @@ import { createIconifyIcon } from '@vben/icons';
 import {
   Button,
   Dropdown,
-  Input,
   Menu,
   Spin,
   Tabs,
@@ -29,6 +28,9 @@ import ResponsePanel from './ResponsePanel.vue';
 
 // 子组件 - 域名选择器
 import DomainSelector from './DomainSelector.vue';
+
+// 变量联想输入
+import VariableInput from '../../components/VariableInput.vue';
 
 // 图标
 const SendIcon = createIconifyIcon('lucide:send');
@@ -363,12 +365,11 @@ const postProcessorsCount = computed(() => {
 
           <span class="bar-divider" />
 
-          <Input
-            :value="localNode.config?.url"
+          <VariableInput
+            :value="localNode.config?.url || ''"
             :placeholder="urlPlaceholder"
             class="url-input"
-            :bordered="false"
-            @change="(e: any) => updateUrl(e.target.value)"
+            @update:value="updateUrl"
           />
 
           <Tooltip v-if="hasDebugCtx" title="使用调试上下文变量">
@@ -604,6 +605,8 @@ const postProcessorsCount = computed(() => {
   background: transparent;
   font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
   height: 100%;
+  border: none;
+  box-shadow: none;
 }
 
 .debug-ctx-dot {
