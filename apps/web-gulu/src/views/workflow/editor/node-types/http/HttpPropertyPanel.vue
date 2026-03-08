@@ -332,43 +332,50 @@ const postProcessorsCount = computed(() => {
     >
       <!-- URL 栏 -->
       <div class="url-bar">
-        <Dropdown :trigger="['click']">
-          <button
-            class="method-btn"
-            :style="{ '--method-color': currentMethodColor }"
-          >
-            {{ localNode.config?.method || 'GET' }}
-            <ChevronDownIcon class="size-3 ml-1 opacity-60" />
-          </button>
-          <template #overlay>
-            <Menu @click="({ key }: any) => updateMethod(key)">
-              <Menu.Item
-                v-for="opt in methodOptions"
-                :key="opt.value"
-                :style="{ color: opt.color }"
-              >
-                {{ opt.label }}
-              </Menu.Item>
-            </Menu>
-          </template>
-        </Dropdown>
+        <div class="url-bar-inner">
+          <Dropdown :trigger="['click']">
+            <button
+              class="method-btn"
+              :style="{ '--method-color': currentMethodColor }"
+            >
+              {{ localNode.config?.method || 'GET' }}
+              <ChevronDownIcon class="size-3 ml-0.5 opacity-50" />
+            </button>
+            <template #overlay>
+              <Menu @click="({ key }: any) => updateMethod(key)">
+                <Menu.Item
+                  v-for="opt in methodOptions"
+                  :key="opt.value"
+                  :style="{ color: opt.color }"
+                >
+                  {{ opt.label }}
+                </Menu.Item>
+              </Menu>
+            </template>
+          </Dropdown>
 
-        <DomainSelector
-          :domain-code="localNode.config?.domainCode || ''"
-          @update:domain-code="updateDomainCode"
-        />
+          <span class="bar-divider" />
 
-        <Input
-          :value="localNode.config?.url"
-          :placeholder="urlPlaceholder"
-          class="url-input"
-          :bordered="false"
-          @change="(e: any) => updateUrl(e.target.value)"
-        />
+          <DomainSelector
+            :domain-code="localNode.config?.domainCode || ''"
+            @update:domain-code="updateDomainCode"
+          />
 
-        <Tooltip v-if="hasDebugCtx" title="使用调试上下文变量">
-          <span class="debug-ctx-dot" />
-        </Tooltip>
+          <span class="bar-divider" />
+
+          <Input
+            :value="localNode.config?.url"
+            :placeholder="urlPlaceholder"
+            class="url-input"
+            :bordered="false"
+            @change="(e: any) => updateUrl(e.target.value)"
+          />
+
+          <Tooltip v-if="hasDebugCtx" title="使用调试上下文变量">
+            <span class="debug-ctx-dot" />
+          </Tooltip>
+        </div>
+
         <Button
           type="primary"
           class="send-btn"
@@ -532,41 +539,71 @@ const postProcessorsCount = computed(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 16px;
+  padding: 10px 16px;
   background: hsl(var(--card));
   border-bottom: 1px solid hsl(var(--border));
+}
+
+.url-bar-inner {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  background: hsl(var(--background));
+  transition: border-color 0.2s;
+}
+
+.url-bar-inner:focus-within {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 10%);
+}
+
+.bar-divider {
+  width: 1px;
+  height: 20px;
+  background: hsl(var(--border));
+  flex-shrink: 0;
 }
 
 .method-btn {
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 6px 12px;
+  padding: 0 5px 0 12px;
+  height: 100%;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   color: var(--method-color);
-  background: color-mix(in srgb, var(--method-color) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--method-color) 30%, transparent);
-  border-radius: 6px;
+  background: transparent;
+  border: none;
+  border-radius: 7px 0 0 7px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.15s;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .method-btn:hover {
-  background: color-mix(in srgb, var(--method-color) 18%, transparent);
+  background: color-mix(in srgb, var(--method-color) 10%, transparent);
 }
 
 .url-input {
   flex: 1;
-  height: 32px;
+  height: 100%;
   font-size: 13px;
-  background: hsl(var(--accent) / 50%);
-  border-radius: 6px;
+  background: transparent;
+  border-radius: 0;
+  min-width: 0;
 }
 
 .url-input :deep(.ant-input) {
   background: transparent;
   font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  height: 100%;
 }
 
 .debug-ctx-dot {
@@ -577,13 +614,15 @@ const postProcessorsCount = computed(() => {
   background: #52c41a;
   box-shadow: 0 0 4px #52c41a80;
   flex-shrink: 0;
+  margin-right: 8px;
 }
 
 .send-btn {
-  height: 32px;
+  height: 36px;
   padding: 0 20px;
   font-weight: 500;
-  border-radius: 6px;
+  border-radius: 8px;
+  flex-shrink: 0;
 }
 
 /* 配置 Tabs */

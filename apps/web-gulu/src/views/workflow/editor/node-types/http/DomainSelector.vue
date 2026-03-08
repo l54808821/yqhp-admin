@@ -116,38 +116,35 @@ function getDomainUrl(domain: ConfigItem): string {
   align-items: center;
   gap: 4px;
   border: none;
-  border-radius: 6px;
+  border-radius: 0;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.15s;
   white-space: nowrap;
-}
-
-.domain-btn--empty {
-  width: 32px;
-  height: 32px;
-  justify-content: center;
-  padding: 0;
-  color: hsl(var(--foreground) / 50%);
+  height: 100%;
   background: transparent;
 }
 
+.domain-btn--empty {
+  width: 34px;
+  justify-content: center;
+  padding: 0;
+  color: hsl(var(--foreground) / 45%);
+}
+
 .domain-btn--empty:hover {
-  color: hsl(var(--foreground));
-  background: hsl(var(--accent));
+  color: hsl(var(--foreground) / 80%);
+  background: hsl(var(--accent) / 60%);
 }
 
 .domain-btn--active {
-  height: 32px;
-  padding: 0 10px;
+  padding: 0 8px;
   font-size: 12px;
   font-weight: 500;
   color: hsl(var(--primary));
-  background: hsl(var(--primary) / 10%);
-  border: 1px solid hsl(var(--primary) / 25%);
 }
 
 .domain-btn--active:hover {
-  background: hsl(var(--primary) / 18%);
+  background: hsl(var(--primary) / 8%);
 }
 
 .domain-name {
