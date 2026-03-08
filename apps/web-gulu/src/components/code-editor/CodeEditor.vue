@@ -1,7 +1,13 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue';
+import { ref, inject, onMounted, onBeforeUnmount, watch, computed } from 'vue';
 import * as monaco from 'monaco-editor';
 import { usePreferences } from '@vben/preferences';
+
+import type { VariableInfo, VariableGroup } from '#/views/workflow/editor/utils/variable-collector';
+import { collectAvailableVariables, VARIABLE_GROUP_LABELS } from '#/views/workflow/editor/utils/variable-collector';
+import type { WorkflowParam } from '#/views/workflow/components/WorkflowParamsPanel.vue';
+import type { StepNode } from '#/views/workflow/editor/WorkflowTreeEditor.vue';
+import { useProjectStore } from '#/store/project';
 
 // 配置 Monaco Editor Worker
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
@@ -37,6 +43,7 @@ interface Props {
   lineNumbers?: boolean;
   height?: string;
   placeholder?: string;
+  variables?: VariableInfo[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -61,9 +68,116 @@ const editorTheme = computed(() => isDark.value ? 'vs-dark' : 'vs');
 
 const editorContainer = ref<HTMLDivElement>();
 let editor: monaco.editor.IStandaloneCodeEditor | null = null;
+let completionDisposable: monaco.IDisposable | null = null;
 
 // 是否显示占位符
 const showPlaceholder = computed(() => !props.modelValue && props.placeholder);
+
+// --- 变量自动补全 ---
+const workflowDefinition = inject<any>('workflowDefinition', null);
+const injectedNodeId = inject<any>('currentNodeId', null);
+const projectStore = useProjectStore();
+
+const allVariables = computed<VariableInfo[]>(() => {
+  if (props.variables?.length) return props.variables;
+
+  if (workflowDefinition?.value) {
+    const def = workflowDefinition.value;
+    const nodeId = injectedNodeId?.value ?? injectedNodeId;
+
+    const envVariables = projectStore.variableConfigs.map((config) => ({
+      name: config.name,
+      type: config.extra?.var_type || 'string',
+      description: config.description,
+    }));
+
+    return collectAvailableVariables({
+      params: def.params as WorkflowParam[] | undefined,
+      variables: def.variables as Record<string, any> | undefined,
+      steps: def.steps as StepNode[] | undefined,
+      currentNodeId: nodeId as string | undefined,
+      envVariables,
+    });
+  }
+  return [];
+});
+
+const GROUP_SORT: Record<VariableGroup, number> = { variable: 0, env: 1, sys: 2 };
+
+function setupVariableCompletion(editorInstance: monaco.editor.IStandaloneCodeEditor) {
+  completionDisposable?.dispose();
+
+  const disposables: monaco.IDisposable[] = [];
+
+  // 检测 $ 输入后主动触发建议（部分语言不会自动触发）
+  disposables.push(
+    editorInstance.onDidChangeModelContent((e) => {
+      for (const change of e.changes) {
+        if (change.text === '$') {
+          setTimeout(() => {
+            editorInstance.trigger('variable', 'editor.action.triggerSuggest', {});
+          });
+          break;
+        }
+      }
+    }),
+  );
+
+  disposables.push(
+    monaco.languages.registerCompletionItemProvider(props.language, {
+      triggerCharacters: ['$'],
+      provideCompletionItems(model, position) {
+        if (editorInstance.getModel() !== model) return { suggestions: [] };
+
+        const vars = allVariables.value;
+        if (!vars.length) return { suggestions: [] };
+
+        const lineContent = model.getLineContent(position.lineNumber);
+        // 往回扫描找到 $ 符号
+        let dollarCol = -1;
+        for (let i = position.column - 2; i >= 0; i--) {
+          const ch = lineContent[i];
+          if (ch === '$') {
+            dollarCol = i + 1; // Monaco column 是 1-based
+            break;
+          }
+          if (!/[a-zA-Z0-9_.]/.test(ch!)) break;
+        }
+        if (dollarCol < 0) return { suggestions: [] };
+
+        const word = {
+          startLineNumber: position.lineNumber,
+          startColumn: dollarCol,
+          endLineNumber: position.lineNumber,
+          endColumn: position.column,
+        };
+
+        const suggestions: monaco.languages.CompletionItem[] = vars.map((v, idx) => ({
+          label: {
+            label: `\${${v.name}}`,
+            detail: `  ${v.type}`,
+            description: VARIABLE_GROUP_LABELS[v.group],
+          },
+          kind: monaco.languages.CompletionItemKind.Variable,
+          insertText: `\${${v.name}}`,
+          filterText: `\$${v.name}`,
+          range: word,
+          sortText: `${GROUP_SORT[v.group]}-${String(idx).padStart(4, '0')}`,
+          detail: v.description || `${VARIABLE_GROUP_LABELS[v.group]} · ${v.type}`,
+          documentation: v.description,
+        }));
+
+        return { suggestions };
+      },
+    }),
+  );
+
+  completionDisposable = {
+    dispose() {
+      disposables.forEach((d) => d.dispose());
+    },
+  };
+}
 
 onMounted(() => {
   if (!editorContainer.value) return;
@@ -94,6 +208,11 @@ onMounted(() => {
     overviewRulerBorder: false,
     hideCursorInOverviewRuler: true,
     overviewRulerLanes: 0,
+    quickSuggestions: {
+      other: true,
+      comments: false,
+      strings: true,
+    },
   });
 
   // 监听内容变化
@@ -102,9 +221,12 @@ onMounted(() => {
     emit('update:modelValue', value);
     emit('change', value);
   });
+
+  setupVariableCompletion(editor);
 });
 
 onBeforeUnmount(() => {
+  completionDisposable?.dispose();
   editor?.dispose();
 });
 
@@ -122,6 +244,7 @@ watch(() => props.language, (newLang) => {
     if (model) {
       monaco.editor.setModelLanguage(model, newLang);
     }
+    if (editor) setupVariableCompletion(editor);
   }
 });
 
