@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, provide, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { createIconifyIcon } from '@vben/icons';
@@ -90,6 +90,10 @@ const workflowDefinition = ref<WorkflowDefinitionData>({ name: '', steps: [] });
 const historyStack = ref<string[]>([]);
 const historyIndex = ref(-1);
 const isModified = ref(false);
+
+const currentNodeId = computed(() => selectedNode.value?.id);
+provide('workflowDefinition', workflowDefinition);
+provide('currentNodeId', currentNodeId);
 
 // 树形编辑器状态（提升到父组件避免切换时丢失）
 const treeExpandedKeys = ref<string[]>([]);
