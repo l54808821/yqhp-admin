@@ -1144,6 +1144,15 @@ onUnmounted(() => {
   font-size: 24px;
 }
 
+.ai-chat-panel--compact .messages-container {
+  max-width: none;
+  padding: 16px 16px;
+}
+
+.ai-chat-panel--compact .chat-footer-inner {
+  max-width: none;
+}
+
 .msg-loading {
   display: flex;
   gap: 4px;

@@ -1,6 +1,6 @@
 import { Marked } from 'marked';
 import hljs from 'highlight.js';
-import 'highlight.js/styles/github-dark.css';
+import 'highlight.js/styles/atom-one-light.css';
 
 let markedInstance: Marked | null = null;
 
@@ -25,8 +25,14 @@ function getMarked(): Marked {
 
       return `<div class="ai-code-block">
         <div class="ai-code-header">
-          <span class="ai-code-lang">${language}</span>
-          <button class="ai-code-copy" data-code="${escapedText}" onclick="(function(btn){var code=btn.getAttribute('data-code');var ta=document.createElement('textarea');ta.value=code.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'\"').replace(/&#39;/g,\"'\");document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);var orig=btn.textContent;btn.textContent='已复制';setTimeout(function(){btn.textContent=orig},2000)})(this)">复制</button>
+          <div class="ai-code-header-left">
+            <span class="ai-code-lang">${language}</span>
+          </div>
+          <div class="ai-code-header-right">
+            <button class="ai-code-copy" data-code="${escapedText}" title="复制代码">
+              <svg class="ai-code-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+          </div>
         </div>
         <pre class="ai-code-pre"><code class="hljs language-${language}">${highlighted}</code></pre>
       </div>`;

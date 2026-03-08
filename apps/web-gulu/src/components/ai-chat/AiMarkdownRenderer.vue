@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useMarkdown } from './composables/useMarkdown';
 
 const props = defineProps<{
@@ -10,10 +10,46 @@ const props = defineProps<{
 const { renderMarkdown } = useMarkdown();
 
 const renderedHtml = computed(() => renderMarkdown(props.content));
+
+const containerRef = ref<HTMLElement>();
+
+function handleClick(e: MouseEvent) {
+  const btn = (e.target as HTMLElement).closest('.ai-code-copy') as HTMLElement | null;
+  if (!btn) return;
+
+  const raw = btn.getAttribute('data-code') || '';
+  const code = raw
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+
+  const showCopied = () => {
+    btn.classList.add('ai-code-copy--copied');
+    btn.innerHTML = '<svg class="ai-code-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+    setTimeout(() => {
+      btn.classList.remove('ai-code-copy--copied');
+      btn.innerHTML = '<svg class="ai-code-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+    }, 2000);
+  };
+
+  navigator.clipboard.writeText(code).then(showCopied).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = code;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showCopied();
+  });
+}
 </script>
 
 <template>
-  <div class="ai-markdown-body" v-html="renderedHtml" />
+  <div ref="containerRef" class="ai-markdown-body" v-html="renderedHtml" @click="handleClick" />
   <span v-if="streaming" class="ai-typing-cursor">|</span>
 </template>
 
@@ -84,55 +120,101 @@ const renderedHtml = computed(() => renderMarkdown(props.content));
   font-weight: 600;
 }
 
-/* 代码块 */
+/* 代码块 — 豆包风格 */
 .ai-code-block {
   margin: 12px 0;
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid hsl(var(--border) / 50%);
+  background: hsl(var(--accent) / 10%);
+  box-shadow: 0 1px 3px hsl(var(--foreground) / 4%);
 }
 
 .ai-code-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 12px;
-  background: #2d2d2d;
-  font-size: 12px;
+  padding: 2px 4px 2px 12px;
+  background: hsl(var(--accent) / 50%);
+  border-bottom: 1px solid hsl(var(--border) / 30%);
+}
+
+.ai-code-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-code-header-right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .ai-code-lang {
-  color: #999;
+  color: hsl(var(--muted-foreground));
   text-transform: lowercase;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
 }
 
 .ai-code-copy {
-  padding: 2px 10px;
-  font-size: 12px;
-  color: #ccc;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  color: hsl(var(--muted-foreground));
   cursor: pointer;
   background: transparent;
-  border: 1px solid #555;
-  border-radius: 4px;
-  transition: all 0.2s;
+  border: none;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.ai-code-action-icon {
+  width: 14px;
+  height: 14px;
 }
 
 .ai-code-copy:hover {
-  color: #fff;
-  background: #444;
+  color: hsl(var(--foreground));
+  background: hsl(var(--accent));
+}
+
+.ai-code-copy:active {
+  transform: scale(0.92);
+}
+
+.ai-code-copy--copied {
+  color: #52c41a;
+}
+
+.ai-code-copy--copied:hover {
+  color: #52c41a;
+  background: #52c41a12;
 }
 
 .ai-code-pre {
   margin: 0;
-  padding: 14px 16px;
+  padding: 12px 16px;
   overflow-x: auto;
-  font-size: 13px;
-  line-height: 1.6;
-  background: #1e1e1e;
+  font-size: 13.5px;
+  line-height: 1.7;
+  background: #fafafa;
 }
 
 .ai-code-pre code {
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', Menlo, Consolas, monospace;
+  font-weight: 450;
+  background: transparent;
+}
+
+.ai-code-pre code.hljs {
+  background: transparent;
+  padding: 0;
 }
 
 /* 行内代码 */
