@@ -61,12 +61,7 @@ export function collectAvailableVariables(opts: CollectVariablesOptions): Variab
   // 使用 Map 来去重，后面的变量会覆盖前面的同名变量
   const variableMap = new Map<string, VariableInfo>();
 
-  // 1. 先添加内置变量
-  for (const v of BUILTIN_VARIABLES) {
-    variableMap.set(v.name, v);
-  }
-
-  // 2. 添加参数（转换为变量，但会被同名变量覆盖）
+  // 1. 添加参数（转换为变量，但会被同名变量覆盖）
   if (opts.params?.length) {
     for (const p of opts.params) {
       if (!p.name.trim()) continue;
@@ -84,7 +79,7 @@ export function collectAvailableVariables(opts: CollectVariablesOptions): Variab
     }
   }
 
-  // 3. 添加工作流变量（会覆盖同名参数）
+  // 2. 添加工作流变量（会覆盖同名参数）
   if (opts.variables) {
     for (const [key, value] of Object.entries(opts.variables)) {
       variableMap.set(key, {
@@ -96,7 +91,7 @@ export function collectAvailableVariables(opts: CollectVariablesOptions): Variab
     }
   }
 
-  // 4. 添加步骤变量（后面的步骤会覆盖前面的同名变量）
+  // 3. 添加步骤变量（后面的步骤会覆盖前面的同名变量）
   if (opts.steps?.length && opts.currentNodeId) {
     const stepVars = collectStepVariables(opts.steps, opts.currentNodeId);
     for (const v of stepVars) {
@@ -107,7 +102,7 @@ export function collectAvailableVariables(opts: CollectVariablesOptions): Variab
   // 转换为数组
   const result = Array.from(variableMap.values());
 
-  // 5. 添加环境变量（格式：env.xxx）
+  // 4. 添加环境变量（格式：env.xxx）
   if (opts.envVariables?.length) {
     for (const envVar of opts.envVariables) {
       if (!envVar.name.trim()) continue;
@@ -121,8 +116,11 @@ export function collectAvailableVariables(opts: CollectVariablesOptions): Variab
     }
   }
 
-  // 6. 添加系统变量
+  // 5. 添加系统变量
   result.push(...SYSTEM_VARIABLES);
+
+  // 6. 最后添加内置变量
+  result.push(...BUILTIN_VARIABLES);
 
   return result;
 }
