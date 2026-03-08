@@ -150,17 +150,20 @@ function collectFromStepList(steps: StepNode[], currentNodeId: string, vars: Var
   for (const step of steps) {
     if (step.id === currentNodeId) return true;
 
-    collectProcessorVariables(step.preProcessors, step.name, vars);
-    collectProcessorVariables(step.postProcessors, step.name, vars);
+    // 已禁用的步骤不产生可用变量，但仍需遍历其子步骤/分支以定位 currentNodeId
+    if (!step.disabled) {
+      collectProcessorVariables(step.preProcessors, step.name, vars);
+      collectProcessorVariables(step.postProcessors, step.name, vars);
 
-    if (step.config?.settings?.saveToVariable) {
-      vars.push({
-        name: step.config.settings.saveToVariable,
-        label: step.config.settings.saveToVariable,
-        type: 'String',
-        group: 'variable',
-        description: `来自 ${step.name}`,
-      });
+      if (step.config?.settings?.saveToVariable) {
+        vars.push({
+          name: step.config.settings.saveToVariable,
+          label: step.config.settings.saveToVariable,
+          type: 'String',
+          group: 'variable',
+          description: `来自 ${step.name}`,
+        });
+      }
     }
 
     if (step.children?.length) {
