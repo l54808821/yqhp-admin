@@ -1114,27 +1114,6 @@ function renderInsertMenu(nodeId: string, nodeType: string, canHaveChildren: boo
         <span class="select-all-label" @click="toggleSelectAll">全选</span>
       </div>
       <Popover
-        v-model:open="variablesPopoverOpen"
-        trigger="click"
-        placement="bottomLeft"
-        overlay-class-name="workflow-settings-popover"
-      >
-        <Badge :count="variableCount" :offset="[-8, 0]" size="small" color="var(--ant-color-primary, #1677ff)">
-          <Button size="small">
-            <template #icon><Variable class="size-3.5" /></template>
-            变量
-          </Button>
-        </Badge>
-        <template #content>
-          <div class="popover-panel">
-            <WorkflowVariablesPanel
-              :variables="definition.variables || {}"
-              @update:variables="handleVariablesUpdate"
-            />
-          </div>
-        </template>
-      </Popover>
-      <Popover
         v-model:open="paramsPopoverOpen"
         trigger="click"
         placement="bottomLeft"
@@ -1151,6 +1130,27 @@ function renderInsertMenu(nodeId: string, nodeType: string, canHaveChildren: boo
             <WorkflowParamsPanel
               :params="definition.params || []"
               @update:params="handleParamsUpdate"
+            />
+          </div>
+        </template>
+      </Popover>
+      <Popover
+        v-model:open="variablesPopoverOpen"
+        trigger="click"
+        placement="bottomLeft"
+        overlay-class-name="workflow-settings-popover"
+      >
+        <Badge :count="variableCount" :offset="[-8, 0]" size="small" color="var(--ant-color-primary, #1677ff)">
+          <Button size="small">
+            <template #icon><Variable class="size-3.5" /></template>
+            变量
+          </Button>
+        </Badge>
+        <template #content>
+          <div class="popover-panel">
+            <WorkflowVariablesPanel
+              :variables="definition.variables || {}"
+              @update:variables="handleVariablesUpdate"
             />
           </div>
         </template>
