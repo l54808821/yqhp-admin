@@ -16,6 +16,7 @@ import {
 
 import type { ParamItem } from '../types';
 import { createParamItem } from '../types';
+import VariableInput from './VariableInput.vue';
 
 // 图标
 const TrashIcon = createIconifyIcon('lucide:trash-2');
@@ -371,11 +372,11 @@ function isLastEmptyRow(index: number): boolean {
             </Upload>
           </template>
           <template v-else>
-            <Input
+            <VariableInput
               :value="item.value"
               :placeholder="placeholder.value"
               :disabled="disabled"
-              @change="(e: any) => updateValue(index, e.target.value)"
+              @update:value="(val: string) => updateValue(index, val)"
             />
           </template>
         </div>
