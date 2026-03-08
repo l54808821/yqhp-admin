@@ -52,7 +52,7 @@ const allVariables = computed<VariableInfo[]>(() => {
   if (workflowDefinition?.value) {
     const def = workflowDefinition.value;
     const nodeId = injectedNodeId?.value ?? injectedNodeId;
-    
+
     // 获取环境变量
     const envVariables = projectStore.variableConfigs.map((config) => ({
       name: config.name,
