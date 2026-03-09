@@ -28,17 +28,19 @@ onMounted(async () => {
 .main-page {
   display: flex;
   height: 100%;
-  background: #fff;
+  background: var(--content-bg, #fff);
 }
 
 .team-sidebar {
-  width: 260px;
-  border-right: 1px solid #f0f0f0;
+  width: 240px;
+  border-right: 1px solid var(--border-color, #eee);
   flex-shrink: 0;
+  background: var(--sidebar-bg, #f7f8fa);
 }
 
 .team-content {
   flex: 1;
   overflow: hidden;
+  background: var(--content-bg, #fff);
 }
 </style>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Tabs, Empty } from 'ant-design-vue';
+import { Empty } from 'ant-design-vue';
 import { computed, ref } from 'vue';
 
 import { useTeamStore } from '#/store/team';
@@ -11,29 +11,64 @@ import SettingsTab from './SettingsTab.vue';
 const teamStore = useTeamStore();
 
 const currentTeam = computed(() => teamStore.currentTeam);
+const members = computed(() => teamStore.members);
 const activeKey = ref('projects');
+
+const currentUserRole = computed(() => {
+  const userId = currentTeam.value?.created_by;
+  if (!userId) return 'member';
+  const member = members.value.find((m) => m.user_id === userId);
+  return member?.role ?? 'owner';
+});
+
+const roleLabel = computed(() => {
+  const map: Record<string, string> = {
+    owner: '团队所有者',
+    admin: '管理员',
+    member: '成员',
+  };
+  return map[currentUserRole.value] || '成员';
+});
+
+const tabs = [
+  { key: 'projects', label: '团队项目' },
+  { key: 'members', label: '成员/权限' },
+  { key: 'settings', label: '团队设置' },
+];
 </script>
 
 <template>
   <div class="team-detail">
     <template v-if="currentTeam">
-      <div class="team-detail-header">
-        <h2>{{ currentTeam.name }}</h2>
-        <p v-if="currentTeam.description">{{ currentTeam.description }}</p>
+      <div class="td-header">
+        <div class="td-header__title-row">
+          <h2 class="td-header__name">{{ currentTeam.name }}</h2>
+          <span class="td-header__role-tag">{{ roleLabel }}</span>
+        </div>
       </div>
-      <Tabs v-model:activeKey="activeKey">
-        <Tabs.TabPane key="projects" tab="项目">
-          <ProjectsTab />
-        </Tabs.TabPane>
-        <Tabs.TabPane key="members" tab="成员">
-          <MembersTab />
-        </Tabs.TabPane>
-        <Tabs.TabPane key="settings" tab="设置">
-          <SettingsTab />
-        </Tabs.TabPane>
-      </Tabs>
+
+      <div class="td-tabs">
+        <div class="td-tabs__nav">
+          <div
+            v-for="tab in tabs"
+            :key="tab.key"
+            :class="[
+              'td-tabs__item',
+              { 'td-tabs__item--active': activeKey === tab.key },
+            ]"
+            @click="activeKey = tab.key"
+          >
+            {{ tab.label }}
+          </div>
+        </div>
+        <div class="td-tabs__content">
+          <ProjectsTab v-if="activeKey === 'projects'" />
+          <MembersTab v-else-if="activeKey === 'members'" />
+          <SettingsTab v-else-if="activeKey === 'settings'" />
+        </div>
+      </div>
     </template>
-    <Empty v-else description="请选择一个团队" class="empty-state" />
+    <Empty v-else description="请选择一个团队" class="td-empty" />
   </div>
 </template>
 
@@ -44,33 +79,79 @@ const activeKey = ref('projects');
   flex-direction: column;
 }
 
-.team-detail-header {
-  padding: 16px 24px;
-  border-bottom: 1px solid #f0f0f0;
+.td-header {
+  padding: 20px 32px 0;
 }
 
-.team-detail-header h2 {
-  margin: 0 0 8px 0;
-  font-size: 20px;
+.td-header__title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.team-detail-header p {
+.td-header__name {
   margin: 0;
-  color: #666;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary, #1a1a1a);
 }
 
-.empty-state {
-  margin: auto;
+.td-header__role-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  background: #fff7e6;
+  color: #d46b08;
+  border: 1px solid #ffd591;
+  white-space: nowrap;
 }
 
-:deep(.ant-tabs) {
+.td-tabs {
   flex: 1;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
-:deep(.ant-tabs-content) {
+.td-tabs__nav {
+  display: flex;
+  gap: 4px;
+  padding: 0 32px;
+  border-bottom: 1px solid var(--border-color, #f0f0f0);
+  margin-top: 12px;
+}
+
+.td-tabs__item {
+  position: relative;
+  padding: 10px 16px;
+  font-size: 14px;
+  color: var(--text-secondary, #666);
+  cursor: pointer;
+  transition: color 0.2s;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.td-tabs__item:hover {
+  color: var(--primary-color, #7c5cfc);
+}
+
+.td-tabs__item--active {
+  color: var(--primary-color, #7c5cfc);
+  font-weight: 600;
+  border-bottom-color: var(--primary-color, #7c5cfc);
+}
+
+.td-tabs__content {
   flex: 1;
   overflow-y: auto;
+}
+
+.td-empty {
+  margin: auto;
 }
 </style>
