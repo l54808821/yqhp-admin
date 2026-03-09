@@ -7,7 +7,6 @@ import {
   Button,
   Card,
   Col,
-  Collapse,
   Drawer,
   Empty,
   Input,
@@ -19,7 +18,6 @@ import {
   Space,
   Spin,
   Tag,
-  Typography,
 } from 'ant-design-vue';
 
 import {
@@ -50,6 +48,7 @@ const toolDrawerVisible = ref(false);
 const toolDrawerTitle = ref('');
 const toolList = ref<McpToolDefinition[]>([]);
 const toolLoading = ref(false);
+const expandedTool = ref(-1);
 
 async function loadData() {
   loading.value = true;
@@ -128,6 +127,7 @@ async function handleViewTools(record: McpServer) {
   toolDrawerVisible.value = true;
   toolLoading.value = true;
   toolList.value = [];
+  expandedTool.value = -1;
 
   try {
     const res = await getMcpServerToolsApi(record.id);
@@ -264,48 +264,76 @@ onMounted(() => {
     <Drawer
       v-model:open="toolDrawerVisible"
       :title="toolDrawerTitle"
-      width="560"
+      :width="720"
       placement="right"
+      class="tool-drawer"
     >
+      <template #extra>
+        <Tag v-if="!toolLoading && toolList.length > 0" color="blue">
+          共 {{ toolList.length }} 个工具
+        </Tag>
+      </template>
       <Spin :spinning="toolLoading">
         <Empty v-if="!toolLoading && toolList.length === 0" description="暂无工具" />
-        <Collapse v-else accordion>
-          <Collapse.Panel
-            v-for="tool in toolList"
+        <div v-else class="tool-list">
+          <div
+            v-for="(tool, index) in toolList"
             :key="tool.name"
-            :header="tool.name"
+            class="tool-card"
+            :class="{ 'tool-card--expanded': expandedTool === index }"
+            @click="expandedTool = expandedTool === index ? -1 : index"
           >
-            <template #extra>
-              <Tag color="blue" style="margin-right: 0">
-                {{ formatParamSchema(tool.parameters).length }} 个参数
-              </Tag>
-            </template>
-            <div class="tool-detail">
-              <Typography.Paragraph v-if="tool.description" class="tool-description">
-                {{ tool.description }}
-              </Typography.Paragraph>
-              <div v-if="formatParamSchema(tool.parameters).length > 0" class="tool-params">
-                <Typography.Text strong class="params-title">参数定义</Typography.Text>
+            <div class="tool-card__header">
+              <div class="tool-card__title">
+                <span class="tool-card__icon">⚡</span>
+                <code class="tool-card__name">{{ tool.name }}</code>
+                <Tag color="blue" size="small" class="tool-card__count">
+                  {{ formatParamSchema(tool.parameters).length }} 参数
+                </Tag>
+              </div>
+              <span class="tool-card__arrow" :class="{ 'tool-card__arrow--open': expandedTool === index }">
+                ▸
+              </span>
+            </div>
+            <div v-if="tool.description" class="tool-card__desc">
+              {{ tool.description }}
+            </div>
+
+            <div v-if="expandedTool === index" class="tool-card__body" @click.stop>
+              <div v-if="formatParamSchema(tool.parameters).length > 0" class="tool-params-table">
+                <div class="tool-params-table__head">
+                  <div class="tool-params-table__col tool-params-table__col--name">参数名</div>
+                  <div class="tool-params-table__col tool-params-table__col--type">类型</div>
+                  <div class="tool-params-table__col tool-params-table__col--required">必填</div>
+                  <div class="tool-params-table__col tool-params-table__col--desc">描述</div>
+                </div>
                 <div
                   v-for="param in formatParamSchema(tool.parameters)"
                   :key="param.name"
-                  class="param-item"
+                  class="tool-params-table__row"
                 >
-                  <div class="param-header">
-                    <code class="param-name">{{ param.name }}</code>
-                    <Tag :color="param.required ? 'red' : 'default'" size="small">
-                      {{ param.required ? '必填' : '可选' }}
-                    </Tag>
+                  <div class="tool-params-table__col tool-params-table__col--name">
+                    <code>{{ param.name }}</code>
+                  </div>
+                  <div class="tool-params-table__col tool-params-table__col--type">
                     <Tag color="geekblue" size="small">{{ param.type }}</Tag>
                   </div>
-                  <div v-if="param.description" class="param-desc">
-                    {{ param.description }}
+                  <div class="tool-params-table__col tool-params-table__col--required">
+                    <Tag :color="param.required ? 'red' : 'default'" size="small">
+                      {{ param.required ? '是' : '否' }}
+                    </Tag>
+                  </div>
+                  <div class="tool-params-table__col tool-params-table__col--desc">
+                    {{ param.description || '-' }}
                   </div>
                 </div>
               </div>
+              <div v-else class="tool-card__no-params">
+                该工具无需参数
+              </div>
             </div>
-          </Collapse.Panel>
-        </Collapse>
+          </div>
+        </div>
       </Spin>
     </Drawer>
   </div>
@@ -332,50 +360,168 @@ onMounted(() => {
   overflow-y: auto;
 }
 
-.tool-detail {
+/* Tool drawer styles */
+.tool-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tool-card {
+  border: 1px solid var(--ant-color-border-secondary, #f0f0f0);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.tool-card:hover {
+  border-color: var(--ant-color-primary-border, #91caff);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 6%);
+}
+
+.tool-card--expanded {
+  border-color: var(--ant-color-primary-border, #91caff);
+  box-shadow: 0 2px 12px rgb(0 0 0 / 8%);
+}
+
+.tool-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px 0;
+}
+
+.tool-card__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tool-card__icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.tool-card__name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ant-color-text, #1f1f1f);
+  background: none;
   padding: 0;
 }
 
-.tool-description {
-  margin-bottom: 12px;
-  color: rgba(0, 0, 0, 65%);
+.tool-card__count {
+  margin: 0;
+  flex-shrink: 0;
 }
 
-.tool-params {
-  margin-top: 8px;
+.tool-card__arrow {
+  font-size: 12px;
+  color: var(--ant-color-text-tertiary, #bbb);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
 }
 
-.params-title {
-  display: block;
-  margin-bottom: 8px;
+.tool-card__arrow--open {
+  transform: rotate(90deg);
+}
+
+.tool-card__desc {
+  padding: 6px 16px 12px;
   font-size: 13px;
+  line-height: 1.5;
+  color: var(--ant-color-text-secondary, #666);
 }
 
-.param-item {
-  padding: 8px 12px;
-  margin-bottom: 6px;
-  background: #fafafa;
+.tool-card__body {
+  padding: 0 16px 16px;
+  cursor: default;
+}
+
+.tool-card__no-params {
+  padding: 12px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--ant-color-text-tertiary, #bbb);
+}
+
+/* Params table */
+.tool-params-table {
+  border: 1px solid var(--ant-color-border-secondary, #f0f0f0);
   border-radius: 6px;
+  overflow: hidden;
 }
 
-.param-header {
+.tool-params-table__head {
   display: flex;
-  gap: 6px;
-  align-items: center;
-  margin-bottom: 4px;
+  background: var(--ant-color-bg-layout, #fafafa);
+  border-bottom: 1px solid var(--ant-color-border-secondary, #f0f0f0);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ant-color-text-secondary, #666);
 }
 
-.param-name {
-  padding: 1px 6px;
+.tool-params-table__row {
+  display: flex;
+  border-bottom: 1px solid var(--ant-color-border-secondary, #f0f0f0);
   font-size: 13px;
+  transition: background 0.15s;
+}
+
+.tool-params-table__row:last-child {
+  border-bottom: none;
+}
+
+.tool-params-table__row:hover {
+  background: var(--ant-color-bg-layout, #fafafa);
+}
+
+.tool-params-table__col {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  min-height: 38px;
+}
+
+.tool-params-table__col--name {
+  width: 160px;
+  flex-shrink: 0;
+}
+
+.tool-params-table__col--name code {
+  font-size: 12px;
   font-weight: 500;
-  background: #f0f0f0;
+  color: var(--ant-color-text, #1f1f1f);
+  background: var(--ant-color-bg-layout, #f5f5f5);
+  padding: 1px 6px;
   border-radius: 3px;
 }
 
-.param-desc {
-  padding-left: 2px;
+.tool-params-table__col--type {
+  width: 90px;
+  flex-shrink: 0;
+}
+
+.tool-params-table__col--type :deep(.ant-tag) {
+  margin: 0;
+}
+
+.tool-params-table__col--required {
+  width: 70px;
+  flex-shrink: 0;
+}
+
+.tool-params-table__col--required :deep(.ant-tag) {
+  margin: 0;
+}
+
+.tool-params-table__col--desc {
+  flex: 1;
+  min-width: 0;
+  color: var(--ant-color-text-secondary, #666);
   font-size: 12px;
-  color: rgba(0, 0, 0, 45%);
+  line-height: 1.4;
+  word-break: break-word;
 }
 </style>
