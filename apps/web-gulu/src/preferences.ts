@@ -12,6 +12,7 @@ export const overridesPreferences = defineOverridesPreferences({
     accessMode: 'mixed',
     name: import.meta.env.VITE_APP_TITLE,
     "authPageLayout": "panel-center",
+    defaultHomePath: '/main',
     "layout": "sidebar-mixed-nav"
   },
   breadcrumb: {

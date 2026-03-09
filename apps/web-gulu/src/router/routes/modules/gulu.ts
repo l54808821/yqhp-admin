@@ -3,12 +3,12 @@ import type { RouteRecordRaw } from 'vue-router';
 import { BasicLayout } from '#/layouts';
 
 const routes: RouteRecordRaw[] = [
-  // 团队管理首页
+  // 团队管理首页（登录后落地页，不显示在菜单中）
   {
     meta: {
-      icon: 'lucide:home',
-      order: 0,
       title: '首页',
+      hideInMenu: true,
+      noBasicLayout: true,
     },
     name: 'Main',
     path: '/main',
