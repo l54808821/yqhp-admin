@@ -973,7 +973,7 @@ onUnmounted(() => {
   padding: 10px 16px;
   background: hsl(var(--accent));
   color: hsl(var(--foreground));
-  border-radius: 18px 18px 18px 4px;
+  border-radius: 10px 10px 10px 4px;
   border: none;
   font-size: 14px;
   white-space: pre-wrap;
