@@ -45,9 +45,7 @@ const tabs = [
           <h2 class="td-header__name">{{ currentTeam.name }}</h2>
           <span class="td-header__role-tag">{{ roleLabel }}</span>
         </div>
-      </div>
 
-      <div class="td-tabs">
         <div class="td-tabs__nav">
           <div
             v-for="tab in tabs"
@@ -61,11 +59,12 @@ const tabs = [
             {{ tab.label }}
           </div>
         </div>
-        <div class="td-tabs__content">
-          <ProjectsTab v-if="activeKey === 'projects'" />
-          <MembersTab v-else-if="activeKey === 'members'" />
-          <SettingsTab v-else-if="activeKey === 'settings'" />
-        </div>
+      </div>
+
+      <div class="td-tabs__content">
+        <ProjectsTab v-if="activeKey === 'projects'" />
+        <MembersTab v-else-if="activeKey === 'members'" />
+        <SettingsTab v-else-if="activeKey === 'settings'" />
       </div>
     </template>
     <Empty v-else description="请选择一个团队" class="td-empty" />
@@ -80,20 +79,22 @@ const tabs = [
 }
 
 .td-header {
-  padding: 20px 32px 0;
+  padding: 20px 24px 0;
+  flex-shrink: 0;
 }
 
 .td-header__title-row {
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-bottom: 16px;
 }
 
 .td-header__name {
   margin: 0;
   font-size: 22px;
   font-weight: 700;
-  color: var(--text-primary, #1a1a1a);
+  color: #1a1a1a;
 }
 
 .td-header__role-tag {
@@ -109,26 +110,17 @@ const tabs = [
   white-space: nowrap;
 }
 
-.td-tabs {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
 .td-tabs__nav {
   display: flex;
-  gap: 4px;
-  padding: 0 32px;
-  border-bottom: 1px solid var(--border-color, #f0f0f0);
-  margin-top: 12px;
+  gap: 0;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .td-tabs__item {
   position: relative;
-  padding: 10px 16px;
+  padding: 8px 16px;
   font-size: 14px;
-  color: var(--text-secondary, #666);
+  color: #8c8c8c;
   cursor: pointer;
   transition: color 0.2s;
   white-space: nowrap;
@@ -137,13 +129,13 @@ const tabs = [
 }
 
 .td-tabs__item:hover {
-  color: var(--primary-color, #7c5cfc);
+  color: #7c5cfc;
 }
 
 .td-tabs__item--active {
-  color: var(--primary-color, #7c5cfc);
+  color: #7c5cfc;
   font-weight: 600;
-  border-bottom-color: var(--primary-color, #7c5cfc);
+  border-bottom-color: #7c5cfc;
 }
 
 .td-tabs__content {

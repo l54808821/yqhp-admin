@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
 
+import SplitPane from '#/components/SplitPane.vue';
 import { useTeamStore } from '#/store/team';
 
 import TeamDetail from './components/TeamDetail.vue';
@@ -15,32 +16,37 @@ onMounted(async () => {
 
 <template>
   <div class="main-page">
-    <div class="team-sidebar">
-      <TeamList />
-    </div>
-    <div class="team-content">
-      <TeamDetail />
+    <div class="main-page__card">
+      <SplitPane
+        :default-width="240"
+        :min-width="180"
+        :max-width="360"
+        storage-key="team-sidebar"
+      >
+        <template #left>
+          <TeamList />
+        </template>
+        <template #right>
+          <TeamDetail />
+        </template>
+      </SplitPane>
     </div>
   </div>
 </template>
 
 <style scoped>
 .main-page {
-  display: flex;
   height: 100%;
-  background: var(--content-bg, #fff);
+  padding: 16px;
+  background: #f0f2f5;
+  box-sizing: border-box;
 }
 
-.team-sidebar {
-  width: 240px;
-  border-right: 1px solid var(--border-color, #eee);
-  flex-shrink: 0;
-  background: var(--sidebar-bg, #f7f8fa);
-}
-
-.team-content {
-  flex: 1;
+.main-page__card {
+  height: 100%;
+  background: #fff;
+  border-radius: 12px;
   overflow: hidden;
-  background: var(--content-bg, #fff);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 </style>

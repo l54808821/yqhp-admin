@@ -257,7 +257,7 @@ async function handleDissolve() {
 
 <style scoped>
 .st {
-  padding: 24px 32px;
+  padding: 20px 24px;
   max-width: 720px;
 }
 

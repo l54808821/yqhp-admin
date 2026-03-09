@@ -230,7 +230,7 @@ async function handleCreate() {
 
 <style scoped>
 .pt {
-  padding: 20px 32px;
+  padding: 20px 24px;
 }
 
 .pt-toolbar {

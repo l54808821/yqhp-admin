@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Button, Table, Tag, Modal, Input, Select, message, Popconfirm } from 'ant-design-vue';
+import { Button, Table, Tag, Modal, Input, Select, Empty, message, Popconfirm } from 'ant-design-vue';
 import { ref, computed, watch } from 'vue';
 
 import type { TeamMember } from '#/api/team';
@@ -65,8 +65,8 @@ function getAvatarColor(id: number) {
 
 const columns = [
   { title: '昵称', dataIndex: 'user_id', key: 'user_id' },
-  { title: '邮箱', key: 'email', width: 200 },
-  { title: '团队权限', dataIndex: 'role', key: 'role', width: 140 },
+  { title: '邮箱', key: 'email', width: 220 },
+  { title: '团队权限', dataIndex: 'role', key: 'role', width: 160 },
   { title: '最近活跃', dataIndex: 'created_at', key: 'created_at', width: 140 },
   { title: '', key: 'action', width: 50, align: 'center' as const },
 ];
@@ -168,14 +168,14 @@ function formatTime(time?: string) {
       <!-- 统计概览 -->
       <div class="mt-stats">
         <div class="mt-stat">
-          <div class="mt-stat__value" style="color: #52c41a">{{ stats.members }}</div>
+          <div class="mt-stat__value mt-stat__value--green">{{ stats.members }}</div>
           <div class="mt-stat__label">成员</div>
         </div>
         <div class="mt-stat">
           <div class="mt-stat__value">{{ stats.guests }}</div>
           <div class="mt-stat__label">
             游客
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" style="vertical-align: -2px; margin-left: 2px; color: #bbb">
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="#bfbfbf" stroke-width="1.2" stroke-linecap="round" style="vertical-align: -2px; margin-left: 2px">
               <circle cx="7" cy="7" r="6" />
               <path d="M7 4.5v3M7 9.5v0" />
             </svg>
@@ -196,7 +196,7 @@ function formatTime(time?: string) {
           class="mt-search"
         >
           <template #prefix>
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#bfbfbf" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="6" cy="6" r="4.5" />
               <path d="M9.5 9.5L13 13" />
             </svg>
@@ -304,14 +304,14 @@ function formatTime(time?: string) {
 
 <style scoped>
 .mt {
-  padding: 20px 32px;
+  padding: 20px 24px;
 }
 
 /* 子 Tab */
 .mt-sub-tabs {
   display: flex;
   gap: 4px;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .mt-sub-tab {
@@ -319,49 +319,56 @@ function formatTime(time?: string) {
   font-size: 13px;
   border-radius: 6px;
   cursor: pointer;
-  color: var(--text-secondary, #666);
-  border: 1px solid var(--border-color, #e5e5e5);
+  color: #595959;
+  border: 1px solid #e5e5e5;
   transition: all 0.15s;
-  background: var(--card-bg, #fff);
+  background: #fff;
 }
 
 .mt-sub-tab:hover {
-  color: var(--primary-color, #7c5cfc);
-  border-color: var(--primary-color, #7c5cfc);
+  color: #7c5cfc;
+  border-color: #7c5cfc;
 }
 
 .mt-sub-tab--active {
-  background: var(--primary-color, #7c5cfc);
+  background: #7c5cfc;
   color: #fff;
-  border-color: var(--primary-color, #7c5cfc);
+  border-color: #7c5cfc;
 }
 
 /* 统计 */
 .mt-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
   margin-bottom: 24px;
-  border: 1px solid var(--border-color, #f0f0f0);
+  border: 1px solid #f0f0f0;
   border-radius: 10px;
-  padding: 20px;
+  padding: 24px 0;
 }
 
 .mt-stat {
   text-align: center;
 }
 
+.mt-stat + .mt-stat {
+  border-left: 1px solid #f0f0f0;
+}
+
 .mt-stat__value {
-  font-size: 28px;
+  font-size: 32px;
   font-weight: 700;
-  color: var(--text-primary, #1a1a1a);
-  line-height: 1.2;
-  margin-bottom: 4px;
+  color: #1a1a1a;
+  line-height: 1.1;
+  margin-bottom: 6px;
+}
+
+.mt-stat__value--green {
+  color: #52c41a;
 }
 
 .mt-stat__label {
   font-size: 13px;
-  color: var(--text-tertiary, #999);
+  color: #8c8c8c;
 }
 
 /* 搜索工具栏 */
@@ -412,16 +419,16 @@ function formatTime(time?: string) {
 
 .mt-user-name {
   font-weight: 500;
-  color: var(--text-primary, #333);
+  color: #333;
 }
 
 .mt-email {
-  color: var(--text-secondary, #666);
+  color: #595959;
   font-size: 13px;
 }
 
 .mt-time {
-  color: var(--text-tertiary, #999);
+  color: #8c8c8c;
   font-size: 13px;
 }
 
@@ -436,13 +443,13 @@ function formatTime(time?: string) {
   background: transparent;
   border-radius: 6px;
   cursor: pointer;
-  color: var(--text-tertiary, #999);
+  color: #bfbfbf;
   transition: all 0.15s;
 }
 
 .mt-action-btn:hover {
-  background: var(--hover-bg, #f5f5f5);
-  color: var(--text-primary, #333);
+  background: #f5f5f5;
+  color: #333;
 }
 
 /* 占位 */
