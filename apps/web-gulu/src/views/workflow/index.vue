@@ -1,4 +1,6 @@
 <script setup lang="ts">
+defineOptions({ name: 'WorkflowIndex' });
+
 import { nextTick, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 

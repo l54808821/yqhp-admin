@@ -32,6 +32,7 @@ const routes: RouteRecordRaw[] = [
         meta: {
           hideInMenu: true,
           title: '工作流',
+          keepAlive: true,
         },
       },
       {
