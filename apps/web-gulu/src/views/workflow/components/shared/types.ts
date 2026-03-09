@@ -153,7 +153,8 @@ export type ContentBlockType =
   | 'tool_call'
   | 'plan'
   | 'step_exec'
-  | 'error';
+  | 'error'
+  | 'artifact';
 
 export interface TextBlock {
   type: 'text';
@@ -232,6 +233,19 @@ export interface ErrorBlock {
   message: string;
 }
 
+export type ArtifactFileType = 'html' | 'ppt' | 'markdown';
+
+export interface ArtifactBlock {
+  type: 'artifact';
+  id: string;
+  fileType: ArtifactFileType;
+  title?: string;
+  url?: string;
+  content?: string;
+  inline?: boolean;
+  streaming?: boolean;
+}
+
 export type ContentBlock =
   | TextBlock
   | ThinkingBlock
@@ -240,7 +254,8 @@ export type ContentBlock =
   | ToolCallBlock
   | PlanBlock
   | StepExecBlock
-  | ErrorBlock;
+  | ErrorBlock
+  | ArtifactBlock;
 
 /**
  * Parse message content: if JSON array → ContentBlock[], otherwise wrap as single TextBlock.

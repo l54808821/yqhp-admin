@@ -9,6 +9,7 @@ import StepExecBlockComp from './StepExecBlock.vue';
 import ErrorBlockComp from './ErrorBlock.vue';
 import ImageBlockComp from './ImageBlock.vue';
 import FileBlockComp from './FileBlock.vue';
+import ArtifactBlockComp from './ArtifactBlock.vue';
 defineProps<{
   blocks: ContentBlock[];
   streaming?: boolean;
@@ -16,6 +17,7 @@ defineProps<{
 
 const emit = defineEmits<{
   (e: 'plan-visible', visible: boolean): void;
+  (e: 'artifact-open', block: any): void;
 }>();
 
 const componentMap: Record<string, any> = {
@@ -27,6 +29,7 @@ const componentMap: Record<string, any> = {
   error: ErrorBlockComp,
   image: ImageBlockComp,
   file: FileBlockComp,
+  artifact: ArtifactBlockComp,
 };
 </script>
 
@@ -39,6 +42,7 @@ const componentMap: Record<string, any> = {
         :block="block"
         :streaming="streaming && i === blocks.length - 1 && block.type === 'text'"
         @plan-visible="emit('plan-visible', $event)"
+        @artifact-open="emit('artifact-open', $event)"
       />
     </template>
   </div>

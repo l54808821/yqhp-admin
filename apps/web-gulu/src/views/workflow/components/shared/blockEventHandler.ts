@@ -9,6 +9,8 @@ import type {
   ToolCallBlock,
   PlanBlock,
   StepExecBlock,
+  ArtifactBlock,
+  ArtifactFileType,
 } from './types';
 
 let localBlockSeq = 0;
@@ -109,7 +111,26 @@ export function handleBlockEvent(
         tc.durationMs = data.durationMs;
         tc.status = data.isError ? 'error' : 'completed';
       }
+
+      if (data.forUser && !data.isError) {
+        const artifact = tryParseArtifact(blocks, data.forUser, data.blockId);
+        if (artifact) {
+          blocks.push(artifact);
+        }
+      }
       return true;
+    }
+
+    case 'ai_artifact_start': {
+      return handleArtifactStart(blocks, data);
+    }
+
+    case 'ai_artifact_chunk': {
+      return handleArtifactChunk(blocks, data);
+    }
+
+    case 'ai_artifact_complete': {
+      return handleArtifactComplete(blocks, data);
     }
 
     case 'ai_plan_update': {
@@ -174,6 +195,112 @@ export function handleBlockEvent(
     default:
       return false;
   }
+}
+
+// ========== Artifact 流式处理 ==========
+
+function tryParseArtifact(
+  blocks: ContentBlock[],
+  forUser: string,
+  blockId: string,
+): ArtifactBlock | null {
+  try {
+    const parsed = JSON.parse(forUser);
+    if (!parsed.artifact) return null;
+
+    const fileType = parsed.type as ArtifactFileType;
+    if (!fileType || !['html', 'ppt', 'markdown'].includes(fileType)) {
+      return null;
+    }
+
+    const hasStreamingArtifact = blocks.some(
+      (b) => b.type === 'artifact',
+    );
+    if (hasStreamingArtifact) {
+      const existing = blocks.find(
+        (b): b is ArtifactBlock => b.type === 'artifact',
+      );
+      if (existing) {
+        if (parsed.url && !existing.url) {
+          existing.url = parsed.url;
+        }
+        if (!existing.title && parsed.title) {
+          existing.title = parsed.title;
+        }
+        existing.streaming = false;
+        if (!existing.url && existing.content) {
+          existing.inline = true;
+        }
+      }
+      return null;
+    }
+
+    return {
+      type: 'artifact',
+      id: `artifact_${blockId}`,
+      fileType,
+      title: parsed.title || '',
+      url: parsed.url || undefined,
+      content: parsed.content || undefined,
+      inline: parsed.inline || false,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function handleArtifactStart(
+  blocks: ContentBlock[],
+  data: any,
+): boolean {
+  const blockId = data.blockId;
+  const existing = findBlockById(blocks, blockId);
+  if (existing) return true;
+
+  const artifact: ArtifactBlock = {
+    type: 'artifact',
+    id: blockId,
+    fileType: data.fileType || 'html',
+    title: data.title || '',
+    content: '',
+    streaming: true,
+  };
+  blocks.push(artifact);
+  return true;
+}
+
+function handleArtifactChunk(
+  blocks: ContentBlock[],
+  data: any,
+): boolean {
+  const artifact = findBlockById(blocks, data.blockId) as
+    | ArtifactBlock
+    | undefined;
+  if (artifact && artifact.type === 'artifact') {
+    artifact.content = (artifact.content || '') + (data.chunk || '');
+    return true;
+  }
+  return false;
+}
+
+function handleArtifactComplete(
+  blocks: ContentBlock[],
+  data: any,
+): boolean {
+  const artifact = findBlockById(blocks, data.blockId) as
+    | ArtifactBlock
+    | undefined;
+  if (artifact && artifact.type === 'artifact') {
+    artifact.streaming = false;
+    if (data.url) {
+      artifact.url = data.url;
+    }
+    if (!artifact.url && artifact.content) {
+      artifact.inline = true;
+    }
+    return true;
+  }
+  return false;
 }
 
 // ========== Plan 更新子分发 ==========

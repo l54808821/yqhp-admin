@@ -9,6 +9,7 @@ import AiBubbleContent from '#/components/ai-chat/AiBubbleContent.vue';
 import ChatSender from '#/components/ai-chat/ChatSender.vue';
 import type { ChatSenderAttachment } from '#/components/ai-chat/ChatSender.vue';
 import { ContentBlockRenderer } from '../shared/blocks';
+import type { ArtifactBlock as ArtifactBlockType } from '../shared/types';
 import AIInteractionCard from './AIInteractionCard.vue';
 import { useAIWorkflowChat } from './useAIWorkflowChat';
 
@@ -27,6 +28,12 @@ const PencilIcon = createIconifyIcon('lucide:pencil');
 const CheckIcon = createIconifyIcon('lucide:check');
 const XIcon = createIconifyIcon('lucide:x');
 const PaperclipIcon = createIconifyIcon('lucide:paperclip');
+const PanelRightClose = createIconifyIcon('lucide:panel-right-close');
+const ExternalLinkIcon = createIconifyIcon('lucide:external-link');
+const DownloadIcon = createIconifyIcon('lucide:download');
+const GlobeIcon = createIconifyIcon('lucide:globe');
+const PresentationIconSmall = createIconifyIcon('lucide:presentation');
+const FileTextIconSmall = createIconifyIcon('lucide:file-text');
 
 interface Props {
   workflow: Workflow;
@@ -53,8 +60,70 @@ const chat = useAIWorkflowChat({
 const chatBodyRef = ref<HTMLElement | null>(null);
 const isAtBottom = ref(true);
 const sidebarCollapsed = ref(false);
+const activeArtifact = ref<ArtifactBlockType | null>(null);
 
 const hasMessages = computed(() => chat.messages.value.length > 0);
+
+const artifactIframeSrc = computed(() => {
+  const art = activeArtifact.value;
+  if (!art || art.streaming) return '';
+  if (art.url) return art.url;
+  if (art.inline && art.content) {
+    return `data:text/html;charset=utf-8,${encodeURIComponent(art.content)}`;
+  }
+  return '';
+});
+
+const artifactTypeIcon = computed(() => {
+  switch (activeArtifact.value?.fileType) {
+    case 'ppt': return PresentationIconSmall;
+    case 'html': return GlobeIcon;
+    case 'markdown': return FileTextIconSmall;
+    default: return FileTextIconSmall;
+  }
+});
+
+function openArtifactPanel(block: ArtifactBlockType) {
+  activeArtifact.value = block;
+}
+
+function closeArtifactPanel() {
+  activeArtifact.value = null;
+}
+
+function openArtifactInNewWindow() {
+  if (artifactIframeSrc.value) {
+    window.open(artifactIframeSrc.value, '_blank');
+  }
+}
+
+async function downloadArtifact() {
+  const src = artifactIframeSrc.value;
+  if (!src) return;
+  const rawTitle = activeArtifact.value?.title || 'report';
+  const fileName = (rawTitle.length > 30 ? rawTitle.slice(0, 30) : rawTitle) + '.html';
+
+  if (src.startsWith('data:')) {
+    const a = document.createElement('a');
+    a.href = src;
+    a.download = fileName;
+    a.click();
+    return;
+  }
+
+  try {
+    const resp = await fetch(src);
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch {
+    window.open(src, '_blank');
+  }
+}
 
 onMounted(() => {
   chat.loadConversations();
@@ -248,8 +317,8 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- 右侧对话区域 -->
-    <div class="chat-main">
+    <!-- 中间对话区域 -->
+    <div class="chat-main" :class="{ 'chat-main--with-panel': activeArtifact }">
       <!-- 侧栏收起时的展开按钮 -->
       <div v-if="!compact && sidebarCollapsed" class="sidebar-expand-bar">
         <Tooltip title="展开侧栏" placement="right">
@@ -439,6 +508,7 @@ onUnmounted(() => {
                     v-if="msg.blocks?.length"
                     :blocks="msg.blocks"
                     :streaming="chat.isStreaming.value && msg === chat.messages.value[chat.messages.value.length - 1]"
+                    @artifact-open="openArtifactPanel"
                   />
                   <!-- 兼容：blocks 为空时回退到旧渲染 -->
                   <AiBubbleContent
@@ -522,6 +592,61 @@ onUnmounted(() => {
             </template>
           </ChatSender>
         </div>
+      </div>
+    </div>
+
+    <!-- 右侧产物预览面板 -->
+    <div v-if="activeArtifact" class="artifact-panel">
+      <div class="artifact-panel-header">
+        <div class="artifact-panel-type">
+          <component :is="artifactTypeIcon" class="artifact-panel-type-icon" />
+          <span class="artifact-panel-title">{{ activeArtifact.title || '报告预览' }}</span>
+        </div>
+        <div class="artifact-panel-actions">
+          <Tooltip title="在新窗口打开">
+            <button class="artifact-panel-btn" @click="openArtifactInNewWindow">
+              <ExternalLinkIcon class="size-4" />
+            </button>
+          </Tooltip>
+          <Tooltip title="下载">
+            <button class="artifact-panel-btn" @click="downloadArtifact">
+              <DownloadIcon class="size-4" />
+            </button>
+          </Tooltip>
+          <Tooltip title="关闭面板">
+            <button class="artifact-panel-btn" @click="closeArtifactPanel">
+              <PanelRightClose class="size-4" />
+            </button>
+          </Tooltip>
+        </div>
+      </div>
+      <div class="artifact-panel-content">
+        <template v-if="activeArtifact.streaming">
+          <div class="artifact-panel-streaming">
+            <AiBubbleContent
+              v-if="activeArtifact.fileType === 'markdown'"
+              :content="activeArtifact.content || ''"
+              :streaming="true"
+            />
+            <pre v-else class="artifact-panel-code"><code>{{ activeArtifact.content || '' }}</code></pre>
+          </div>
+        </template>
+        <template v-else-if="artifactIframeSrc">
+          <iframe
+            :src="artifactIframeSrc"
+            class="artifact-panel-iframe"
+            sandbox="allow-scripts allow-same-origin allow-popups"
+            frameborder="0"
+          />
+        </template>
+        <template v-else-if="activeArtifact.fileType === 'markdown' && activeArtifact.content">
+          <div class="artifact-panel-markdown">
+            <AiBubbleContent :content="activeArtifact.content" />
+          </div>
+        </template>
+        <template v-else>
+          <div class="artifact-panel-empty">加载中...</div>
+        </template>
       </div>
     </div>
   </div>
@@ -1369,6 +1494,127 @@ onUnmounted(() => {
 .msg-edit-confirm-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* ============ Chat Main with Panel ============ */
+.chat-main--with-panel {
+  max-width: 50%;
+}
+
+/* ============ 右侧产物预览面板 ============ */
+.artifact-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 400px;
+  max-width: 60%;
+  background: hsl(var(--background));
+  border-left: 1px solid hsl(var(--border));
+  overflow: hidden;
+}
+
+.artifact-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--muted) / 20%);
+  flex-shrink: 0;
+}
+
+.artifact-panel-type {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.artifact-panel-type-icon {
+  width: 18px;
+  height: 18px;
+  color: hsl(var(--primary));
+  flex-shrink: 0;
+}
+
+.artifact-panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artifact-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.artifact-panel-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  color: hsl(var(--muted-foreground));
+  transition: all 0.2s;
+}
+
+.artifact-panel-btn:hover {
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
+}
+
+.artifact-panel-content {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.artifact-panel-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+.artifact-panel-markdown {
+  padding: 20px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.artifact-panel-streaming {
+  padding: 20px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.artifact-panel-code {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: hsl(var(--foreground));
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace;
+}
+
+.artifact-panel-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: hsl(var(--muted-foreground));
+  font-size: 14px;
 }
 
 </style>

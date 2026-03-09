@@ -827,6 +827,11 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
         msg.content = blocksToPlainText(msg.blocks);
         break;
 
+      case 'ai_artifact_start':
+      case 'ai_artifact_chunk':
+        msg.loading = false;
+        break;
+
       case 'message_complete':
         msg.loading = false;
         msg.content = blocksToPlainText(msg.blocks);
