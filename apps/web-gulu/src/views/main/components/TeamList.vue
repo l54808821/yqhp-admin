@@ -84,14 +84,20 @@ async function handleCreate() {
         @click="teamGroupExpanded = !teamGroupExpanded"
       >
         <div class="team-group__header-left">
-          <span
+          <svg
             class="team-group__arrow"
             :class="{ 'team-group__arrow--collapsed': !teamGroupExpanded }"
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
           >
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-              <path d="M3.5 1.5l4 3.5-4 3.5V1.5z" />
-            </svg>
-          </span>
+            <path d="M4 6l4 4 4-4" />
+          </svg>
           <span class="team-group__title">我的团队</span>
         </div>
         <span
@@ -220,13 +226,13 @@ async function handleCreate() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 16px;
+  padding: 8px 16px;
   cursor: pointer;
-  color: #8c8c8c;
+  color: #595959;
 }
 
 .team-group__header:hover {
-  color: #595959;
+  color: #333;
 }
 
 .team-group__header-left {
@@ -238,28 +244,30 @@ async function handleCreate() {
 .team-group__arrow {
   display: inline-flex;
   align-items: center;
-  transition: transform 0.2s;
-  color: #bfbfbf;
+  transition: transform 0.2s ease;
+  color: #8c8c8c;
+  flex-shrink: 0;
 }
 
 .team-group__arrow--collapsed {
   transform: rotate(-90deg);
 }
 
+
 .team-group__title {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  color: #8c8c8c;
+  color: #595959;
 }
 
 .team-group__add {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 4px;
-  color: #bfbfbf;
+  color: #8c8c8c;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -278,11 +286,11 @@ async function handleCreate() {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 7px 10px;
+  padding: 8px 10px;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.15s ease;
-  margin-bottom: 1px;
+  margin-bottom: 2px;
 }
 
 .team-item:hover {
@@ -299,14 +307,14 @@ async function handleCreate() {
 }
 
 .team-item__avatar {
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
   color: #fff;
   flex-shrink: 0;
 }
@@ -323,16 +331,17 @@ async function handleCreate() {
 }
 
 .team-item__name {
-  font-size: 13px;
-  color: #333;
+  font-size: 14px;
+  font-weight: 500;
+  color: #262626;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .team-item--add .team-item__name {
-  color: #bfbfbf;
-  font-size: 13px;
+  color: #8c8c8c;
+  font-weight: 400;
 }
 
 .team-item--add:hover .team-item__name {
@@ -372,11 +381,12 @@ async function handleCreate() {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
+  padding: 10px 10px;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 13px;
-  color: #8c8c8c;
+  font-size: 14px;
+  font-weight: 500;
+  color: #595959;
   transition: all 0.15s;
 }
 
