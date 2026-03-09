@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Button, Empty, Input, Modal, Form, message, Spin, Table } from 'ant-design-vue';
+import { Button, Empty, Input, Modal, Form, message, Spin, Table, Segmented } from 'ant-design-vue';
 import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
@@ -110,31 +110,31 @@ async function handleCreate() {
     <!-- Toolbar -->
     <div class="pt-toolbar">
       <div class="pt-toolbar__left">
-        <div class="pt-view-switch">
-          <div
-            :class="['pt-view-switch__btn', { 'pt-view-switch__btn--active': viewMode === 'grid' }]"
-            title="卡片视图"
-            @click="viewMode = 'grid'"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <rect x="1" y="1" width="6" height="6" rx="1" />
-              <rect x="9" y="1" width="6" height="6" rx="1" />
-              <rect x="1" y="9" width="6" height="6" rx="1" />
-              <rect x="9" y="9" width="6" height="6" rx="1" />
-            </svg>
-          </div>
-          <div
-            :class="['pt-view-switch__btn', { 'pt-view-switch__btn--active': viewMode === 'list' }]"
-            title="列表视图"
-            @click="viewMode = 'list'"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <rect x="1" y="2" width="14" height="2.5" rx="0.5" />
-              <rect x="1" y="6.75" width="14" height="2.5" rx="0.5" />
-              <rect x="1" y="11.5" width="14" height="2.5" rx="0.5" />
-            </svg>
-          </div>
-        </div>
+        <Segmented
+          v-model:value="viewMode"
+          :options="[
+            { value: 'grid', payload: { icon: 'grid' } },
+            { value: 'list', payload: { icon: 'list' } },
+          ]"
+          size="small"
+          class="pt-view-seg"
+        >
+          <template #label="{ payload }">
+            <span class="pt-view-seg__icon">
+              <svg v-if="payload?.icon === 'grid'" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3">
+                <rect x="1.5" y="1.5" width="5" height="5" rx="1" />
+                <rect x="9.5" y="1.5" width="5" height="5" rx="1" />
+                <rect x="1.5" y="9.5" width="5" height="5" rx="1" />
+                <rect x="9.5" y="9.5" width="5" height="5" rx="1" />
+              </svg>
+              <svg v-else width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">
+                <line x1="1.5" y1="3.5" x2="14.5" y2="3.5" />
+                <line x1="1.5" y1="8" x2="14.5" y2="8" />
+                <line x1="1.5" y1="12.5" x2="14.5" y2="12.5" />
+              </svg>
+            </span>
+          </template>
+        </Segmented>
         <span class="pt-toolbar__count">{{ projects.length }} 个</span>
       </div>
       <div class="pt-toolbar__right">
@@ -257,36 +257,12 @@ async function handleCreate() {
   color: var(--text-tertiary, #999);
 }
 
-.pt-view-switch {
-  display: inline-flex;
-  border: 1px solid var(--border-color, #e5e5e5);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.pt-view-switch__btn {
+.pt-view-seg__icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 28px;
-  cursor: pointer;
-  color: var(--text-tertiary, #999);
-  transition: all 0.15s;
-}
-
-.pt-view-switch__btn + .pt-view-switch__btn {
-  border-left: 1px solid var(--border-color, #e5e5e5);
-}
-
-.pt-view-switch__btn--active {
-  background: var(--primary-color, #7c5cfc);
-  color: #fff;
-}
-
-.pt-view-switch__btn:not(.pt-view-switch__btn--active):hover {
-  background: var(--hover-bg, #f5f5f5);
-  color: var(--text-primary, #333);
+  width: 20px;
+  height: 20px;
 }
 
 .pt-btn-import {
@@ -305,37 +281,53 @@ async function handleCreate() {
 /* 卡片网格 */
 .pt-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
 }
 
+@media (max-width: 1200px) {
+  .pt-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .pt-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 .pt-card {
-  border: 1px solid var(--border-color, #f0f0f0);
-  border-radius: 10px;
-  padding: 20px;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  padding: 24px;
   cursor: pointer;
   transition: all 0.2s ease;
-  background: var(--card-bg, #fff);
+  background: #fff;
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .pt-card:hover {
-  border-color: var(--primary-color, #7c5cfc);
+  border-color: #7c5cfc;
   box-shadow: 0 4px 16px rgba(124, 92, 252, 0.1);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
 }
 
 .pt-card__icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 14px;
+  margin-bottom: 20px;
 }
 
 .pt-card__initial {
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 700;
   color: #fff;
 }
@@ -343,16 +335,16 @@ async function handleCreate() {
 .pt-card__name {
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-primary, #1a1a1a);
-  margin-bottom: 6px;
+  color: #1a1a1a;
+  margin-bottom: 8px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .pt-card__type {
-  font-size: 12px;
-  color: var(--text-tertiary, #999);
+  font-size: 13px;
+  color: #8c8c8c;
 }
 
 /* 列表视图 */
