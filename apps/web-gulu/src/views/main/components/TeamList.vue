@@ -47,6 +47,31 @@ function showCreateModal() {
   createModalVisible.value = true;
 }
 
+function onEnter(el: Element) {
+  const element = el as HTMLElement;
+  element.style.overflow = 'hidden';
+  element.style.maxHeight = '0';
+  void element.offsetHeight;
+  element.style.transition = 'max-height 0.25s ease';
+  element.style.maxHeight = `${element.scrollHeight}px`;
+}
+
+function onAfterEnter(el: Element) {
+  const element = el as HTMLElement;
+  element.style.maxHeight = '';
+  element.style.overflow = '';
+  element.style.transition = '';
+}
+
+function onLeave(el: Element) {
+  const element = el as HTMLElement;
+  element.style.overflow = 'hidden';
+  element.style.maxHeight = `${element.scrollHeight}px`;
+  void element.offsetHeight;
+  element.style.transition = 'max-height 0.25s ease';
+  element.style.maxHeight = '0';
+}
+
 async function handleCreate() {
   if (!createForm.value.name.trim()) {
     message.error('请输入团队名称');
@@ -112,6 +137,7 @@ async function handleCreate() {
         </span>
       </div>
 
+      <Transition name="collapse" @enter="onEnter" @after-enter="onAfterEnter" @leave="onLeave">
       <div v-show="teamGroupExpanded" class="team-group__body">
         <div
           v-if="loading"
@@ -153,6 +179,7 @@ async function handleCreate() {
           </div>
         </template>
       </div>
+      </Transition>
     </div>
 
     <!-- 底部区域 -->
