@@ -18,10 +18,9 @@ onMounted(async () => {
   <div class="main-page">
     <div class="main-page__card">
       <SplitPane
-        :default-width="240"
-        :min-width="180"
+        :default-width="300"
+        :min-width="220"
         :max-width="360"
-        storage-key="team-sidebar"
       >
         <template #left>
           <TeamList />
