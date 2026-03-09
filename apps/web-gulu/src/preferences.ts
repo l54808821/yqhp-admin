@@ -26,8 +26,16 @@ export const overridesPreferences = defineOverridesPreferences({
     "expandOnHover": false,
   },
   tabbar: {
-    enable: false,
+    enable: true,
+    keepAlive: true,
+    height: 0,
     styleType: 'plain',
+    showIcon: false,
+    showMaximize: false,
+    showMore: false,
+    showRefresh: false,
+    draggable: false,
+    persist: false,
   },
   theme: {
     mode: 'light',
