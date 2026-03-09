@@ -19,7 +19,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       icon: 'lucide:workflow',
       order: 10,
-      title: '工作流管理',
+      title: '工作流',
     },
     name: 'WorkflowManagement',
     path: '/project/:projectId/workflow',
@@ -31,7 +31,7 @@ const routes: RouteRecordRaw[] = [
         component: () => import('#/views/workflow/index.vue'),
         meta: {
           hideInMenu: true,
-          title: '工作流管理',
+          title: '工作流',
         },
       },
       {
@@ -90,7 +90,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       icon: 'lucide:server',
       order: 30,
-      title: '执行机管理',
+      title: '执行机',
     },
     name: 'ExecutorManagement',
     path: '/project/:projectId/executor',
@@ -102,7 +102,7 @@ const routes: RouteRecordRaw[] = [
         component: () => import('#/views/executor/index.vue'),
         meta: {
           hideInMenu: true,
-          title: '执行机管理',
+          title: '执行机',
         },
       },
     ],
@@ -143,7 +143,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       icon: 'lucide:sparkles',
       order: 46,
-      title: 'Skill管理',
+      title: 'Skill',
     },
     name: 'SkillManagement',
     path: '/project/:projectId/skill',
@@ -155,7 +155,7 @@ const routes: RouteRecordRaw[] = [
         component: () => import('#/views/skill/index.vue'),
         meta: {
           hideInMenu: true,
-          title: 'Skill管理',
+          title: 'Skill',
         },
       },
       {
@@ -205,7 +205,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       icon: 'lucide:plug',
       order: 45,
-      title: 'MCP服务',
+      title: 'MCP',
     },
     name: 'McpServerManagement',
     path: '/project/:projectId/mcp-server',
@@ -217,7 +217,7 @@ const routes: RouteRecordRaw[] = [
         component: () => import('#/views/mcp-server/index.vue'),
         meta: {
           hideInMenu: true,
-          title: 'MCP服务管理',
+          title: 'MCP',
         },
       },
     ],

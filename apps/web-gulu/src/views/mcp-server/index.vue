@@ -18,8 +18,6 @@ import {
   Select,
   Space,
   Spin,
-  Switch,
-  Table,
   Tag,
   Typography,
 } from 'ant-design-vue';
@@ -31,43 +29,28 @@ import {
   updateMcpServerStatusApi,
 } from '#/api/mcp-server';
 
+import McpServerCard from './components/McpServerCard.vue';
 import McpServerFormModal from './components/McpServerFormModal.vue';
 
-// 搜索参数
 const searchParams = ref<McpServerListParams>({
   page: 1,
-  pageSize: 20,
+  pageSize: 12,
   name: undefined,
   transport: undefined,
   status: undefined,
 });
 
-// 数据
 const dataList = ref<McpServer[]>([]);
 const total = ref(0);
 const loading = ref(false);
 
-// 弹框 ref
 const formModalRef = ref<InstanceType<typeof McpServerFormModal>>();
 
-// 工具抽屉
 const toolDrawerVisible = ref(false);
 const toolDrawerTitle = ref('');
 const toolList = ref<McpToolDefinition[]>([]);
 const toolLoading = ref(false);
 
-// 表格列定义
-const columns = [
-  { title: '名称', dataIndex: 'name', key: 'name', width: 160 },
-  { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
-  { title: '传输方式', dataIndex: 'transport', key: 'transport', width: 120 },
-  { title: '连接信息', key: 'connection', width: 260 },
-  { title: '超时(秒)', dataIndex: 'timeout', key: 'timeout', width: 90 },
-  { title: '状态', key: 'status', width: 90 },
-  { title: '操作', key: 'action', width: 220, fixed: 'right' as const },
-];
-
-// 加载数据
 async function loadData() {
   loading.value = true;
   try {
@@ -81,17 +64,15 @@ async function loadData() {
   }
 }
 
-// 搜索
 function handleSearch() {
   searchParams.value.page = 1;
   loadData();
 }
 
-// 重置
 function handleReset() {
   searchParams.value = {
     page: 1,
-    pageSize: 20,
+    pageSize: 12,
     name: undefined,
     transport: undefined,
     status: undefined,
@@ -99,24 +80,20 @@ function handleReset() {
   loadData();
 }
 
-// 分页
 function handlePageChange(page: number, pageSize: number) {
   searchParams.value.page = page;
   searchParams.value.pageSize = pageSize;
   loadData();
 }
 
-// 新增
 function handleAdd() {
   formModalRef.value?.open();
 }
 
-// 编辑
 function handleEdit(record: McpServer) {
   formModalRef.value?.open(record);
 }
 
-// 删除
 function handleDelete(id: number) {
   Modal.confirm({
     title: '确认删除',
@@ -135,7 +112,6 @@ function handleDelete(id: number) {
   });
 }
 
-// 状态变更
 async function handleStatusChange(id: number, checked: boolean) {
   try {
     const status = checked ? 1 : 0;
@@ -147,16 +123,6 @@ async function handleStatusChange(id: number, checked: boolean) {
   }
 }
 
-// 获取连接信息显示
-function getConnectionInfo(record: McpServer): string {
-  if (record.transport === 'stdio') {
-    const args = record.args?.length ? ` ${record.args.join(' ')}` : '';
-    return `${record.command || ''}${args}`;
-  }
-  return record.url || '';
-}
-
-// 查看工具
 async function handleViewTools(record: McpServer) {
   toolDrawerTitle.value = `${record.name} - 工具列表`;
   toolDrawerVisible.value = true;
@@ -173,7 +139,6 @@ async function handleViewTools(record: McpServer) {
   }
 }
 
-// 格式化参数 schema
 function formatParamSchema(parameters: Record<string, any>): { name: string; type: string; description: string; required: boolean }[] {
   if (!parameters || !parameters.properties) return [];
   const props = parameters.properties as Record<string, any>;
@@ -186,22 +151,10 @@ function formatParamSchema(parameters: Record<string, any>): { name: string; typ
   }));
 }
 
-// 表单提交成功回调
 function handleFormSuccess() {
   loadData();
 }
 
-// 获取传输方式颜色
-function getTransportColor(transport: string): string {
-  switch (transport) {
-    case 'stdio': return 'blue';
-    case 'sse': return 'green';
-    case 'streamable-http': return 'purple';
-    default: return 'default';
-  }
-}
-
-// 初始化
 onMounted(() => {
   loadData();
 });
@@ -251,67 +204,58 @@ onMounted(() => {
         <Col :span="11" style="text-align: right">
           <Space>
             <Button @click="handleReset">重置</Button>
-            <Button type="primary" @click="handleAdd">新增 MCP 服务器</Button>
+            <Button type="primary" @click="handleAdd">添加 MCP 服务器</Button>
           </Space>
         </Col>
       </Row>
     </Card>
 
-    <!-- 表格 -->
-    <Card class="table-card" size="small">
+    <!-- 卡片列表 -->
+    <div class="mcp-card-list">
       <Spin :spinning="loading">
-        <Table
-          :columns="columns"
-          :data-source="dataList"
-          :pagination="false"
-          row-key="id"
-          size="middle"
-          :scroll="{ x: 1000 }"
-        >
-          <template #bodyCell="{ column, record: rawRecord }">
-            <template v-if="column.key === 'transport'">
-              <Tag :color="getTransportColor(rawRecord.transport)">
-                {{ rawRecord.transport }}
-              </Tag>
-            </template>
-            <template v-else-if="column.key === 'connection'">
-              <span class="connection-info" :title="getConnectionInfo(rawRecord as McpServer)">
-                {{ getConnectionInfo(rawRecord as McpServer) }}
-              </span>
-            </template>
-            <template v-else-if="column.key === 'status'">
-              <Switch
-                :checked="rawRecord.status === 1"
-                checked-children="启用"
-                un-checked-children="禁用"
-                size="small"
-                @change="(checked: string | number | boolean) => handleStatusChange(rawRecord.id, !!checked)"
+        <div v-if="dataList.length > 0">
+          <Row :gutter="[16, 16]">
+            <Col
+              v-for="server in dataList"
+              :key="server.id"
+              :xs="24"
+              :sm="12"
+              :md="8"
+              :lg="8"
+              :xl="6"
+            >
+              <McpServerCard
+                :server="server"
+                @view-tools="handleViewTools"
+                @edit="handleEdit"
+                @delete="handleDelete"
+                @status-change="handleStatusChange"
               />
-            </template>
-            <template v-else-if="column.key === 'action'">
-              <Space>
-                <Button type="link" size="small" @click="handleViewTools(rawRecord as McpServer)">查看工具</Button>
-                <Button type="link" size="small" @click="handleEdit(rawRecord as McpServer)">编辑</Button>
-                <Button type="link" size="small" danger @click="handleDelete(rawRecord.id)">删除</Button>
-              </Space>
-            </template>
-          </template>
-        </Table>
+            </Col>
+          </Row>
 
-        <!-- 分页 -->
-        <div v-if="total > 0" class="mt-4 flex justify-end">
-          <Pagination
-            :current="searchParams.page"
-            :page-size="searchParams.pageSize"
-            :total="total"
-            show-size-changer
-            show-quick-jumper
-            :show-total="(t: number) => `共 ${t} 个服务器`"
-            @change="handlePageChange"
-          />
+          <!-- 分页 -->
+          <div class="mt-4 flex justify-end">
+            <Pagination
+              :current="searchParams.page"
+              :page-size="searchParams.pageSize"
+              :total="total"
+              show-size-changer
+              show-quick-jumper
+              :show-total="(t: number) => `共 ${t} 个服务器`"
+              @change="handlePageChange"
+            />
+          </div>
+        </div>
+
+        <!-- 空状态 -->
+        <div v-else-if="!loading" class="flex items-center justify-center" style="min-height: 400px">
+          <Empty description="暂无 MCP 服务器，点击上方按钮添加">
+            <Button type="primary" @click="handleAdd">添加 MCP 服务器</Button>
+          </Empty>
         </div>
       </Spin>
-    </Card>
+    </div>
 
     <!-- 新增/编辑弹框 -->
     <McpServerFormModal ref="formModalRef" @success="handleFormSuccess" />
@@ -381,20 +325,11 @@ onMounted(() => {
   margin-bottom: 16px;
 }
 
-.table-card {
+.mcp-card-list {
   flex: 1;
   min-height: 0;
-  overflow: auto;
-}
-
-.connection-info {
-  display: inline-block;
-  max-width: 240px;
-  overflow: hidden;
-  font-family: monospace;
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .tool-detail {
