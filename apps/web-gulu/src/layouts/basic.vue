@@ -111,6 +111,10 @@ async function handleLogout() {
   await authStore.logout(appCustomPreferences.loginRedirectToPreviousPage);
 }
 
+function handleClickLogo() {
+  router.push({ name: 'Main' });
+}
+
 function handleNoticeClear() {
   notifications.value = [];
 }
@@ -152,7 +156,7 @@ watch(
 </script>
 
 <template>
-  <BasicLayout @clear-preferences-and-logout="handleLogout">
+  <BasicLayout @clear-preferences-and-logout="handleLogout" @click-logo="handleClickLogo">
     <template #user-dropdown>
       <UserDropdown
         :avatar="avatar"
