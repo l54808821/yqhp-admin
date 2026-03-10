@@ -2,6 +2,8 @@ export * from './application';
 export * from './config';
 export * from './dept';
 export * from './dict';
+export * from './job';
+export * from './job-log';
 export * from './oauth';
 export * from './resource';
 export * from './role';
