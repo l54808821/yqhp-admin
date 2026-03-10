@@ -9,7 +9,6 @@ const TrashIcon = createIconifyIcon('lucide:trash-2');
 const MessageCircle = createIconifyIcon('lucide:message-circle');
 const SparklesIcon = createIconifyIcon('lucide:sparkles');
 const PanelLeftClose = createIconifyIcon('lucide:panel-left-close');
-const PanelLeftOpen = createIconifyIcon('lucide:panel-left-open');
 
 defineProps<{
   conversations: AIConversation[];
@@ -69,14 +68,6 @@ const emit = defineEmits<{
       </div>
     </div>
 
-    <!-- 侧栏收起时的展开按钮 -->
-    <div v-if="collapsed" class="sidebar-expand-bar">
-      <Tooltip title="展开侧栏" placement="right">
-        <button class="sidebar-expand-btn" @click="emit('update:collapsed', false)">
-          <PanelLeftOpen class="size-4" />
-        </button>
-      </Tooltip>
-    </div>
   </template>
 
   <!-- compact 模式顶栏（渲染在主区域内部，由父组件放置） -->
@@ -277,34 +268,6 @@ const emit = defineEmits<{
   padding: 24px 0;
   font-size: 13px;
   color: hsl(var(--muted-foreground));
-}
-
-/* 侧栏展开按钮 */
-.sidebar-expand-bar {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  z-index: 10;
-}
-
-.sidebar-expand-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid hsl(var(--border));
-  border-radius: 8px;
-  background: hsl(var(--background));
-  color: hsl(var(--muted-foreground));
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.sidebar-expand-btn:hover {
-  border-color: var(--ant-color-primary, #1677ff);
-  color: var(--ant-color-primary, #1677ff);
-  background: hsl(var(--accent));
 }
 
 /* compact 模式顶栏 */

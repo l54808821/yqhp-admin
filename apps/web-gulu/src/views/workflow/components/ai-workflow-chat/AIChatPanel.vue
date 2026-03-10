@@ -27,6 +27,7 @@ const PencilIcon = createIconifyIcon('lucide:pencil');
 const CheckIcon = createIconifyIcon('lucide:check');
 const XIcon = createIconifyIcon('lucide:x');
 const PaperclipIcon = createIconifyIcon('lucide:paperclip');
+const PanelLeftOpen = createIconifyIcon('lucide:panel-left-open');
 
 interface Props {
   workflow: Workflow;
@@ -231,6 +232,15 @@ onUnmounted(() => {
     </template>
 
     <!-- 主对话区域（default slot） -->
+    <!-- 侧栏收起时的展开按钮 -->
+    <div v-if="!compact && sidebarCollapsed" class="sidebar-expand-bar">
+      <Tooltip title="展开侧栏" placement="right">
+        <button class="sidebar-expand-btn" @click="sidebarCollapsed = false">
+          <PanelLeftOpen class="size-4" />
+        </button>
+      </Tooltip>
+    </div>
+
     <!-- compact 模式顶栏 -->
     <ChatSidebar
       v-if="compact"
@@ -451,6 +461,34 @@ onUnmounted(() => {
 <style scoped>
 .ai-chat-panel {
   background: hsl(var(--accent) / 30%);
+}
+
+/* ============ 侧栏展开按钮 ============ */
+.sidebar-expand-bar {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+}
+
+.sidebar-expand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  background: hsl(var(--background));
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sidebar-expand-btn:hover {
+  border-color: var(--ant-color-primary, #1677ff);
+  color: var(--ant-color-primary, #1677ff);
+  background: hsl(var(--accent));
 }
 
 /* ============ 主对话区 ============ */
