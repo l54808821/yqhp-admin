@@ -26,6 +26,7 @@ import {
 import { SearchTable } from '#/components/search-table';
 
 import JobFormModal from './components/JobFormModal.vue';
+import JobLogDrawer from './components/JobLogDrawer.vue';
 
 const searchParams = ref<JobApi.ListParams>({
   page: 1,
@@ -90,7 +91,7 @@ const columns: ColumnConfig[] = [
   {
     title: '操作',
     key: 'action',
-    width: 220,
+    width: 260,
     fixed: 'right' as const,
     fixedLock: true,
   },
@@ -101,6 +102,7 @@ const total = ref(0);
 const loading = ref(false);
 
 const jobFormModalRef = ref<InstanceType<typeof JobFormModal>>();
+const jobLogDrawerRef = ref<InstanceType<typeof JobLogDrawer>>();
 
 async function loadData() {
   loading.value = true;
@@ -154,6 +156,10 @@ async function handleRunOnce(record: JobApi.Job) {
   message.success('已触发执行');
 }
 
+function handleViewLog(record: JobApi.Job) {
+  jobLogDrawerRef.value?.open(record);
+}
+
 loadData();
 </script>
 
@@ -199,6 +205,13 @@ loadData();
             >
               编辑
             </Button>
+            <Button
+              type="link"
+              size="small"
+              @click="handleViewLog(record as JobApi.Job)"
+            >
+              日志
+            </Button>
             <Popconfirm
               title="确定立即执行一次？"
               @confirm="handleRunOnce(record as JobApi.Job)"
@@ -217,5 +230,6 @@ loadData();
     </SearchTable>
 
     <JobFormModal ref="jobFormModalRef" @success="loadData" />
+    <JobLogDrawer ref="jobLogDrawerRef" />
   </Page>
 </template>
