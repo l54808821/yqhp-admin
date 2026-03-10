@@ -128,32 +128,29 @@ onBeforeUnmount(() => {
 }
 
 .split-panel-divider {
-  width: 4px;
+  width: 5px;
+  margin: 0 -2px;
   cursor: col-resize;
-  background: transparent;
   position: relative;
   flex-shrink: 0;
   z-index: 10;
-  transition: background 0.15s;
+  background: transparent;
 }
 
-.split-panel-divider::after {
+.split-panel-divider::before {
   content: '';
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 50%;
+  left: 2px;
   width: 1px;
   background: hsl(var(--border));
-  transform: translateX(-50%);
-  transition: width 0.15s, background 0.15s;
+  transition: background 0.15s;
 }
 
-.split-panel-divider:hover::after,
-.split-panel-root--dragging .split-panel-divider::after {
-  width: 3px;
+.split-panel-divider:hover::before,
+.split-panel-root--dragging .split-panel-divider::before {
   background: hsl(var(--primary) / 50%);
-  border-radius: 2px;
 }
 
 .split-panel-root--dragging {
