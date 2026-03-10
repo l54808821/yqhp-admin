@@ -28,7 +28,6 @@ const PencilIcon = createIconifyIcon('lucide:pencil');
 const CheckIcon = createIconifyIcon('lucide:check');
 const XIcon = createIconifyIcon('lucide:x');
 const PaperclipIcon = createIconifyIcon('lucide:paperclip');
-const PanelRightClose = createIconifyIcon('lucide:panel-right-close');
 const ExternalLinkIcon = createIconifyIcon('lucide:external-link');
 const DownloadIcon = createIconifyIcon('lucide:download');
 const GlobeIcon = createIconifyIcon('lucide:globe');
@@ -632,7 +631,7 @@ onUnmounted(() => {
           </Tooltip>
           <Tooltip title="关闭面板">
             <button class="artifact-panel-btn" @click="closeArtifactPanel">
-              <PanelRightClose class="size-4" />
+              <XIcon class="size-4" />
             </button>
           </Tooltip>
         </div>

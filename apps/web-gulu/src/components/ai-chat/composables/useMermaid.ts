@@ -185,13 +185,26 @@ export function useMermaid(containerRef: Ref<HTMLElement | undefined>, renderedH
     img.src = url;
   }
 
+  const ICON_FULLSCREEN = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
+  const ICON_EXIT_FULLSCREEN = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
+
+  function updateFullscreenIcon(block: HTMLElement, isFullscreen: boolean) {
+    const btn = block.querySelector<HTMLElement>('[data-mermaid-action="fullscreen"]');
+    if (btn) {
+      btn.innerHTML = isFullscreen ? ICON_EXIT_FULLSCREEN : ICON_FULLSCREEN;
+      btn.title = isFullscreen ? '退出全屏' : '全屏';
+    }
+  }
+
   function toggleFullscreen(block: HTMLElement) {
     if (document.fullscreenElement === block) {
       document.exitFullscreen();
       block.classList.remove('ai-mermaid-block--fullscreen');
+      updateFullscreenIcon(block, false);
     } else {
       block.requestFullscreen().then(() => {
         block.classList.add('ai-mermaid-block--fullscreen');
+        updateFullscreenIcon(block, true);
       });
     }
   }
@@ -283,8 +296,9 @@ export function useMermaid(containerRef: Ref<HTMLElement | undefined>, renderedH
 
   const onFullscreenChange = () => {
     if (!document.fullscreenElement) {
-      containerRef.value?.querySelectorAll('.ai-mermaid-block--fullscreen').forEach((el) => {
+      containerRef.value?.querySelectorAll<HTMLElement>('.ai-mermaid-block--fullscreen').forEach((el) => {
         el.classList.remove('ai-mermaid-block--fullscreen');
+        updateFullscreenIcon(el, false);
       });
     }
   };
