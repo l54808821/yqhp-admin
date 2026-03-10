@@ -79,6 +79,13 @@ watch(
 );
 
 watch(
+  () => chat.currentConversation.value?.id,
+  () => {
+    activeArtifact.value = null;
+  },
+);
+
+watch(
   () => chat.messages.value.length,
   () => {
     if (isAtBottom.value) {
