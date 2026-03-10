@@ -344,6 +344,7 @@ function stopDrag() {
                     :value="localNode.config.max_tool_rounds"
                     :min="1"
                     :max="50"
+                    :placeholder="'15'"
                     class="number-input"
                     @change="(val: any) => handleConfigUpdate({ max_tool_rounds: val })"
                   />
@@ -360,6 +361,7 @@ function stopDrag() {
                     :value="localNode.config.tool_timeout"
                     :min="10"
                     :max="600"
+                    :placeholder="'180'"
                     class="number-input"
                     @change="(val: any) => handleConfigUpdate({ tool_timeout: val })"
                   />
@@ -376,6 +378,7 @@ function stopDrag() {
                     :value="localNode.config.timeout"
                     :min="0"
                     :max="3600"
+                    :placeholder="'300'"
                     class="number-input"
                     @change="(val: any) => handleConfigUpdate({ timeout: val })"
                   />
@@ -392,6 +395,7 @@ function stopDrag() {
                     :value="localNode.config.interaction_timeout"
                     :min="10"
                     :max="3600"
+                    :placeholder="'300'"
                     class="number-input"
                     @change="(val: any) => handleConfigUpdate({ interaction_timeout: val })"
                   />
