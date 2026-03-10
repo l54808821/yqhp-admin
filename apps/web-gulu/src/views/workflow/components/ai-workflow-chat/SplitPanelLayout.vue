@@ -116,6 +116,7 @@ onBeforeUnmount(() => {
   min-width: 0;
   overflow: hidden;
   position: relative;
+  background: hsl(var(--background));
 }
 
 .split-panel-main--with-panel {
@@ -168,5 +169,6 @@ onBeforeUnmount(() => {
   flex: 1;
   min-width: 300px;
   overflow: hidden;
+  background: hsl(var(--background));
 }
 </style>
