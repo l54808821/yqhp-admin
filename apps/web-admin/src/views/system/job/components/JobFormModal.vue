@@ -3,6 +3,8 @@ import type { JobApi } from '#/api/system/job';
 
 import { ref } from 'vue';
 
+import { CronInput } from '@vben/common-ui';
+
 import {
   Form,
   FormItem,
@@ -129,7 +131,7 @@ defineExpose({ open });
         />
       </FormItem>
       <FormItem label="Cron表达式" required>
-        <Input
+        <CronInput
           v-model:value="formData.cronExpression"
           placeholder="请输入Cron表达式 (如: 0 2 * * *)"
         />
