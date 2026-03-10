@@ -61,6 +61,42 @@ const isAtBottom = ref(true);
 const sidebarCollapsed = ref(false);
 const activeArtifact = ref<ArtifactBlockType | null>(null);
 
+const chatPanelRef = ref<HTMLElement | null>(null);
+const chatMainRef = ref<HTMLElement | null>(null);
+const chatMainWidth = ref<number | null>(null);
+const isDraggingDivider = ref(false);
+
+function startDividerDrag(e: MouseEvent) {
+  e.preventDefault();
+  isDraggingDivider.value = true;
+
+  const chatMain = chatMainRef.value;
+  if (!chatMain) return;
+
+  const startX = e.clientX;
+  const startWidth = chatMain.getBoundingClientRect().width;
+
+  const onMove = (ev: MouseEvent) => {
+    const delta = ev.clientX - startX;
+    const panel = chatPanelRef.value;
+    if (!panel) return;
+
+    const panelRect = panel.getBoundingClientRect();
+    const minWidth = 250;
+    const maxWidth = panelRect.width - 350;
+    chatMainWidth.value = Math.max(minWidth, Math.min(maxWidth, startWidth + delta));
+  };
+
+  const onUp = () => {
+    isDraggingDivider.value = false;
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  };
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
 const hasMessages = computed(() => chat.messages.value.length > 0);
 
 const artifactIframeSrc = computed(() => {
@@ -85,10 +121,19 @@ const artifactTypeIcon = computed(() => {
 
 function openArtifactPanel(block: ArtifactBlockType) {
   activeArtifact.value = block;
+  nextTick(() => {
+    const panel = chatPanelRef.value;
+    if (!panel) return;
+    const sidebarEl = panel.querySelector<HTMLElement>('.sidebar:not(.sidebar--collapsed)');
+    const sidebarWidth = sidebarEl?.offsetWidth ?? 0;
+    const available = panel.getBoundingClientRect().width - sidebarWidth - 4;
+    chatMainWidth.value = Math.round(available * 0.4);
+  });
 }
 
 function closeArtifactPanel() {
   activeArtifact.value = null;
+  chatMainWidth.value = null;
 }
 
 function openArtifactInNewWindow() {
@@ -286,7 +331,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="ai-chat-panel" :class="{ 'ai-chat-panel--compact': compact }">
+  <div
+    ref="chatPanelRef"
+    class="ai-chat-panel"
+    :class="{ 'ai-chat-panel--compact': compact, 'ai-chat-panel--dragging': isDraggingDivider }"
+  >
     <!-- 左侧会话列表 -->
     <div v-if="!compact" class="sidebar" :class="{ 'sidebar--collapsed': sidebarCollapsed }">
       <div class="sidebar-header">
@@ -334,7 +383,12 @@ onUnmounted(() => {
     </div>
 
     <!-- 中间对话区域 -->
-    <div class="chat-main" :class="{ 'chat-main--with-panel': activeArtifact }">
+    <div
+      ref="chatMainRef"
+      class="chat-main"
+      :class="{ 'chat-main--with-panel': activeArtifact }"
+      :style="activeArtifact && chatMainWidth ? { width: chatMainWidth + 'px', maxWidth: chatMainWidth + 'px' } : undefined"
+    >
       <!-- 侧栏收起时的展开按钮 -->
       <div v-if="!compact && sidebarCollapsed" class="sidebar-expand-bar">
         <Tooltip title="展开侧栏" placement="right">
@@ -610,6 +664,13 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
+
+    <!-- 拖拽分隔条 -->
+    <div
+      v-if="activeArtifact"
+      class="panel-divider"
+      @mousedown="startDividerDrag"
+    />
 
     <!-- 右侧产物预览面板 -->
     <div v-if="activeArtifact" class="artifact-panel">
@@ -1514,7 +1575,48 @@ onUnmounted(() => {
 
 /* ============ Chat Main with Panel ============ */
 .chat-main--with-panel {
-  max-width: 50%;
+  flex: none;
+  width: 40%;
+  max-width: 40%;
+}
+
+/* ============ 拖拽分隔条 ============ */
+.panel-divider {
+  width: 4px;
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+  flex-shrink: 0;
+  z-index: 10;
+  transition: background 0.15s;
+}
+
+.panel-divider::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: hsl(var(--border));
+  transform: translateX(-50%);
+  transition: width 0.15s, background 0.15s;
+}
+
+.panel-divider:hover::after,
+.ai-chat-panel--dragging .panel-divider::after {
+  width: 3px;
+  background: hsl(var(--primary) / 50%);
+  border-radius: 2px;
+}
+
+.ai-chat-panel--dragging {
+  user-select: none;
+  cursor: col-resize;
+}
+
+.ai-chat-panel--dragging iframe {
+  pointer-events: none;
 }
 
 /* ============ 右侧产物预览面板 ============ */
@@ -1522,10 +1624,8 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   flex: 1;
-  min-width: 400px;
-  max-width: 60%;
+  min-width: 300px;
   background: hsl(var(--background));
-  border-left: 1px solid hsl(var(--border));
   overflow: hidden;
 }
 
