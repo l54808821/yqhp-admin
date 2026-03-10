@@ -83,7 +83,7 @@ function goBack() {
 .ai-app-page {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 50px);
+  height: 100%;
   background: hsl(var(--accent) / 30%);
 }
 
