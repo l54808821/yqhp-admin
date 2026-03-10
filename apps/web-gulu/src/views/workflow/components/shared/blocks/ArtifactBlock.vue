@@ -40,6 +40,7 @@ const typeConfig = computed(() => {
 
 const iframeSrc = computed(() => {
   if (props.block.streaming) return '';
+  if (props.block.fileType === 'markdown') return '';
   if (props.block.url) return props.block.url;
   if (props.block.inline && props.block.content) {
     return `data:text/html;charset=utf-8,${encodeURIComponent(props.block.content)}`;
@@ -70,11 +71,24 @@ function openInPanel() {
 }
 
 async function downloadReport() {
+  const rawTitle = props.block.title || 'report';
+  const titlePart = rawTitle.length > 30 ? rawTitle.slice(0, 30) : rawTitle;
+
+  if (props.block.fileType === 'markdown' && props.block.content) {
+    const blob = new Blob([props.block.content], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${titlePart}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    return;
+  }
+
   const src = iframeSrc.value;
   if (!src) return;
 
-  const rawTitle = props.block.title || 'report';
-  const fileName = (rawTitle.length > 30 ? rawTitle.slice(0, 30) : rawTitle) + '.html';
+  const fileName = `${titlePart}.html`;
 
   if (src.startsWith('data:')) {
     const a = document.createElement('a');
@@ -112,13 +126,13 @@ async function downloadReport() {
         生成中... {{ streamingCharCount }} 字
       </div>
       <div class="artifact-actions">
-        <button v-if="isReady && isIframeType" class="action-btn" title="在侧边面板打开" @click.stop="openInPanel">
+        <button v-if="isReady" class="action-btn" title="在侧边面板打开" @click.stop="openInPanel">
           <PanelRightIcon class="action-icon" />
         </button>
         <button v-if="isReady && isIframeType && iframeSrc" class="action-btn" title="在新窗口打开" @click.stop="openInNewWindow">
           <ExternalLinkIcon class="action-icon" />
         </button>
-        <button v-if="isReady && isIframeType && iframeSrc" class="action-btn" title="下载" @click.stop="downloadReport">
+        <button v-if="isReady && (iframeSrc || block.fileType === 'markdown')" class="action-btn" title="下载" @click.stop="downloadReport">
           <DownloadIcon class="action-icon" />
         </button>
         <button class="action-btn" :title="expanded ? '收起' : '展开'" @click.stop="expanded = !expanded">

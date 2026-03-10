@@ -67,6 +67,7 @@ const hasMessages = computed(() => chat.messages.value.length > 0);
 const artifactIframeSrc = computed(() => {
   const art = activeArtifact.value;
   if (!art || art.streaming) return '';
+  if (art.fileType === 'markdown') return '';
   if (art.url) return art.url;
   if (art.inline && art.content) {
     return `data:text/html;charset=utf-8,${encodeURIComponent(art.content)}`;
@@ -98,10 +99,26 @@ function openArtifactInNewWindow() {
 }
 
 async function downloadArtifact() {
+  const art = activeArtifact.value;
+  if (!art) return;
+  const rawTitle = art.title || 'report';
+  const titlePart = rawTitle.length > 30 ? rawTitle.slice(0, 30) : rawTitle;
+
+  if (art.fileType === 'markdown' && art.content) {
+    const blob = new Blob([art.content], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${titlePart}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    return;
+  }
+
   const src = artifactIframeSrc.value;
   if (!src) return;
-  const rawTitle = activeArtifact.value?.title || 'report';
-  const fileName = (rawTitle.length > 30 ? rawTitle.slice(0, 30) : rawTitle) + '.html';
+
+  const fileName = `${titlePart}.html`;
 
   if (src.startsWith('data:')) {
     const a = document.createElement('a');
