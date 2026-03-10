@@ -107,6 +107,7 @@ onBeforeUnmount(() => {
 
 .split-panel-sidebar {
   flex-shrink: 0;
+  height: 100%;
   background: hsl(var(--background));
 }
 

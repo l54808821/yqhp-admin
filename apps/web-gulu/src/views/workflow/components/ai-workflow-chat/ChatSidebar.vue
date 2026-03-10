@@ -139,6 +139,7 @@ const emit = defineEmits<{
   width: 240px;
   min-width: 240px;
   max-width: 240px;
+  height: 100%;
   background: hsl(var(--background));
   overflow: hidden;
   border-right: 1px solid hsl(var(--border));

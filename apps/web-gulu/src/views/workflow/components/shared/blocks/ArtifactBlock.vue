@@ -309,16 +309,51 @@ async function downloadReport() {
   display: block;
 }
 
-.artifact-markdown {
+.artifact-markdown,
+.artifact-streaming-content {
   padding: 16px;
-  max-height: 600px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.artifact-markdown {
+  max-height: 600px;
 }
 
 .artifact-streaming-content {
-  padding: 16px;
   max-height: 400px;
-  overflow-y: auto;
+}
+
+.artifact-markdown:hover,
+.artifact-streaming-content:hover {
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+
+.artifact-markdown::-webkit-scrollbar,
+.artifact-streaming-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.artifact-markdown::-webkit-scrollbar-track,
+.artifact-streaming-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.artifact-markdown::-webkit-scrollbar-thumb,
+.artifact-streaming-content::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+}
+
+.artifact-markdown:hover::-webkit-scrollbar-thumb,
+.artifact-streaming-content:hover::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+}
+
+.artifact-markdown::-webkit-scrollbar-thumb:hover,
+.artifact-streaming-content::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 40%);
 }
 
 .artifact-code-preview {

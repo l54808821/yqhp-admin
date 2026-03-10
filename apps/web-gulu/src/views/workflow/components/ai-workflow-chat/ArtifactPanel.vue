@@ -230,16 +230,44 @@ async function download() {
   display: block;
 }
 
-.artifact-panel-markdown {
-  padding: 20px;
-  height: 100%;
-  overflow-y: auto;
-}
-
+.artifact-panel-markdown,
 .artifact-panel-streaming {
   padding: 20px;
   height: 100%;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.artifact-panel-markdown:hover,
+.artifact-panel-streaming:hover {
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+
+.artifact-panel-markdown::-webkit-scrollbar,
+.artifact-panel-streaming::-webkit-scrollbar {
+  width: 6px;
+}
+
+.artifact-panel-markdown::-webkit-scrollbar-track,
+.artifact-panel-streaming::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.artifact-panel-markdown::-webkit-scrollbar-thumb,
+.artifact-panel-streaming::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+}
+
+.artifact-panel-markdown:hover::-webkit-scrollbar-thumb,
+.artifact-panel-streaming:hover::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+}
+
+.artifact-panel-markdown::-webkit-scrollbar-thumb:hover,
+.artifact-panel-streaming::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 40%);
 }
 
 .artifact-panel-code {

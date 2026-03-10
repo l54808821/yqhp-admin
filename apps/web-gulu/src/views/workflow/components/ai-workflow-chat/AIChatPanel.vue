@@ -459,6 +459,33 @@ onUnmounted(() => {
   overflow-y: auto;
   overflow-x: hidden;
   scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.chat-body:hover {
+  scrollbar-color: hsl(var(--muted-foreground) / 30%) transparent;
+}
+
+.chat-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-body::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+}
+
+.chat-body:hover::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 30%);
+}
+
+.chat-body::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 40%);
 }
 
 /* 欢迎页 */
