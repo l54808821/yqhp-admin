@@ -51,7 +51,7 @@ export function fieldStateToExpression(state: CronFieldState): string {
 }
 
 export function generateCronExpression(fields: CronFields): string {
-  const order: CronFieldType[] = ['minute', 'hour', 'day', 'month', 'week'];
+  const order: CronFieldType[] = ['second', 'minute', 'hour', 'day', 'month', 'week'];
   return order.map((key) => fieldStateToExpression(fields[key])).join(' ');
 }
 
@@ -94,12 +94,12 @@ function parseFieldExpression(
 export function parseCronExpression(expr: string): CronFields | null {
   if (!expr) return null;
   const parts = expr.trim().split(/\s+/);
-  if (parts.length !== 5) return null;
+  if (parts.length !== 6) return null;
 
-  const order: CronFieldType[] = ['minute', 'hour', 'day', 'month', 'week'];
+  const order: CronFieldType[] = ['second', 'minute', 'hour', 'day', 'month', 'week'];
   const fields = {} as CronFields;
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     const key = order[i]!;
     const config = CRON_FIELD_CONFIGS.find((c) => c.key === key)!;
     fields[key] = parseFieldExpression(parts[i]!, config);
@@ -146,9 +146,10 @@ function isValidFieldPart(part: string, min: number, max: number): boolean {
 export function validateCronExpression(expr: string): boolean {
   if (!expr) return false;
   const parts = expr.trim().split(/\s+/);
-  if (parts.length !== 5) return false;
+  if (parts.length !== 6) return false;
 
   const ranges: Array<[number, number]> = [
+    [0, 59],
     [0, 59],
     [0, 23],
     [1, 31],
@@ -202,22 +203,23 @@ export function getNextExecutions(
   if (!validateCronExpression(expr)) return null;
 
   const parts = expr.trim().split(/\s+/);
-  const minutes = expandField(parts[0]!, 0, 59);
-  const hours = expandField(parts[1]!, 0, 23);
-  const days = expandField(parts[2]!, 1, 31);
-  const months = expandField(parts[3]!, 1, 12);
-  const weekdays = expandField(parts[4]!, 0, 6);
+  const seconds = expandField(parts[0]!, 0, 59);
+  const minutes = expandField(parts[1]!, 0, 59);
+  const hours = expandField(parts[2]!, 0, 23);
+  const days = expandField(parts[3]!, 1, 31);
+  const months = expandField(parts[4]!, 1, 12);
+  const weekdays = expandField(parts[5]!, 0, 6);
 
-  const dayIsWildcard = parts[2] === '*';
-  const weekIsWildcard = parts[4] === '*';
+  const dayIsWildcard = parts[3] === '*';
+  const weekIsWildcard = parts[5] === '*';
 
   const results: Date[] = [];
   const now = new Date();
   const current = new Date(now);
-  current.setSeconds(0, 0);
-  current.setMinutes(current.getMinutes() + 1);
+  current.setMilliseconds(0);
+  current.setSeconds(current.getSeconds() + 1);
 
-  const maxIterations = 525_960; // ~1 year of minutes
+  const maxIterations = 31_557_600; // ~1 year of seconds
   let iterations = 0;
 
   while (results.length < count && iterations < maxIterations) {
@@ -228,6 +230,7 @@ export function getNextExecutions(
     const weekday = current.getDay();
     const hour = current.getHours();
     const minute = current.getMinutes();
+    const second = current.getSeconds();
 
     if (!months.includes(month)) {
       current.setMonth(current.getMonth() + 1, 1);
@@ -235,8 +238,6 @@ export function getNextExecutions(
       continue;
     }
 
-    // Day matching: if both day-of-month and day-of-week are specified (not *),
-    // match either (OR logic, standard cron behavior)
     let dayMatches: boolean;
     if (dayIsWildcard && weekIsWildcard) {
       dayMatches = true;
@@ -264,8 +265,13 @@ export function getNextExecutions(
       continue;
     }
 
+    if (!seconds.includes(second)) {
+      current.setSeconds(current.getSeconds() + 1, 0);
+      continue;
+    }
+
     results.push(new Date(current));
-    current.setMinutes(current.getMinutes() + 1, 0, 0);
+    current.setSeconds(current.getSeconds() + 1, 0);
   }
 
   return results;
@@ -303,11 +309,11 @@ export function describeCron(expr: string): string {
   if (!expr || !validateCronExpression(expr)) return '';
 
   const parts = expr.trim().split(/\s+/);
-  const labels = ['分', '时', '日', '月', ''];
+  const labels = ['秒', '分', '时', '日', '月', ''];
   const descriptions: string[] = [];
 
-  // Build from high to low: month -> week -> day -> hour -> minute
-  const order = [3, 4, 2, 1, 0];
+  // Build from high to low: month -> week -> day -> hour -> minute -> second
+  const order = [4, 5, 3, 2, 1, 0];
   for (const i of order) {
     const part = parts[i]!;
     if (part === '*') continue;
@@ -315,7 +321,7 @@ export function describeCron(expr: string): string {
     descriptions.push(describeFieldPart(part, labels[i]!, config));
   }
 
-  if (descriptions.length === 0) return '每分钟';
+  if (descriptions.length === 0) return '每秒';
   return descriptions.join('，');
 }
 

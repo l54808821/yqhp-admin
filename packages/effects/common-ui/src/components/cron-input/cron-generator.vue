@@ -37,7 +37,7 @@ const emit = defineEmits<{
 }>();
 
 const fields: CronFields = reactive(createDefaultFields());
-const activeTab = reactive({ key: 'minute' as CronFieldType });
+const activeTab = reactive({ key: 'second' as CronFieldType });
 
 watch(
   () => props.value,

@@ -133,7 +133,7 @@ defineExpose({ open });
       <FormItem label="Cron表达式" required>
         <CronInput
           v-model:value="formData.cronExpression"
-          placeholder="请输入Cron表达式 (如: 0 2 * * *)"
+          placeholder="秒 分 时 日 月 周 (如: 0 0 2 * * *)"
         />
       </FormItem>
       <FormItem label="任务分组">

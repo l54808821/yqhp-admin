@@ -1,4 +1,4 @@
-export type CronFieldType = 'day' | 'hour' | 'minute' | 'month' | 'week';
+export type CronFieldType = 'day' | 'hour' | 'minute' | 'month' | 'second' | 'week';
 
 export type CronMode = 'every' | 'interval' | 'range' | 'specific';
 
@@ -12,6 +12,7 @@ export interface CronFieldState {
 }
 
 export interface CronFields {
+  second: CronFieldState;
   minute: CronFieldState;
   hour: CronFieldState;
   day: CronFieldState;
@@ -40,6 +41,7 @@ export interface CronInputEmits {
 }
 
 export const CRON_FIELD_CONFIGS: CronFieldConfig[] = [
+  { key: 'second', label: '秒', min: 0, max: 59, defaultStep: 5 },
   { key: 'minute', label: '分钟', min: 0, max: 59, defaultStep: 5 },
   { key: 'hour', label: '小时', min: 0, max: 23, defaultStep: 1 },
   { key: 'day', label: '日', min: 1, max: 31, defaultStep: 1 },
