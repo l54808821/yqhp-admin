@@ -218,6 +218,7 @@ onUnmounted(() => {
     <!-- 侧栏 -->
     <template #sidebar>
       <ChatSidebar
+        v-if="!compact"
         :conversations="chat.conversations.value"
         :current-conversation-id="chat.currentConversation.value?.id"
         :current-title="chat.currentConversation.value?.title"
