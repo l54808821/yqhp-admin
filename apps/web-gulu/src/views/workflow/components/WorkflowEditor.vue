@@ -749,10 +749,11 @@ async function handlePublish() {
     await updateWorkflowStatusApi(workflow.value.id, 1);
     workflow.value.status = 1;
     message.success('发布成功');
-    router.push({
+    const resolved = router.resolve({
       name: 'AIWorkflowApp',
       params: { workflowId: String(workflow.value.id) },
     });
+    window.open(resolved.href, '_blank');
   } catch {
     message.error('发布失败');
   }

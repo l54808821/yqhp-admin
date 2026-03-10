@@ -35,16 +35,18 @@ const routes: RouteRecordRaw[] = [
           keepAlive: true,
         },
       },
-      {
-        name: 'AIWorkflowApp',
-        path: ':workflowId/app',
-        component: () => import('#/views/workflow/ai-app/index.vue'),
-        meta: {
-          hideInMenu: true,
-          title: 'AI 应用',
-        },
-      },
     ],
+  },
+  // AI 应用（全屏独立页面，新窗口打开）
+  {
+    meta: {
+      hideInMenu: true,
+      title: 'AI 应用',
+      noBasicLayout: true,
+    },
+    name: 'AIWorkflowApp',
+    path: '/project/:projectId/workflow/:workflowId/app',
+    component: () => import('#/views/workflow/ai-app/index.vue'),
   },
   // 执行历史
   {
