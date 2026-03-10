@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useMarkdown } from './composables/useMarkdown';
+import { useMermaid } from './composables/useMermaid';
 
 const props = defineProps<{
   content: string;
@@ -13,7 +14,11 @@ const renderedHtml = computed(() => renderMarkdown(props.content));
 
 const containerRef = ref<HTMLElement>();
 
+const { handleClick: handleMermaidClick, handleWheel: handleMermaidWheel } = useMermaid(containerRef, renderedHtml);
+
 function handleClick(e: MouseEvent) {
+  if (handleMermaidClick(e)) return;
+
   const btn = (e.target as HTMLElement).closest('.ai-code-copy') as HTMLElement | null;
   if (!btn) return;
 
@@ -49,7 +54,13 @@ function handleClick(e: MouseEvent) {
 </script>
 
 <template>
-  <div ref="containerRef" class="ai-markdown-body" v-html="renderedHtml" @click="handleClick" />
+  <div
+    ref="containerRef"
+    class="ai-markdown-body"
+    v-html="renderedHtml"
+    @click="handleClick"
+    @wheel="handleMermaidWheel"
+  />
   <span v-if="streaming" class="ai-typing-cursor">|</span>
 </template>
 
@@ -262,6 +273,153 @@ function handleClick(e: MouseEvent) {
 
 .ai-link:hover {
   text-decoration: underline;
+}
+
+/* Mermaid 图表块 */
+.ai-mermaid-block {
+  margin: 12px 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border) / 50%);
+  background: hsl(var(--background));
+  box-shadow: 0 1px 3px hsl(var(--foreground) / 4%);
+}
+
+.ai-mermaid-block--fullscreen {
+  border-radius: 0;
+  background: #fff;
+}
+
+.ai-mermaid-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px 4px 12px;
+  background: hsl(var(--accent) / 50%);
+  border-bottom: 1px solid hsl(var(--border) / 30%);
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ai-mermaid-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ai-mermaid-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.ai-mermaid-lang {
+  color: hsl(var(--muted-foreground));
+  text-transform: lowercase;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  margin-right: 4px;
+}
+
+.ai-mermaid-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+
+.ai-mermaid-tab:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--accent) / 60%);
+}
+
+.ai-mermaid-tab--active {
+  color: hsl(var(--foreground));
+  background: hsl(var(--background));
+  border-color: hsl(var(--border) / 50%);
+  box-shadow: 0 1px 2px hsl(var(--foreground) / 5%);
+}
+
+.ai-mermaid-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.ai-mermaid-btn:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--accent));
+}
+
+.ai-mermaid-btn:active {
+  transform: scale(0.92);
+}
+
+.ai-mermaid-btn--copied {
+  color: #52c41a;
+}
+
+.ai-mermaid-btn--copied:hover {
+  color: #52c41a;
+  background: #52c41a12;
+}
+
+.ai-mermaid-chart-container {
+  padding: 16px;
+  overflow: hidden;
+  cursor: grab;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100px;
+}
+
+.ai-mermaid-chart-container:active {
+  cursor: grabbing;
+}
+
+.ai-mermaid-chart-container svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.ai-mermaid-block--fullscreen .ai-mermaid-chart-container {
+  height: calc(100vh - 50px);
+  min-height: unset;
+}
+
+.ai-mermaid-source {
+  border-top: 1px solid hsl(var(--border) / 30%);
+}
+
+.ai-mermaid-source .ai-code-pre {
+  margin: 0;
+  border-radius: 0;
+}
+
+.ai-mermaid-error {
+  padding: 12px 16px;
+  color: #ff4d4f;
+  font-size: 13px;
+  text-align: center;
 }
 
 /* 打字光标 */

@@ -48,6 +48,7 @@
     "highlight.js": "^11.11.1",
     "lucide-vue-next": "catalog:",
     "marked": "^15.0.7",
+    "mermaid": "^11.13.0",
     "monaco-editor": "^0.50.0",
     "pinia": "catalog:",
     "sortablejs": "catalog:",
