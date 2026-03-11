@@ -416,7 +416,10 @@ onMounted(() => {
             class="modal-grid-item"
             @click="addTool(tool.name)"
           >
-            <span class="modal-grid-item-name">{{ tool.label }}</span>
+            <div class="modal-grid-item-header">
+              <span class="modal-grid-item-name">{{ tool.label }}</span>
+              <span class="modal-grid-item-code">{{ tool.name }}</span>
+            </div>
             <span class="modal-grid-item-desc">{{ tool.description }}</span>
           </div>
         </div>
@@ -616,6 +619,17 @@ onMounted(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.modal-grid-item-code {
+  font-size: 10px;
+  font-family: monospace;
+  color: hsl(var(--muted-foreground) / 70%);
+  background: hsl(var(--muted) / 50%);
+  padding: 0 4px;
+  border-radius: 3px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .modal-grid-item-desc {

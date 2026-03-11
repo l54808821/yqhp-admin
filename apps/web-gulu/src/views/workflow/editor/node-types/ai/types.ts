@@ -71,9 +71,7 @@ export const builtinTools: BuiltinTool[] = [
   // 交互
   { name: 'human_interaction', label: '人机交互', description: 'AI 主动请求用户确认、输入或选择', category: 'interaction' },
   // Skill 能力
-  { name: 'find_skills', label: '搜索 Skill', description: '搜索本地和远程技能市场中的 Skill，发现可用的专业能力', category: 'skill' },
-  { name: 'use_skill', label: '使用 Skill', description: '加载 Skill 的完整操作指令，按指令使用工具执行专业任务', category: 'skill' },
-  { name: 'install_skill', label: '安装 Skill', description: '从远程技能市场安装 Skill 到系统', category: 'skill' },
+  { name: 'find_skills', label: '搜索 Skill', description: '搜索并使用本地和远程技能市场中的 Skill（自动包含使用和安装能力）', category: 'skill' },
 ];
 
 export const toolCategoryLabels: Record<string, string> = {
