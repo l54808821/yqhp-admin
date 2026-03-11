@@ -56,7 +56,7 @@ function syncTreeSelection() {
   if (!ideLayoutRef.value || !categoryTreeRef.value) {
     return;
   }
-  if (categoryStore.categories.length === 0) {
+  if (!categoryStore.categories || categoryStore.categories.length === 0) {
     return;
   }
   
@@ -88,7 +88,7 @@ watch(
 
 // 监听分类数据加载完成后进行同步
 watch(
-  () => categoryStore.categories.length,
+  () => categoryStore.categories?.length ?? 0,
   (len) => {
     if (len > 0) {
       // 延迟执行确保所有组件已挂载
@@ -103,7 +103,7 @@ watch(
 watch(
   () => categoryTreeRef.value,
   (val) => {
-    if (val && categoryStore.categories.length > 0) {
+    if (val && categoryStore.categories?.length > 0) {
       nextTick(() => {
         setTimeout(syncTreeSelection, 50);
       });

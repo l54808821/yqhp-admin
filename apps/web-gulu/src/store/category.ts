@@ -33,7 +33,7 @@ export const useCategoryStore = defineStore('category', () => {
   async function loadCategories(projectId: number) {
     try {
       loading.value = true;
-      categories.value = await getCategoryTreeApi(projectId);
+      categories.value = (await getCategoryTreeApi(projectId)) ?? [];
     } finally {
       loading.value = false;
     }
