@@ -44,7 +44,7 @@ watch(
       <VariableTextarea
         v-model:value="localSystemPrompt"
         :rows="4"
-        placeholder="设置 AI 的基础角色和行为（Skill 能力在「工具」标签页配置）"
+        placeholder="设置 AI 的角色和专业领域（如「你是一个资深代码审查专家...」）。绑定的 Skill 摘要会自动注入此提示词"
         @blur="emit('update', { system_prompt: localSystemPrompt })"
       />
     </Form.Item>

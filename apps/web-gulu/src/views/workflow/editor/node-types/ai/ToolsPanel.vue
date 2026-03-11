@@ -192,6 +192,7 @@ function getToolCategoryColor(category: string): string {
     web: 'blue',
     code: 'purple',
     interaction: 'green',
+    skill: 'cyan',
   };
   return colorMap[category] || 'default';
 }
@@ -301,7 +302,7 @@ onMounted(() => {
       </Tooltip>
     </div>
     <div v-else class="tools-empty-hint">
-      暂未添加 Skill
+      可手动绑定 Skill，也可让 Agent 通过 find_skills 自动发现
     </div>
 
     <!-- MCP 服务器 -->

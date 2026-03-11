@@ -47,7 +47,7 @@ export interface BuiltinTool {
   name: string;
   label: string;
   description: string;
-  category: 'basic' | 'web' | 'code' | 'file' | 'interaction';
+  category: 'basic' | 'web' | 'code' | 'file' | 'interaction' | 'skill';
 }
 
 export const builtinTools: BuiltinTool[] = [
@@ -70,6 +70,10 @@ export const builtinTools: BuiltinTool[] = [
   { name: 'list_dir', label: '列出目录', description: '列出指定目录下的文件和子目录', category: 'file' },
   // 交互
   { name: 'human_interaction', label: '人机交互', description: 'AI 主动请求用户确认、输入或选择', category: 'interaction' },
+  // Skill 能力
+  { name: 'find_skills', label: '搜索 Skill', description: '搜索本地和远程技能市场中的 Skill，发现可用的专业能力', category: 'skill' },
+  { name: 'use_skill', label: '使用 Skill', description: '加载 Skill 的完整操作指令，按指令使用工具执行专业任务', category: 'skill' },
+  { name: 'install_skill', label: '安装 Skill', description: '从远程技能市场安装 Skill 到系统', category: 'skill' },
 ];
 
 export const toolCategoryLabels: Record<string, string> = {
@@ -78,6 +82,7 @@ export const toolCategoryLabels: Record<string, string> = {
   code: '代码执行',
   file: '文件操作',
   interaction: '交互工具',
+  skill: 'Skill 能力',
 };
 
 export function createDefaultAIConfig(): AIConfig {
