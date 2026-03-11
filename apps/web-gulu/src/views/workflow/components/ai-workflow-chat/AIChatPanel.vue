@@ -236,6 +236,7 @@ onUnmounted(() => {
         @new-conversation="chat.startNewConversation()"
         @switch-conversation="chat.switchConversation($event)"
         @delete-conversation="chat.deleteConversation($event)"
+        @rename-conversation="(id, title) => chat.renameConversation(id, title)"
       />
     </template>
 
@@ -260,6 +261,7 @@ onUnmounted(() => {
       @new-conversation="chat.startNewConversation()"
       @switch-conversation="chat.switchConversation($event)"
       @delete-conversation="chat.deleteConversation($event)"
+      @rename-conversation="(id, title) => chat.renameConversation(id, title)"
     />
 
     <!-- 对话内容 -->

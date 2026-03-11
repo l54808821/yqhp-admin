@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { Button, Dropdown, Tooltip, Popconfirm } from 'ant-design-vue';
+import { ref, nextTick } from 'vue';
+import { Button, Dropdown, Tooltip, Modal, Input } from 'ant-design-vue';
 import { createIconifyIcon } from '@vben/icons';
 
 import type { AIConversation } from '#/api/workflow';
 
 const PlusIcon = createIconifyIcon('lucide:plus');
 const TrashIcon = createIconifyIcon('lucide:trash-2');
+const PencilIcon = createIconifyIcon('lucide:pencil');
+const MoreHorizontalIcon = createIconifyIcon('lucide:ellipsis');
 const MessageCircle = createIconifyIcon('lucide:message-circle');
 const SparklesIcon = createIconifyIcon('lucide:sparkles');
 const PanelLeftClose = createIconifyIcon('lucide:panel-left-close');
@@ -23,8 +26,35 @@ const emit = defineEmits<{
   'new-conversation': [];
   'switch-conversation': [conv: AIConversation];
   'delete-conversation': [id: number];
+  'rename-conversation': [id: number, title: string];
   'update:collapsed': [value: boolean];
 }>();
+
+const renameModalVisible = ref(false);
+const renamingId = ref<number | null>(null);
+const renameText = ref('');
+const renameInputRef = ref<HTMLInputElement | null>(null);
+
+function startRename(conv: AIConversation) {
+  renamingId.value = conv.id;
+  renameText.value = conv.title || '';
+  renameModalVisible.value = true;
+  nextTick(() => {
+    renameInputRef.value?.focus();
+    renameInputRef.value?.select();
+  });
+}
+
+function confirmRename() {
+  if (renamingId.value == null) return;
+  const trimmed = renameText.value.trim();
+  if (trimmed) {
+    emit('rename-conversation', renamingId.value, trimmed);
+  }
+  renameModalVisible.value = false;
+  renamingId.value = null;
+  renameText.value = '';
+}
 </script>
 
 <template>
@@ -58,11 +88,25 @@ const emit = defineEmits<{
         >
           <MessageCircle class="conv-item-icon" />
           <span class="conv-item-title">{{ conv.title || '新的对话' }}</span>
-          <Popconfirm title="确定删除此对话？" @confirm.stop="emit('delete-conversation', conv.id)">
-            <button class="conv-item-delete" @click.stop>
-              <TrashIcon class="size-3" />
+          <Dropdown :trigger="['click']" placement="bottomLeft">
+            <button class="conv-item-more" size="small" @click.stop>
+              <MoreHorizontalIcon class="size-4" />
             </button>
-          </Popconfirm>
+            <template #overlay>
+              <div class="conv-item-menu">
+                <div class="conv-item-menu-option" @click.stop="startRename(conv)">
+                  <PencilIcon class="size-3.5" />
+                  <span>重命名</span>
+                </div>
+                <Popconfirm title="确定删除此对话？" @confirm.stop="emit('delete-conversation', conv.id)">
+                  <div class="conv-item-menu-option conv-item-menu-option--danger" @click.stop>
+                    <TrashIcon class="size-3.5" />
+                    <span>删除</span>
+                  </div>
+                </Popconfirm>
+              </div>
+            </template>
+          </Dropdown>
         </div>
         <div v-if="conversations.length === 0" class="conv-empty">暂无对话</div>
       </div>
@@ -102,11 +146,25 @@ const emit = defineEmits<{
                   @click="emit('switch-conversation', conv)"
                 >
                   <span class="conv-dropdown-item-title">{{ conv.title || '新的对话' }}</span>
-                  <Popconfirm title="确定删除？" @confirm.stop="emit('delete-conversation', conv.id)">
-                    <button class="conv-dropdown-item-delete" @click.stop>
-                      <TrashIcon class="size-3" />
+                  <Dropdown :trigger="['click']" placement="bottomLeft">
+                    <button class="conv-dropdown-item-more" @click.stop>
+                      <MoreHorizontalIcon class="size-4" />
                     </button>
-                  </Popconfirm>
+                    <template #overlay>
+                      <div class="conv-item-menu">
+                        <div class="conv-item-menu-option" @click.stop="startRename(conv)">
+                          <PencilIcon class="size-3.5" />
+                          <span>重命名</span>
+                        </div>
+                        <Popconfirm title="确定删除？" @confirm.stop="emit('delete-conversation', conv.id)">
+                          <div class="conv-item-menu-option conv-item-menu-option--danger" @click.stop>
+                            <TrashIcon class="size-3.5" />
+                            <span>删除</span>
+                          </div>
+                        </Popconfirm>
+                      </div>
+                    </template>
+                  </Dropdown>
                 </div>
                 <div v-if="conversations.length === 0" class="conv-dropdown-empty">暂无历史对话</div>
               </div>
@@ -121,6 +179,24 @@ const emit = defineEmits<{
       </Tooltip>
     </div>
   </div>
+
+  <!-- 重命名弹框 -->
+  <Modal
+    v-model:open="renameModalVisible"
+    title="重命名对话"
+    :width="360"
+    ok-text="确定"
+    cancel-text="取消"
+    @ok="confirmRename"
+  >
+    <Input
+      ref="renameInputRef"
+      v-model:value="renameText"
+      placeholder="请输入对话名称"
+      allow-clear
+      @pressEnter="confirmRename"
+    />
+  </Modal>
 </template>
 
 <style scoped>
@@ -240,26 +316,64 @@ const emit = defineEmits<{
   white-space: nowrap;
 }
 
-.conv-item-delete {
+.conv-item :deep(.ant-dropdown-trigger) {
+  cursor: pointer !important;
+}
+
+.conv-item-more {
   display: none;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   border: none;
   background: transparent;
   border-radius: 4px;
   color: hsl(var(--muted-foreground));
-  cursor: pointer;
+  cursor: pointer !important;
   flex-shrink: 0;
+  transition: all 0.2s;
 }
 
-.conv-item:hover .conv-item-delete {
+.conv-item:hover .conv-item-more {
   display: flex;
 }
 
-.conv-item-delete:hover {
+.conv-item-more:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--accent));
+}
+
+/* 更多操作下拉菜单 */
+.conv-item-menu {
+  min-width: 120px;
+  padding: 4px;
+  background: hsl(var(--background));
+  border-radius: 8px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.conv-item-menu-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: hsl(var(--foreground));
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.conv-item-menu-option:hover {
+  background: hsl(var(--accent));
+}
+
+.conv-item-menu-option--danger {
   color: #ff4d4f;
+}
+
+.conv-item-menu-option--danger:hover {
   background: #fff1f0;
 }
 
@@ -382,27 +496,32 @@ const emit = defineEmits<{
   flex: 1;
 }
 
-.conv-dropdown-item-delete {
+.conv-dropdown-item :deep(.ant-dropdown-trigger) {
+  cursor: pointer !important;
+}
+
+.conv-dropdown-item-more {
   display: none;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   border: none;
   background: transparent;
   border-radius: 4px;
   color: hsl(var(--muted-foreground));
-  cursor: pointer;
+  cursor: pointer !important;
   flex-shrink: 0;
+  transition: all 0.2s;
 }
 
-.conv-dropdown-item:hover .conv-dropdown-item-delete {
+.conv-dropdown-item:hover .conv-dropdown-item-more {
   display: flex;
 }
 
-.conv-dropdown-item-delete:hover {
-  color: #ff4d4f;
-  background: #fff1f0;
+.conv-dropdown-item-more:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--accent));
 }
 
 .conv-dropdown-empty {
