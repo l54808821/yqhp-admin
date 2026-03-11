@@ -328,7 +328,7 @@ function handleDelete(convId: number) {
 }
 
 .conv-item-more {
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: center;
   width: 22px;
@@ -340,10 +340,11 @@ function handleDelete(convId: number) {
   cursor: pointer !important;
   flex-shrink: 0;
   transition: all 0.2s;
+  visibility: hidden;
 }
 
 .conv-item:hover .conv-item-more {
-  display: flex;
+  visibility: visible;
 }
 
 .conv-item-more:hover {
@@ -508,7 +509,7 @@ function handleDelete(convId: number) {
 }
 
 .conv-dropdown-item-more {
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: center;
   width: 20px;
@@ -520,10 +521,11 @@ function handleDelete(convId: number) {
   cursor: pointer !important;
   flex-shrink: 0;
   transition: all 0.2s;
+  visibility: hidden;
 }
 
 .conv-dropdown-item:hover .conv-dropdown-item-more {
-  display: flex;
+  visibility: visible;
 }
 
 .conv-dropdown-item-more:hover {
