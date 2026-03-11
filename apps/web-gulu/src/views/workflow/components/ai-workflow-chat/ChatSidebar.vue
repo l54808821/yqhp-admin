@@ -55,6 +55,17 @@ function confirmRename() {
   renamingId.value = null;
   renameText.value = '';
 }
+
+function handleDelete(convId: number) {
+  Modal.confirm({
+    title: '确定删除此对话？',
+    content: '删除后不可恢复',
+    okText: '删除',
+    okType: 'danger',
+    cancelText: '取消',
+    onOk: () => emit('delete-conversation', convId),
+  });
+}
 </script>
 
 <template>
@@ -98,12 +109,10 @@ function confirmRename() {
                   <PencilIcon class="size-3.5" />
                   <span>重命名</span>
                 </div>
-                <Popconfirm title="确定删除此对话？" @confirm.stop="emit('delete-conversation', conv.id)">
-                  <div class="conv-item-menu-option conv-item-menu-option--danger" @click.stop>
-                    <TrashIcon class="size-3.5" />
-                    <span>删除</span>
-                  </div>
-                </Popconfirm>
+                <div class="conv-item-menu-option conv-item-menu-option--danger" @click.stop="handleDelete(conv.id)">
+                  <TrashIcon class="size-3.5" />
+                  <span>删除</span>
+                </div>
               </div>
             </template>
           </Dropdown>
@@ -156,12 +165,10 @@ function confirmRename() {
                           <PencilIcon class="size-3.5" />
                           <span>重命名</span>
                         </div>
-                        <Popconfirm title="确定删除？" @confirm.stop="emit('delete-conversation', conv.id)">
-                          <div class="conv-item-menu-option conv-item-menu-option--danger" @click.stop>
-                            <TrashIcon class="size-3.5" />
-                            <span>删除</span>
-                          </div>
-                        </Popconfirm>
+                        <div class="conv-item-menu-option conv-item-menu-option--danger" @click.stop="handleDelete(conv.id)">
+                          <TrashIcon class="size-3.5" />
+                          <span>删除</span>
+                        </div>
                       </div>
                     </template>
                   </Dropdown>
