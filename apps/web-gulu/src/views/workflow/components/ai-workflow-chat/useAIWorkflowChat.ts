@@ -875,18 +875,24 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
     const convId = currentConversation.value.id;
 
     try {
-      await saveConversationMessageApi(convId, {
+      const savedUser = await saveConversationMessageApi(convId, {
         role: 'user',
         content: serializeBlocks(userMsg.blocks),
       });
+      if (savedUser?.id) {
+        userMsg.id = `db_${savedUser.id}`;
+      }
 
       const assistantContent = serializeBlocks(assistantMsg.blocks);
       if (assistantContent?.trim()) {
-        await saveConversationMessageApi(convId, {
+        const savedAssistant = await saveConversationMessageApi(convId, {
           role: 'assistant',
           content: assistantContent,
           metadata: assistantMsg.metadata,
         });
+        if (savedAssistant?.id) {
+          assistantMsg.id = `db_${savedAssistant.id}`;
+        }
       }
 
       if (
