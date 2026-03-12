@@ -157,7 +157,7 @@ defineExpose({ open });
         <Upload.Dragger
           :showUploadList="false"
           :beforeUpload="() => false"
-          accept=".pdf,.txt,.md,.docx,.doc,.html,.csv,.json"
+          accept=".pdf,.txt,.md,.docx,.doc,.html,.csv,.json,.xlsx,.xls"
           @change="handleUpload"
         >
           <Spin :spinning="uploadLoading">
@@ -165,7 +165,7 @@ defineExpose({ open });
               <UploadIcon :size="40" class="upload-icon" />
               <p class="upload-title">拖放文件到此处，或点击上传</p>
               <p class="upload-hint">
-                支持 PDF、TXT、Markdown、Word、HTML、CSV、JSON 格式
+                支持 PDF、TXT、Markdown、Word、HTML、CSV、JSON、Excel 格式
               </p>
             </div>
           </Spin>
