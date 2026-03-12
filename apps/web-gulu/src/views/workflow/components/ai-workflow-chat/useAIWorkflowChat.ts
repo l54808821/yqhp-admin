@@ -374,6 +374,7 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
             steps: wfDef.steps || [],
             variables: wfDef.variables || {},
             params: wfParams,
+            executorConfig: wfDef.executorConfig || undefined,
           },
           stream: true,
           mode: 'debug',
@@ -391,6 +392,22 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
       if (!response.ok) {
         const errText = await response.text();
         throw new Error(`执行失败 (${response.status}): ${errText}`);
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('text/event-stream')) {
+        const text = await response.text();
+        try {
+          const json = JSON.parse(text);
+          if (json.code !== 0 && json.message) {
+            throw new Error(json.message);
+          }
+        } catch (e) {
+          if (e instanceof SyntaxError) {
+            throw new Error(`unexpected response: ${text.slice(0, 200)}`);
+          }
+          throw e;
+        }
       }
 
       const reader = response.body?.getReader();
@@ -548,6 +565,7 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
             steps: wfDef.steps || [],
             variables: wfDef.variables || {},
             params: wfParams,
+            executorConfig: wfDef.executorConfig || undefined,
           },
           stream: true,
           mode: 'debug',
@@ -565,6 +583,22 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
       if (!response.ok) {
         const errText = await response.text();
         throw new Error(`执行失败 (${response.status}): ${errText}`);
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('text/event-stream')) {
+        const text = await response.text();
+        try {
+          const json = JSON.parse(text);
+          if (json.code !== 0 && json.message) {
+            throw new Error(json.message);
+          }
+        } catch (e) {
+          if (e instanceof SyntaxError) {
+            throw new Error(`unexpected response: ${text.slice(0, 200)}`);
+          }
+          throw e;
+        }
       }
 
       const reader = response.body?.getReader();
@@ -738,6 +772,7 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
             steps: wfDef.steps || [],
             variables: wfDef.variables || {},
             params: wfParams,
+            executorConfig: wfDef.executorConfig || undefined,
           },
           stream: true,
           mode: 'debug',
@@ -755,6 +790,22 @@ export function useAIWorkflowChat(options: UseAIWorkflowChatOptions) {
       if (!response.ok) {
         const errText = await response.text();
         throw new Error(`执行失败 (${response.status}): ${errText}`);
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('text/event-stream')) {
+        const text = await response.text();
+        try {
+          const json = JSON.parse(text);
+          if (json.code !== 0 && json.message) {
+            throw new Error(json.message);
+          }
+        } catch (e) {
+          if (e instanceof SyntaxError) {
+            throw new Error(`unexpected response: ${text.slice(0, 200)}`);
+          }
+          throw e;
+        }
       }
 
       const reader = response.body?.getReader();
