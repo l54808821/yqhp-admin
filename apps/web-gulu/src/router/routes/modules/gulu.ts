@@ -135,6 +135,7 @@ const routes: RouteRecordRaw[] = [
         name: 'SettingsIndex',
         path: '',
         component: () => import('#/views/settings/index.vue'),
+        redirect: { name: 'SettingsExecutor' },
         meta: {
           hideInMenu: true,
           title: '设置',

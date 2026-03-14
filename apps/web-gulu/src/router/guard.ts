@@ -23,6 +23,14 @@ function setupCommonGuard(router: Router) {
   router.beforeEach((to) => {
     to.meta.loaded = loadedPaths.has(to.path);
 
+    // 设置子路由高亮：让主菜单「设置」保持激活状态
+    if (to.matched.some((r) => r.name === 'Settings') && to.name !== 'Settings') {
+      const projectId = to.params.projectId;
+      if (projectId) {
+        to.meta.activePath = `/project/${projectId}/settings`;
+      }
+    }
+
     // 页面加载进度条
     if (!to.meta.loaded && preferences.transition.progress) {
       startProgress();
