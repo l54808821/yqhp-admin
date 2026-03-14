@@ -183,7 +183,7 @@ async function handleModelStatusChange(id: number, checked: boolean) {
 
 function handleChat(model: AiModel) {
   const projectId = route.params.projectId;
-  router.push(`/project/${projectId}/ai-model/${model.id}/chat`);
+  router.push(`/project/${projectId}/settings/ai-model/${model.id}/chat`);
 }
 
 function handleFormSuccess() {

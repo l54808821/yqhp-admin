@@ -44,7 +44,7 @@ async function loadModel() {
 
 function goBack() {
   const projectId = route.params.projectId;
-  router.push(`/project/${projectId}/ai-model`);
+  router.push(`/project/${projectId}/settings/ai-model`);
 }
 
 onMounted(() => {

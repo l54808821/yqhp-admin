@@ -88,90 +88,6 @@ const routes: RouteRecordRaw[] = [
       },
     ],
   },
-  // 执行机管理
-  {
-    meta: {
-      icon: 'lucide:server',
-      order: 30,
-      title: '执行机',
-    },
-    name: 'ExecutorManagement',
-    path: '/project/:projectId/executor',
-    component: BasicLayout,
-    children: [
-      {
-        name: 'ExecutorIndex',
-        path: '',
-        component: () => import('#/views/executor/index.vue'),
-        meta: {
-          hideInMenu: true,
-          title: '执行机',
-        },
-      },
-    ],
-  },
-  // AI 模型管理
-  {
-    meta: {
-      icon: 'lucide:brain',
-      order: 40,
-      title: '模型管理',
-    },
-    name: 'AiModelManagement',
-    path: '/project/:projectId/ai-model',
-    component: BasicLayout,
-    children: [
-      {
-        name: 'AiModelIndex',
-        path: '',
-        component: () => import('#/views/ai-model/index.vue'),
-        meta: {
-          hideInMenu: true,
-          title: '模型管理',
-        },
-      },
-      {
-        name: 'AiModelChat',
-        path: ':modelId/chat',
-        component: () => import('#/views/ai-model/chat.vue'),
-        meta: {
-          hideInMenu: true,
-          title: '在线体验',
-        },
-      },
-    ],
-  },
-  // Skill 管理
-  {
-    meta: {
-      icon: 'lucide:sparkles',
-      order: 46,
-      title: 'Skill',
-    },
-    name: 'SkillManagement',
-    path: '/project/:projectId/skill',
-    component: BasicLayout,
-    children: [
-      {
-        name: 'SkillIndex',
-        path: '',
-        component: () => import('#/views/skill/index.vue'),
-        meta: {
-          hideInMenu: true,
-          title: 'Skill',
-        },
-      },
-      {
-        name: 'SkillDetail',
-        path: ':skillId',
-        component: () => import('#/views/skill/detail.vue'),
-        meta: {
-          hideInMenu: true,
-          title: 'Skill详情',
-        },
-      },
-    ],
-  },
   // 知识库管理
   {
     meta: {
@@ -203,25 +119,82 @@ const routes: RouteRecordRaw[] = [
       },
     ],
   },
-  // MCP 服务器管理
+  // 设置（包含执行机、模型管理、MCP、Skill）
   {
     meta: {
-      icon: 'lucide:plug',
-      order: 45,
-      title: 'MCP',
+      icon: 'lucide:settings',
+      order: 90,
+      title: '设置',
     },
-    name: 'McpServerManagement',
-    path: '/project/:projectId/mcp-server',
+    name: 'Settings',
+    path: '/project/:projectId/settings',
     component: BasicLayout,
+    redirect: { name: 'SettingsExecutor' },
     children: [
       {
-        name: 'McpServerIndex',
+        name: 'SettingsIndex',
         path: '',
-        component: () => import('#/views/mcp-server/index.vue'),
+        component: () => import('#/views/settings/index.vue'),
         meta: {
           hideInMenu: true,
-          title: 'MCP',
+          title: '设置',
         },
+        children: [
+          {
+            name: 'SettingsExecutor',
+            path: 'executor',
+            component: () => import('#/views/executor/index.vue'),
+            meta: {
+              hideInMenu: true,
+              title: '执行机',
+            },
+          },
+          {
+            name: 'SettingsAiModel',
+            path: 'ai-model',
+            component: () => import('#/views/ai-model/index.vue'),
+            meta: {
+              hideInMenu: true,
+              title: '模型管理',
+            },
+          },
+          {
+            name: 'SettingsAiModelChat',
+            path: 'ai-model/:modelId/chat',
+            component: () => import('#/views/ai-model/chat.vue'),
+            meta: {
+              hideInMenu: true,
+              title: '在线体验',
+            },
+          },
+          {
+            name: 'SettingsMcp',
+            path: 'mcp',
+            component: () => import('#/views/mcp-server/index.vue'),
+            meta: {
+              hideInMenu: true,
+              title: 'MCP',
+            },
+          },
+          {
+            name: 'SettingsSkill',
+            path: 'skill',
+            component: () => import('#/views/skill/index.vue'),
+            meta: {
+              hideInMenu: true,
+              title: 'Skill',
+            },
+          },
+          {
+            name: 'SettingsSkillDetail',
+            path: 'skill/:skillId',
+            component: () => import('#/views/skill/detail.vue'),
+            meta: {
+              hideInMenu: true,
+              title: 'Skill详情',
+            },
+          },
+        ],
       },
     ],
   },

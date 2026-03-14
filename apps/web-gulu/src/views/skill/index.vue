@@ -112,7 +112,7 @@ function handleAdd() {
 // 查看详情
 function handleView(record: Skill) {
   const projectId = route.params.projectId;
-  router.push(`/project/${projectId}/skill/${record.id}`);
+  router.push(`/project/${projectId}/settings/skill/${record.id}`);
 }
 
 // 编辑
