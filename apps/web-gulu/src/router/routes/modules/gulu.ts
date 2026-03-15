@@ -132,69 +132,58 @@ const routes: RouteRecordRaw[] = [
     redirect: { name: 'SettingsExecutor' },
     children: [
       {
-        name: 'SettingsIndex',
-        path: '',
-        component: () => import('#/views/settings/index.vue'),
+        name: 'SettingsExecutor',
+        path: 'executor',
+        component: () => import('#/views/executor/index.vue'),
+        meta: {
+          icon: 'lucide:server',
+          title: '执行机',
+        },
+      },
+      {
+        name: 'SettingsAiModel',
+        path: 'ai-model',
+        component: () => import('#/views/ai-model/index.vue'),
+        meta: {
+          icon: 'lucide:brain',
+          title: '模型管理',
+        },
+      },
+      {
+        name: 'SettingsAiModelChat',
+        path: 'ai-model/:modelId/chat',
+        component: () => import('#/views/ai-model/chat.vue'),
         meta: {
           hideInMenu: true,
-          title: '设置',
+          title: '在线体验',
         },
-        children: [
-          {
-            name: 'SettingsExecutor',
-            path: 'executor',
-            component: () => import('#/views/executor/index.vue'),
-            meta: {
-              hideInMenu: true,
-              title: '执行机',
-            },
-          },
-          {
-            name: 'SettingsAiModel',
-            path: 'ai-model',
-            component: () => import('#/views/ai-model/index.vue'),
-            meta: {
-              hideInMenu: true,
-              title: '模型管理',
-            },
-          },
-          {
-            name: 'SettingsAiModelChat',
-            path: 'ai-model/:modelId/chat',
-            component: () => import('#/views/ai-model/chat.vue'),
-            meta: {
-              hideInMenu: true,
-              title: '在线体验',
-            },
-          },
-          {
-            name: 'SettingsMcp',
-            path: 'mcp',
-            component: () => import('#/views/mcp-server/index.vue'),
-            meta: {
-              hideInMenu: true,
-              title: 'MCP',
-            },
-          },
-          {
-            name: 'SettingsSkill',
-            path: 'skill',
-            component: () => import('#/views/skill/index.vue'),
-            meta: {
-              hideInMenu: true,
-              title: 'Skill',
-            },
-          },
-          {
-            name: 'SettingsSkillDetail',
-            path: 'skill/:skillId',
-            component: () => import('#/views/skill/detail.vue'),
-            meta: {
-              hideInMenu: true,
-              title: 'Skill详情',
-            },
-          },
-        ],
+      },
+      {
+        name: 'SettingsMcp',
+        path: 'mcp',
+        component: () => import('#/views/mcp-server/index.vue'),
+        meta: {
+          icon: 'lucide:plug',
+          title: 'MCP',
+        },
+      },
+      {
+        name: 'SettingsSkill',
+        path: 'skill',
+        component: () => import('#/views/skill/index.vue'),
+        meta: {
+          icon: 'lucide:sparkles',
+          title: 'Skill',
+        },
+      },
+      {
+        name: 'SettingsSkillDetail',
+        path: 'skill/:skillId',
+        component: () => import('#/views/skill/detail.vue'),
+        meta: {
+          hideInMenu: true,
+          title: 'Skill详情',
+        },
       },
     ],
   },
